@@ -6,7 +6,7 @@ calls with `ansible.builtin.uri`.
 
 | Collection | Manages | Status |
 |---|---|---|
-| [`ramanavelineni.semaphoreui`](ansible_collections/ramanavelineni/semaphoreui/) | Semaphore UI | in development, no modules yet |
+| [`ramanavelineni.semaphoreui`](ansible_collections/ramanavelineni/semaphoreui/) | Semaphore UI | in development: `info`, `project`, `project_info` |
 | `ramanavelineni.harbor` | Harbor | planned |
 
 The design, the module lists and the order of work are in [PLAN.md](PLAN.md).
@@ -32,6 +32,12 @@ make sanity COLLECTION=harbor   # target another collection
 
 `ANSIBLE_TEST_FLAGS=--venv` runs the tests in virtual environments instead of
 containers.
+
+Unit tests run the modules against responses recorded from real servers,
+stored under `tests/unit/plugins/fixtures/<major.minor>.json` in each
+collection. To re-record them (for a new tested version, or a new module),
+start a throwaway server of that version and run the recorder; see the
+docstring in `tools/record_semaphoreui_fixtures.py`.
 
 Every change that affects users adds a changelog fragment under
 `ansible_collections/ramanavelineni/<collection>/changelogs/fragments/`.
