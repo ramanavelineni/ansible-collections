@@ -1,0 +1,189 @@
+{
+  "recorded_from": "v2.18.30-9dcfe85-1788086332",
+  "responses": {
+    "user_create": {
+      "body": {
+        "admin": false,
+        "alert": false,
+        "created": "2026-09-27T19:33:38Z",
+        "email": "us-fixture-66417@example.com",
+        "external": false,
+        "id": 10,
+        "name": "Fixture",
+        "pro": false,
+        "username": "us-fixture-66417"
+      },
+      "status": 201
+    },
+    "user_create_duplicate_email": {
+      "body": null,
+      "status": 400
+    },
+    "user_create_external": {
+      "body": {
+        "admin": false,
+        "alert": false,
+        "created": "2026-09-27T19:33:38Z",
+        "email": "us-fixture-ext-66417@example.com",
+        "external": true,
+        "id": 11,
+        "name": "External",
+        "pro": false,
+        "username": "us-fixture-ext-66417"
+      },
+      "status": 201
+    },
+    "user_delete": {
+      "body": null,
+      "status": 204
+    },
+    "user_list": {
+      "body": [
+        {
+          "admin": true,
+          "alert": false,
+          "created": "2026-09-27T17:32:19Z",
+          "email": "admin@localhost",
+          "external": false,
+          "id": 1,
+          "name": "Admin",
+          "pro": false,
+          "username": "admin"
+        },
+        {
+          "admin": true,
+          "alert": true,
+          "created": "2026-09-27T19:30:21Z",
+          "email": "ops@example.com",
+          "external": false,
+          "id": 4,
+          "name": "Ops Team",
+          "pro": false,
+          "username": "us-ops"
+        },
+        {
+          "admin": true,
+          "alert": true,
+          "created": "2026-09-27T19:32:42Z",
+          "email": "ops-7245@example.com",
+          "external": false,
+          "id": 8,
+          "name": "Ops Team",
+          "pro": false,
+          "username": "us-ops-7245"
+        },
+        {
+          "admin": false,
+          "alert": false,
+          "created": "2026-09-27T19:33:38Z",
+          "email": "us-fixture-66417@example.com",
+          "external": false,
+          "id": 10,
+          "name": "Fixture",
+          "pro": false,
+          "username": "us-fixture-66417"
+        },
+        {
+          "admin": false,
+          "alert": false,
+          "created": "2026-09-27T19:33:38Z",
+          "email": "us-fixture-ext-66417@example.com",
+          "external": true,
+          "id": 11,
+          "name": "External",
+          "pro": false,
+          "username": "us-fixture-ext-66417"
+        }
+      ],
+      "status": 200
+    },
+    "user_list_updated": {
+      "body": [
+        {
+          "admin": true,
+          "alert": false,
+          "created": "2026-09-27T17:32:19Z",
+          "email": "admin@localhost",
+          "external": false,
+          "id": 1,
+          "name": "Admin",
+          "pro": false,
+          "username": "admin"
+        },
+        {
+          "admin": true,
+          "alert": true,
+          "created": "2026-09-27T19:30:21Z",
+          "email": "ops@example.com",
+          "external": false,
+          "id": 4,
+          "name": "Ops Team",
+          "pro": false,
+          "username": "us-ops"
+        },
+        {
+          "admin": true,
+          "alert": true,
+          "created": "2026-09-27T19:32:42Z",
+          "email": "ops-7245@example.com",
+          "external": false,
+          "id": 8,
+          "name": "Ops Team",
+          "pro": false,
+          "username": "us-ops-7245"
+        },
+        {
+          "admin": false,
+          "alert": true,
+          "created": "2026-09-27T19:33:38Z",
+          "email": "us-fixture-66417@example.com",
+          "external": false,
+          "id": 10,
+          "name": "Fixture Team",
+          "pro": false,
+          "username": "us-fixture-66417"
+        },
+        {
+          "admin": false,
+          "alert": false,
+          "created": "2026-09-27T19:33:38Z",
+          "email": "us-fixture-ext-66417@example.com",
+          "external": true,
+          "id": 11,
+          "name": "External",
+          "pro": false,
+          "username": "us-fixture-ext-66417"
+        }
+      ],
+      "status": 200
+    },
+    "user_me": {
+      "body": {
+        "admin": true,
+        "alert": false,
+        "can_create_project": true,
+        "created": "2026-09-27T17:32:19Z",
+        "email": "admin@localhost",
+        "external": false,
+        "has_active_subscription": false,
+        "id": 1,
+        "name": "Admin",
+        "pro": false,
+        "username": "admin"
+      },
+      "status": 200
+    },
+    "user_password": {
+      "body": null,
+      "status": 204
+    },
+    "user_password_external": {
+      "body": null,
+      "status": 400
+    },
+    "user_update": {
+      "body": null,
+      "status": 204
+    }
+  }
+}

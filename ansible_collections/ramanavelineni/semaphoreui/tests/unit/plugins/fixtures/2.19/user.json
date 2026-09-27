@@ -1,0 +1,145 @@
+{
+  "recorded_from": "v2.19.12-012ed06-1788086368",
+  "responses": {
+    "user_create": {
+      "body": {
+        "admin": false,
+        "alert": false,
+        "created": "2026-09-27T19:33:36Z",
+        "email": "us-fixture-66400@example.com",
+        "external": false,
+        "id": 20,
+        "name": "Fixture",
+        "pro": false,
+        "username": "us-fixture-66400"
+      },
+      "status": 201
+    },
+    "user_create_duplicate_email": {
+      "body": null,
+      "status": 400
+    },
+    "user_create_external": {
+      "body": {
+        "admin": false,
+        "alert": false,
+        "created": "2026-09-27T19:33:36Z",
+        "email": "us-fixture-ext-66400@example.com",
+        "external": true,
+        "id": 21,
+        "name": "External",
+        "pro": false,
+        "username": "us-fixture-ext-66400"
+      },
+      "status": 201
+    },
+    "user_delete": {
+      "body": null,
+      "status": 204
+    },
+    "user_list": {
+      "body": [
+        {
+          "admin": true,
+          "alert": false,
+          "created": "2026-09-27T17:32:06Z",
+          "email": "admin@localhost",
+          "external": false,
+          "id": 1,
+          "name": "Admin",
+          "pro": false,
+          "username": "admin"
+        },
+        {
+          "admin": false,
+          "alert": false,
+          "created": "2026-09-27T19:33:36Z",
+          "email": "us-fixture-66400@example.com",
+          "external": false,
+          "id": 20,
+          "name": "Fixture",
+          "pro": false,
+          "username": "us-fixture-66400"
+        },
+        {
+          "admin": false,
+          "alert": false,
+          "created": "2026-09-27T19:33:36Z",
+          "email": "us-fixture-ext-66400@example.com",
+          "external": true,
+          "id": 21,
+          "name": "External",
+          "pro": false,
+          "username": "us-fixture-ext-66400"
+        }
+      ],
+      "status": 200
+    },
+    "user_list_updated": {
+      "body": [
+        {
+          "admin": true,
+          "alert": false,
+          "created": "2026-09-27T17:32:06Z",
+          "email": "admin@localhost",
+          "external": false,
+          "id": 1,
+          "name": "Admin",
+          "pro": false,
+          "username": "admin"
+        },
+        {
+          "admin": false,
+          "alert": true,
+          "created": "2026-09-27T19:33:36Z",
+          "email": "us-fixture-66400@example.com",
+          "external": false,
+          "id": 20,
+          "name": "Fixture Team",
+          "pro": false,
+          "username": "us-fixture-66400"
+        },
+        {
+          "admin": false,
+          "alert": false,
+          "created": "2026-09-27T19:33:36Z",
+          "email": "us-fixture-ext-66400@example.com",
+          "external": true,
+          "id": 21,
+          "name": "External",
+          "pro": false,
+          "username": "us-fixture-ext-66400"
+        }
+      ],
+      "status": 200
+    },
+    "user_me": {
+      "body": {
+        "admin": true,
+        "alert": false,
+        "can_create_project": true,
+        "created": "2026-09-27T17:32:06Z",
+        "email": "admin@localhost",
+        "external": false,
+        "has_active_subscription": false,
+        "id": 1,
+        "name": "Admin",
+        "pro": false,
+        "username": "admin"
+      },
+      "status": 200
+    },
+    "user_password": {
+      "body": null,
+      "status": 204
+    },
+    "user_password_external": {
+      "body": null,
+      "status": 400
+    },
+    "user_update": {
+      "body": null,
+      "status": 204
+    }
+  }
+}
