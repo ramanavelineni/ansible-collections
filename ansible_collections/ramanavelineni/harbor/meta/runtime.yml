@@ -1,0 +1,14 @@
+---
+requires_ansible: ">=2.18.0"
+
+# Lets playbooks set the connection options once:
+#   module_defaults:
+#     group/ramanavelineni.harbor.harbor:
+#       url: https://harbor.example.com
+#       username: admin
+#       password: "{{ harbor_admin_password }}"
+action_groups:
+  harbor:
+    - info
+    - project
+    - project_info
