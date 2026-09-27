@@ -22,6 +22,10 @@ what you declare.
 | `replication_info` | lists replication rules (read-only) |
 | `webhook` | a project's webhooks: events, endpoint, auth header, payload format |
 | `webhook_info` | lists a project's webhooks, without their auth headers (read-only) |
+| `tag_retention` | a project's tag retention policy: rules and schedule (never starts a run) |
+| `tag_retention_info` | reads a project's tag retention policy (read-only) |
+| `tag_immutability` | one tag immutability rule of a project, identified by its patterns; enable, disable, delete |
+| `tag_immutability_info` | lists a project's tag immutability rules (read-only) |
 
 Every module looks objects up by name, changes only what differs from the
 options you set, and supports check mode. `ansible-doc ramanavelineni.harbor.<module>`
