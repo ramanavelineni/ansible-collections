@@ -24,6 +24,14 @@ TESTED_VERSIONS = ('2.14', '2.15')
 # to answer. Anything else is the server's real answer.
 RETRY_STATUSES = (502, 503, 504)
 
+# Harbor locks a username for 1.5 s after a failed login (frozenTime in
+# src/core/auth/authenticator.go, 2.14 and 2.15). A request for that user
+# during the lock, even with the right password, is handled as anonymous:
+# endpoints that need a login answer 401, /systeminfo leaves out
+# harbor_version. It happens when another client fails to log in as the same
+# user at the same moment, so one retry after the lock has passed is enough.
+LOGIN_LOCK_WAIT = 2
+
 # Harbor pages every list; 100 is the most a page may hold.
 PAGE_SIZE = 100
 
@@ -133,7 +141,10 @@ class HarborClient(object):
             send_headers['Content-Type'] = 'application/json'
 
         attempts = 1 + (self.retries if retry else 0)
-        for attempt in range(1, attempts + 1):
+        attempt = 0
+        waited_for_lock = False
+        while True:
+            attempt += 1
             try:
                 response = open_url(
                     url,
@@ -155,6 +166,14 @@ class HarborClient(object):
                     raw = to_text(e.read(), errors='surrogate_or_strict')
                 except Exception:
                     raw = ''
+                if e.code == 401 and not waited_for_lock:
+                    # A 401 is answered before the request is handled, so
+                    # even a create can be sent again. Doesn't use up an
+                    # attempt.
+                    waited_for_lock = True
+                    attempt -= 1
+                    time.sleep(LOGIN_LOCK_WAIT)
+                    continue
                 if e.code in RETRY_STATUSES and attempt < attempts:
                     time.sleep(self.retry_delay)
                     continue
@@ -205,11 +224,19 @@ class HarborClient(object):
         the request anonymously instead (/systeminfo answers 200, /projects
         lists only public projects). Only an authenticated /systeminfo
         carries harbor_version, so its absence means the login failed.
+
+        Harbor answers the same way for a moment after another client failed
+        to log in as this user (see LOGIN_LOCK_WAIT), so it asks once more
+        before giving up.
         """
+        if 'harbor_version' not in self.info():
+            time.sleep(LOGIN_LOCK_WAIT)
+            self._info = None
         if 'harbor_version' not in self.info():
             raise ValueError(
                 'Harbor did not accept the credentials for %r at %s: it answered as for an anonymous '
-                'user. Check username and password.' % (self.module.params['username'], self.url))
+                'user, also when asked again %d seconds later. Check username and password.'
+                % (self.module.params['username'], self.url, LOGIN_LOCK_WAIT))
 
     def warn_if_untested(self):
         version = self.info().get('harbor_version', '')
