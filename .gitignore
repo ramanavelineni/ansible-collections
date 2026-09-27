@@ -1,5 +1,5 @@
 # ansible-test output and caches
-tests/output/
+**/tests/output/
 __pycache__/
 *.py[cod]
 .pytest_cache/

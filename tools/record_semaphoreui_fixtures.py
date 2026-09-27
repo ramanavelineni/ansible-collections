@@ -13,13 +13,22 @@ per tested version, for example with podman:
         -e SEMAPHORE_ADMIN_EMAIL=admin@localhost \\
         docker.io/semaphoreui/semaphore:v2.19.12
 
-    SEMAPHORE_PASSWORD=<password> tools/record_semaphoreui_fixtures.py http://127.0.0.1:3019
+    SEMAPHORE_PASSWORD=<password> tools/record_semaphoreui_fixtures.py http://127.0.0.1:3019 [AREA ...]
 
-The output goes to
-ansible_collections/ramanavelineni/semaphoreui/tests/unit/plugins/fixtures/<major.minor>.json,
+Responses are recorded per area (see AREAS at the bottom) and written to
+ansible_collections/ramanavelineni/semaphoreui/tests/unit/plugins/fixtures/<major.minor>/<area>.json,
 one response per scenario, with the status and body exactly as the server
-sent them. Nothing secret is written: the server is throwaway and no
-response carries a password or token.
+sent them. Without AREA arguments every area is recorded. The unit tests
+load all area files of a version as one set, so response names must be
+unique across areas.
+
+The "core" area must run on a server with no projects: it records empty
+lists. Every other area has to work next to other projects, so areas can be
+recorded one at a time or by several people at once: create what the area
+needs in a project of its own (named "fixtures-<area>"), and delete it again.
+
+Nothing secret is written: the server is throwaway and no response carries a
+password or token.
 """
 
 import json
@@ -70,24 +79,13 @@ def expect(result, status, what):
     return result
 
 
-def main():
-    if len(sys.argv) != 2:
-        sys.exit('usage: %s <server url>' % sys.argv[0])
-    password = os.environ.get('SEMAPHORE_PASSWORD')
-    if not password:
-        sys.exit('set SEMAPHORE_PASSWORD to the admin password')
-    username = os.environ.get('SEMAPHORE_USERNAME', 'admin')
-    srv = Server(sys.argv[1])
-    out = {}
+def record_core(srv, out):
+    """Info, apps, login, projects and everything inside a project.
 
-    out['login_bad_password'] = expect(srv.call('POST', '/auth/login', {'auth': username, 'password': 'wrong'}), 401, 'bad login')
-    out['login'] = expect(srv.call('POST', '/auth/login', {'auth': username, 'password': password}), 204, 'login')
-
+    Needs a server without projects, because it records empty lists.
+    """
     out['info'] = expect(srv.call('GET', '/info'), 200, 'info')
-    version = out['info']['body']['version']
-    minor = re.match(r'^v?(\d+\.\d+)', version).group(1)
     out['apps'] = expect(srv.call('GET', '/apps'), 200, 'apps')
-
     existing = expect(srv.call('GET', '/projects'), 200, 'projects')['body'] or []
     if existing:
         sys.exit('The server already has projects (%s); use a fresh throwaway server.'
@@ -282,13 +280,46 @@ def main():
 
     out['project_delete'] = expect(srv.call('DELETE', '/project/%d' % pid), 204, 'delete project')
     out['logout'] = expect(srv.call('POST', '/auth/logout'), 204, 'logout')
+    # Log in again, so areas recorded after this one keep a session.
+    expect(srv.call('POST', '/auth/login', {'auth': srv.username, 'password': srv.password}), 204, 'login')
 
-    path = os.path.normpath(os.path.join(FIXTURES, '%s.json' % minor))
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, 'w') as f:
-        json.dump(dict(recorded_from=version, responses=out), f, indent=2, sort_keys=True)
-        f.write('\n')
-    print('wrote %s (%d responses, server %s)' % (path, len(out), version))
+
+# Area name -> recorder. Each writes fixtures/<major.minor>/<area>.json.
+AREAS = {
+    'core': record_core,
+}
+
+
+def main():
+    if len(sys.argv) < 2 or sys.argv[1].startswith('-'):
+        sys.exit('usage: %s <server url> [AREA ...]   (areas: %s)' % (sys.argv[0], ', '.join(sorted(AREAS))))
+    areas = sys.argv[2:] or sorted(AREAS)
+    unknown = [a for a in areas if a not in AREAS]
+    if unknown:
+        sys.exit('unknown area(s) %s; known: %s' % (', '.join(unknown), ', '.join(sorted(AREAS))))
+    password = os.environ.get('SEMAPHORE_PASSWORD')
+    if not password:
+        sys.exit('set SEMAPHORE_PASSWORD to the admin password')
+    srv = Server(sys.argv[1])
+    srv.username = os.environ.get('SEMAPHORE_USERNAME', 'admin')
+    srv.password = password
+
+    bad_login = expect(srv.call('POST', '/auth/login', {'auth': srv.username, 'password': 'wrong'}), 401, 'bad login')
+    login = expect(srv.call('POST', '/auth/login', {'auth': srv.username, 'password': password}), 204, 'login')
+    version = expect(srv.call('GET', '/info'), 200, 'info')['body']['version']
+    minor = re.match(r'^v?(\d+\.\d+)', version).group(1)
+
+    for area in areas:
+        out = {}
+        if area == 'core':
+            out.update(login_bad_password=bad_login, login=login)
+        AREAS[area](srv, out)
+        path = os.path.normpath(os.path.join(FIXTURES, minor, '%s.json' % area))
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'w') as f:
+            json.dump(dict(recorded_from=version, responses=out), f, indent=2, sort_keys=True)
+            f.write('\n')
+        print('wrote %s (%d responses, server %s)' % (path, len(out), version))
 
 
 if __name__ == '__main__':
