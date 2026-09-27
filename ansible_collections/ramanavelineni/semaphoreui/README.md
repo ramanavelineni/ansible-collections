@@ -31,6 +31,8 @@ what you declare.
 | `integration_info` | lists a project's integrations with their webhook URLs (read-only) |
 | `team_member` | a user's role in a project's team (`owner`, `manager`, `task_runner`, `guest`) |
 | `team_member_info` | lists a project's team (read-only) |
+| `runner` | global runners, and project runners on Semaphore Pro; returns a registration token for a new runner |
+| `runner_info` | lists global or project runners (read-only) |
 
 Every module looks objects up by name, changes only what differs from the
 options you set, and supports check mode. Objects inside a project name it

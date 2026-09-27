@@ -19,6 +19,8 @@ action_groups:
     - project_info
     - repository
     - repository_info
+    - runner
+    - runner_info
     - schedule
     - schedule_info
     - team_member
