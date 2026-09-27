@@ -199,10 +199,75 @@ def record_robot(srv, out):
     expect(srv.call('DELETE', '/projects/%d' % pid), 200, 'delete project')
 
 
+def record_registry(srv, out):
+    """Registry endpoints and replication rules (objects named rr-fixtures-*).
+
+    Harbor pings an endpoint whenever it is created or changed, so the
+    endpoints point at the Harbor itself (http://proxy:8080 from inside its
+    own network) and at Docker Hub. Rules are created disabled and manual,
+    so nothing runs.
+    """
+    pw = srv.password
+
+    def cleanup():
+        for rule in srv.call('GET', '/replication/policies?page=1&page_size=100')['body'] or []:
+            if rule['name'].startswith('rr-fixtures'):
+                expect(srv.call('DELETE', '/replication/policies/%d' % rule['id']), 200, 'delete leftover rule')
+        for reg in srv.call('GET', '/registries?page=1&page_size=100')['body'] or []:
+            if reg['name'].startswith('rr-fixtures'):
+                expect(srv.call('DELETE', '/registries/%d' % reg['id']), 200, 'delete leftover registry')
+
+    cleanup()
+    out['registry_list_before'] = expect(srv.call('GET', '/registries?page=1&page_size=100'), 200, 'registries')
+    created = expect(srv.call('POST', '/registries', {
+        'name': 'rr-fixtures-self', 'type': 'harbor', 'url': 'http://proxy:8080', 'insecure': True}),
+        201, 'create registry')
+    out['registry_create'] = created
+    rid = project_id_of(created)
+    out['registry_create_unhealthy'] = srv.call('POST', '/registries', {
+        'name': 'rr-fixtures-dummy', 'type': 'docker-registry', 'url': 'http://rr-nonexistent.invalid'})
+    out['registry_create_conflict'] = srv.call('POST', '/registries', {
+        'name': 'rr-fixtures-self', 'type': 'harbor', 'url': 'http://proxy:8080', 'insecure': True})
+    auth = expect(srv.call('POST', '/registries', {
+        'name': 'rr-fixtures-auth', 'type': 'harbor', 'url': 'http://proxy:8080', 'insecure': True,
+        'credential': {'type': 'basic', 'access_key': srv.username, 'access_secret': pw}}), 201, 'create registry with credential')
+    aid = project_id_of(auth)
+    out['registry_get'] = expect(srv.call('GET', '/registries/%d' % rid), 200, 'registry')
+    out['registry_get_with_credential'] = expect(srv.call('GET', '/registries/%d' % aid), 200, 'registry with credential')
+    out['registry_list'] = expect(srv.call('GET', '/registries?page=1&page_size=100'), 200, 'registries')
+    out['registry_update'] = expect(srv.call('PUT', '/registries/%d' % rid, {'description': 'updated'}), 200, 'update registry')
+    out['registry_update_bad_secret'] = srv.call('PUT', '/registries/%d' % aid, {'access_secret': 'not-a-real-secret'})
+    out['registry_get_updated'] = expect(srv.call('GET', '/registries/%d' % rid), 200, 'registry')
+    out['registry_list_updated'] = expect(srv.call('GET', '/registries?page=1&page_size=100'), 200, 'registries')
+
+    out['registry_replication_list_before'] = expect(srv.call('GET', '/replication/policies?page=1&page_size=100'), 200, 'rules')
+    pull = {'name': 'rr-fixtures-pull', 'src_registry': {'id': rid}, 'dest_namespace': 'library', 'enabled': False,
+            'override': True, 'trigger': {'type': 'manual'},
+            'filters': [{'type': 'name', 'value': 'library/**'}, {'type': 'tag', 'value': 'v*', 'decoration': 'excludes'}]}
+    rule = expect(srv.call('POST', '/replication/policies', pull), 201, 'create rule')
+    out['registry_replication_create'] = rule
+    pid = project_id_of(rule)
+    out['registry_replication_create_conflict'] = srv.call('POST', '/replication/policies', pull)
+    out['registry_replication_get'] = expect(srv.call('GET', '/replication/policies/%d' % pid), 200, 'rule')
+    out['registry_replication_list'] = expect(srv.call('GET', '/replication/policies?page=1&page_size=100'), 200, 'rules')
+    out['registry_replication_update'] = expect(srv.call('PUT', '/replication/policies/%d' % pid, dict(
+        pull, speed=256, trigger={'type': 'scheduled', 'trigger_settings': {'cron': '0 0 3 * * *'}})), 200, 'update rule')
+    out['registry_replication_update_bad_cron'] = srv.call('PUT', '/replication/policies/%d' % pid, dict(
+        pull, trigger={'type': 'scheduled', 'trigger_settings': {'cron': '0 * * * * *'}}))
+    out['registry_replication_get_updated'] = expect(srv.call('GET', '/replication/policies/%d' % pid), 200, 'rule')
+    out['registry_replication_list_updated'] = expect(srv.call('GET', '/replication/policies?page=1&page_size=100'), 200, 'rules')
+    out['registry_delete_in_use'] = srv.call('DELETE', '/registries/%d' % rid)
+    out['registry_replication_delete'] = expect(srv.call('DELETE', '/replication/policies/%d' % pid), 200, 'delete rule')
+    out['registry_delete'] = expect(srv.call('DELETE', '/registries/%d' % rid), 200, 'delete registry')
+    expect(srv.call('DELETE', '/registries/%d' % aid), 200, 'delete registry with credential')
+    cleanup()
+
+
 # Area name -> recorder. Each writes fixtures/<major.minor>/<area>.json.
 AREAS = {
     'core': record_core,
     'robot': record_robot,
+    'registry': record_registry,
 }
 
 

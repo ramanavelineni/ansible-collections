@@ -12,5 +12,9 @@ action_groups:
     - info
     - project
     - project_info
+    - registry
+    - registry_info
+    - replication
+    - replication_info
     - robot_account
     - robot_account_info
