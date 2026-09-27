@@ -1,0 +1,89 @@
+ancestor: null
+releases:
+  0.1.0:
+    changes:
+      release_summary: 'First release. 25 modules that manage Semaphore UI 2.18 and
+        2.19 declaratively: projects, the Key Store, repositories, inventories, variable
+        groups, views, task templates, schedules and commit pollers, integrations,
+        team members, runners and users, each with an ``_info`` module. Objects are
+        found and referenced by name, only the options you set are compared, and every
+        module supports check mode and diff.'
+    fragments:
+    - 0.1.0.yml
+    modules:
+    - description: Read Semaphore UI server information and registered apps.
+      name: info
+      namespace: ''
+    - description: Manage integrations (inbound webhooks) in a Semaphore UI project.
+      name: integration
+      namespace: ''
+    - description: List the integrations (inbound webhooks) in a Semaphore UI project.
+      name: integration_info
+      namespace: ''
+    - description: Manage inventories in a Semaphore UI project.
+      name: inventory
+      namespace: ''
+    - description: List the inventories in a Semaphore UI project.
+      name: inventory_info
+      namespace: ''
+    - description: Manage keys in a Semaphore UI project's Key Store.
+      name: key_store
+      namespace: ''
+    - description: List the keys in a Semaphore UI project's Key Store.
+      name: key_store_info
+      namespace: ''
+    - description: Manage Semaphore UI projects.
+      name: project
+      namespace: ''
+    - description: List Semaphore UI projects.
+      name: project_info
+      namespace: ''
+    - description: Manage repositories in a Semaphore UI project.
+      name: repository
+      namespace: ''
+    - description: List the repositories in a Semaphore UI project.
+      name: repository_info
+      namespace: ''
+    - description: Manage Semaphore UI runners.
+      name: runner
+      namespace: ''
+    - description: List Semaphore UI runners.
+      name: runner_info
+      namespace: ''
+    - description: Manage schedules in a Semaphore UI project.
+      name: schedule
+      namespace: ''
+    - description: List the schedules in a Semaphore UI project.
+      name: schedule_info
+      namespace: ''
+    - description: Manage who belongs to a Semaphore UI project, and with which role.
+      name: team_member
+      namespace: ''
+    - description: List the team of a Semaphore UI project.
+      name: team_member_info
+      namespace: ''
+    - description: Manage task templates in a Semaphore UI project.
+      name: template
+      namespace: ''
+    - description: List the task templates in a Semaphore UI project.
+      name: template_info
+      namespace: ''
+    - description: Manage Semaphore UI users.
+      name: user
+      namespace: ''
+    - description: List Semaphore UI users.
+      name: user_info
+      namespace: ''
+    - description: Manage variable groups in a Semaphore UI project.
+      name: variable_group
+      namespace: ''
+    - description: List the variable groups in a Semaphore UI project.
+      name: variable_group_info
+      namespace: ''
+    - description: Manage views (template tabs) in a Semaphore UI project.
+      name: view
+      namespace: ''
+    - description: List the views (template tabs) in a Semaphore UI project.
+      name: view_info
+      namespace: ''
+    release_date: '2026-09-27'

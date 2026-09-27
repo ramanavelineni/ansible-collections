@@ -1,0 +1,84 @@
+---
+name: Release
+
+# Pushing a tag <collection>-v<version> (semaphoreui-v0.1.0, harbor-v0.2.0)
+# builds that collection and publishes a GitHub Release with the tarball and
+# the version's changelog. The tag must match the version in galaxy.yml, and
+# CHANGELOG.md must already have that version (make changelog COLLECTION=...).
+
+on:
+  push:
+    tags:
+      - "semaphoreui-v*"
+      - "harbor-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+
+      - run: pip install "ansible-core>=2.18,<2.22"
+
+      - name: Check the tag against galaxy.yml and CHANGELOG.md
+        id: meta
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          collection="${TAG%%-v*}"
+          version="${TAG#*-v}"
+          dir="ansible_collections/ramanavelineni/${collection}"
+          test -f "${dir}/galaxy.yml" || { echo "::error::no collection '${collection}' for tag ${TAG}"; exit 1; }
+          declared="$(sed -n 's/^version: *//p' "${dir}/galaxy.yml")"
+          if [ "${declared}" != "${version}" ]; then
+            echo "::error::tag ${TAG} says ${version}, but ${dir}/galaxy.yml says ${declared}"
+            exit 1
+          fi
+          # CHANGELOG.md escapes the dots: "## v0\.1\.0".
+          heading="## v$(printf '%s' "${version}" | sed 's/\./\\./g')"
+          grep -qxF "${heading}" "${dir}/CHANGELOG.md" || {
+            echo "::error::${dir}/CHANGELOG.md has no v${version} section; run make changelog COLLECTION=${collection}"
+            exit 1
+          }
+          {
+            echo "collection=${collection}"
+            echo "version=${version}"
+            echo "dir=${dir}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Build the collection
+        run: ansible-galaxy collection build "${{ steps.meta.outputs.dir }}" --output-path dist
+
+      - name: Release notes from CHANGELOG.md
+        env:
+          DIR: ${{ steps.meta.outputs.dir }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          python3 - <<'PY'
+          import os, re
+          text = open(os.path.join(os.environ['DIR'], 'CHANGELOG.md')).read()
+          heading = '## v' + os.environ['VERSION'].replace('.', r'\.')
+          section = text.split(heading + '\n', 1)[1]
+          section = re.split(r'\n<a id="v[^"]*"></a>\n## v', section)[0]
+          section = re.sub(r'<a id="[^"]*"></a>\n', '', section).strip()
+          open('notes.md', 'w').write(section + '\n')
+          PY
+          cat notes.md
+
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: >-
+          gh release create "${TAG}" dist/*.tar.gz
+          --verify-tag
+          --title "ramanavelineni.${{ steps.meta.outputs.collection }} ${{ steps.meta.outputs.version }}"
+          --notes-file notes.md

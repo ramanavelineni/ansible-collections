@@ -1,0 +1,83 @@
+ancestor: null
+releases:
+  0.1.0:
+    changes:
+      release_summary: 'First release. 23 modules that manage Harbor 2.14 and 2.15
+        declaratively: projects, robot accounts, registries, replication rules, webhooks,
+        tag retention and immutability, system configuration, and the garbage collection,
+        scan-all and audit-log rotation schedules, each with an ``_info`` module.
+        Objects are found and referenced by name, only the options you set are compared,
+        and every module supports check mode and diff.'
+    fragments:
+    - 0.1.0.yml
+    modules:
+    - description: Manage Harbor's system configuration.
+      name: configuration
+      namespace: ''
+    - description: Read Harbor's system configuration.
+      name: configuration_info
+      namespace: ''
+    - description: Manage Harbor's garbage collection schedule.
+      name: garbage_collection
+      namespace: ''
+    - description: Read Harbor's garbage collection schedule and recent runs.
+      name: garbage_collection_info
+      namespace: ''
+    - description: Read Harbor server information.
+      name: info
+      namespace: ''
+    - description: Manage Harbor's audit log rotation schedule.
+      name: log_rotation
+      namespace: ''
+    - description: Read Harbor's audit log rotation schedule and recent purges.
+      name: log_rotation_info
+      namespace: ''
+    - description: Manage Harbor projects.
+      name: project
+      namespace: ''
+    - description: List Harbor projects.
+      name: project_info
+      namespace: ''
+    - description: Manage Harbor registry endpoints.
+      name: registry
+      namespace: ''
+    - description: List Harbor registry endpoints.
+      name: registry_info
+      namespace: ''
+    - description: Manage Harbor replication rules.
+      name: replication
+      namespace: ''
+    - description: List Harbor replication rules.
+      name: replication_info
+      namespace: ''
+    - description: Manage Harbor robot accounts.
+      name: robot_account
+      namespace: ''
+    - description: List Harbor robot accounts.
+      name: robot_account_info
+      namespace: ''
+    - description: Manage Harbor's scheduled vulnerability scan of all artifacts.
+      name: scan_all
+      namespace: ''
+    - description: Read Harbor's Scan All schedule and latest scan metrics.
+      name: scan_all_info
+      namespace: ''
+    - description: Manage a tag immutability rule of a Harbor project.
+      name: tag_immutability
+      namespace: ''
+    - description: List the tag immutability rules of a Harbor project.
+      name: tag_immutability_info
+      namespace: ''
+    - description: Manage a Harbor project's tag retention policy.
+      name: tag_retention
+      namespace: ''
+    - description: Read a Harbor project's tag retention policy.
+      name: tag_retention_info
+      namespace: ''
+    - description: Manage webhooks of a Harbor project.
+      name: webhook
+      namespace: ''
+    - description: List the webhooks of a Harbor project.
+      name: webhook_info
+      namespace: ''
+    release_date: '2026-09-27'
