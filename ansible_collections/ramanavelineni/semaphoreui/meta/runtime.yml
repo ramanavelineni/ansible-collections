@@ -9,9 +9,13 @@ requires_ansible: ">=2.18.0"
 action_groups:
   semaphoreui:
     - info
+    - inventory
+    - inventory_info
     - key_store
     - key_store_info
     - project
     - project_info
     - repository
     - repository_info
+    - variable_group
+    - variable_group_info

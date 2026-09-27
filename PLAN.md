@@ -9,7 +9,7 @@ They start from the two roles in the homelab ansible repo,
 both APIs and work around their quirks. The collections move that knowledge
 into Python modules and make it usable by anyone.
 
-Status: phase 2 in progress. Done: scaffolding, client, `info`, `project`, `key_store`, `repository` and their `_info` modules.
+Status: phase 2 in progress. Done: scaffolding, client, `info`, `project`, `key_store`, `repository`, `inventory`, `variable_group` and their `_info` modules (phase 2 complete).
 
 ---
 
@@ -23,6 +23,7 @@ Status: phase 2 in progress. Done: scaffolding, client, `info`, `project`, `key_
 | Module names | follow the Semaphore 2.19 UI labels: `key_store`, `variable_group`, `team_member`, `template`, …, plus `*_info` |
 | Project references | objects inside a project take `project: <name>` |
 | Deleting an object in use | fails with the list from Semaphore's `/refs` endpoint (Semaphore's own answer is misleading) |
+| Module imports | modules import only `module_utils`: Ansible ships nothing else with a module, and sanity's import test enforces it |
 | License hygiene | no GPL-licensed ansible-core code is imported, extended or copied: only its BSD `module_utils` and the Python standard library |
 | License | Apache-2.0 |
 | CI | `ansible-test sanity` and unit tests only; no integration tests against live servers in CI |
@@ -159,8 +160,8 @@ out within its own call, so no session state crosses tasks.
 | `project` | projects | the API caps the list at 200 rows: fail rather than miss projects; `state: absent` needs `confirm_delete: true` because it deletes everything inside |
 | `key_store` | Key Store entries (`ssh`, `login_password`, `none`) | PUT needs `id` and `project_id` in the body and `override_secret: true`, or the secret is silently ignored. Secret required on create; omitted on an existing key means "leave it". Type changes happen in place (a change to `ssh`/`login_password` needs the secret). **Every update of a key a repository uses makes Semaphore delete that repository's checkouts**: such a key's secret is skipped with a warning, and a type change fails, unless `force_repository_key_update: true` |
 | `repository` | Git repositories and local paths | `git_branch` required unless `git_url` is a local path; changing `git_url` deletes the checkouts |
-| `inventory` | `file`, `static`, `static-yaml` inventories | PUT replaces the whole row |
-| `variable_group` | variable groups (environments) and their secrets | secrets are created or updated; undeclared ones are left alone unless `purge_secrets: true` |
+| `inventory` | `file`, `static`, `static-yaml` inventories | PUT replaces the whole row; Semaphore rejects any update of a `file` inventory whose path is outside its working directory (so any absolute path), though it accepts it on create: fail with an explanation; `""` clears a repository/key reference |
+| `variable_group` | variable groups (environments) and their secrets | secrets are a list of `{name, type, value}` (a dict keyed by name would mask the words `env`/`var` in all output once marked `no_log`); `update_secret` like `key_store`; undeclared secrets left alone unless `purge_secrets: true`; a type change is a delete + create in one update |
 | `view` | UI tabs and their position | |
 | `template` | task templates, including build/deploy, vaults and surveys | the list omits `vaults`, so each template is read on its own; PUT replaces the whole row, and a missing `vaults` deletes them; POST inserts the row before checking the app, so the module checks `/apps` first; `build_template` resolved by name |
 | `schedule` | cron schedules and commit pollers | pollers don't appear in the project schedule list and are read per template |

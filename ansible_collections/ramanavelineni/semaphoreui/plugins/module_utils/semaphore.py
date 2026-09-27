@@ -312,3 +312,23 @@ def run_module(module, handler):
         module.fail_json(msg=to_text(e))
     client.close()
     module.exit_json(**result)
+
+
+def _parse_json_field(text, what, name):
+    if not text:
+        return {}
+    try:
+        value = json.loads(text)
+    except ValueError:
+        raise ValueError('Variable group %r holds %s that are not valid JSON; fix them in Semaphore first.' % (name, what))
+    return value if isinstance(value, dict) else {}
+
+
+def variable_group_view(group, secrets):
+    """A variable group as modules return it: json/env parsed, secrets as name/type."""
+    return dict(
+        id=group.get('id'), name=group.get('name'), project_id=group.get('project_id'),
+        json=_parse_json_field(group.get('json'), 'extra variables', group.get('name')),
+        env=_parse_json_field(group.get('env'), 'environment variables', group.get('name')),
+        secrets=sorted((dict(name=s['name'], type=s['type']) for s in secrets), key=lambda s: s['name']),
+    )
