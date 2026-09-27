@@ -1,0 +1,239 @@
+{
+  "recorded_from": "v2.14.4-79a297f7",
+  "responses": {
+    "webhook_create": {
+      "body": null,
+      "headers": {
+        "location": "/api/v2.0/projects/14/webhook/policies/4"
+      },
+      "status": 201
+    },
+    "webhook_create_bad_event": {
+      "body": {
+        "errors": [
+          {
+            "code": "BAD_REQUEST",
+            "message": "unsupported event type NOPE"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 400
+    },
+    "webhook_create_conflict": {
+      "body": {
+        "errors": [
+          {
+            "code": "CONFLICT",
+            "message": "notification policy named ci-notify already exists"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 409
+    },
+    "webhook_delete": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "webhook_delete_missing": {
+      "body": {
+        "errors": [
+          {
+            "code": "NOT_FOUND",
+            "message": "notificationPolicy 4 not found"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 404
+    },
+    "webhook_events": {
+      "body": {
+        "event_type": [
+          "PUSH_ARTIFACT",
+          "PULL_ARTIFACT",
+          "DELETE_ARTIFACT",
+          "QUOTA_EXCEED",
+          "QUOTA_WARNING",
+          "SCANNING_FAILED",
+          "SCANNING_STOPPED",
+          "SCANNING_COMPLETED",
+          "REPLICATION",
+          "TAG_RETENTION"
+        ],
+        "notify_type": [
+          "http",
+          "slack"
+        ],
+        "payload_formats": [
+          {
+            "formats": [
+              "Default",
+              "CloudEvents"
+            ],
+            "notify_type": "http"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 200
+    },
+    "webhook_get": {
+      "body": {
+        "creation_time": "2026-09-27T20:03:10.562Z",
+        "description": "recorded",
+        "enabled": true,
+        "event_types": [
+          "DELETE_ARTIFACT",
+          "PUSH_ARTIFACT"
+        ],
+        "id": 4,
+        "name": "ci-notify",
+        "project_id": 14,
+        "targets": [
+          {
+            "address": "http://127.0.0.1:9/hook",
+            "auth_header": "Bearer not-a-real-token",
+            "payload_format": "Default",
+            "type": "http"
+          }
+        ],
+        "update_time": "2026-09-27T20:03:10.562Z"
+      },
+      "headers": {},
+      "status": 200
+    },
+    "webhook_get_updated": {
+      "body": {
+        "creation_time": "0001-01-01T00:00:00.000Z",
+        "description": "recorded",
+        "enabled": false,
+        "event_types": [
+          "DELETE_ARTIFACT",
+          "PUSH_ARTIFACT"
+        ],
+        "id": 4,
+        "name": "ci-notify",
+        "project_id": 14,
+        "targets": [
+          {
+            "address": "http://127.0.0.1:9/hook",
+            "auth_header": "Bearer not-a-real-token",
+            "payload_format": "Default",
+            "type": "http"
+          }
+        ],
+        "update_time": "2026-09-27T20:03:10.562Z"
+      },
+      "headers": {},
+      "status": 200
+    },
+    "webhook_list_empty": {
+      "body": [],
+      "headers": {
+        "x-total-count": "0"
+      },
+      "status": 200
+    },
+    "webhook_list_one": {
+      "body": [
+        {
+          "creation_time": "2026-09-27T20:03:10.562Z",
+          "description": "recorded",
+          "enabled": true,
+          "event_types": [
+            "DELETE_ARTIFACT",
+            "PUSH_ARTIFACT"
+          ],
+          "id": 4,
+          "name": "ci-notify",
+          "project_id": 14,
+          "targets": [
+            {
+              "address": "http://127.0.0.1:9/hook",
+              "auth_header": "Bearer not-a-real-token",
+              "payload_format": "Default",
+              "type": "http"
+            }
+          ],
+          "update_time": "2026-09-27T20:03:10.562Z"
+        }
+      ],
+      "headers": {
+        "x-total-count": "1"
+      },
+      "status": 200
+    },
+    "webhook_list_two_targets": {
+      "body": [
+        {
+          "creation_time": "0001-01-01T00:00:00.000Z",
+          "description": "recorded",
+          "enabled": true,
+          "event_types": [
+            "DELETE_ARTIFACT",
+            "PUSH_ARTIFACT"
+          ],
+          "id": 4,
+          "name": "ci-notify",
+          "project_id": 14,
+          "targets": [
+            {
+              "address": "http://127.0.0.1:9/hook",
+              "auth_header": "Bearer not-a-real-token",
+              "payload_format": "Default",
+              "type": "http"
+            },
+            {
+              "address": "http://127.0.0.1:9/slack",
+              "type": "slack"
+            }
+          ],
+          "update_time": "2026-09-27T20:03:10.562Z"
+        }
+      ],
+      "headers": {
+        "x-total-count": "1"
+      },
+      "status": 200
+    },
+    "webhook_projects": {
+      "body": [
+        {
+          "creation_time": "2026-09-27T20:03:10.438Z",
+          "current_user_role_id": 1,
+          "current_user_role_ids": [
+            1
+          ],
+          "cve_allowlist": {
+            "creation_time": "0001-01-01T00:00:00.000Z",
+            "id": 12,
+            "items": [],
+            "project_id": 14,
+            "update_time": "0001-01-01T00:00:00.000Z"
+          },
+          "metadata": {
+            "public": "false"
+          },
+          "name": "fixtures-webhook",
+          "owner_id": 1,
+          "owner_name": "admin",
+          "project_id": 14,
+          "repo_count": 0,
+          "update_time": "2026-09-27T20:03:10.438Z"
+        }
+      ],
+      "headers": {
+        "x-total-count": "1"
+      },
+      "status": 200
+    },
+    "webhook_update": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    }
+  }
+}

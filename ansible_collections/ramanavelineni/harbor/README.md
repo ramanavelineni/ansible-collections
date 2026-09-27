@@ -20,6 +20,8 @@ what you declare.
 | `registry_info` | lists registry endpoints, never secrets (read-only) |
 | `replication` | replication rules (Administration > Replications): pull or push, trigger, filters |
 | `replication_info` | lists replication rules (read-only) |
+| `webhook` | a project's webhooks: events, endpoint, auth header, payload format |
+| `webhook_info` | lists a project's webhooks, without their auth headers (read-only) |
 
 Every module looks objects up by name, changes only what differs from the
 options you set, and supports check mode. `ansible-doc ramanavelineni.harbor.<module>`
