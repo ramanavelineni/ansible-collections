@@ -112,6 +112,171 @@
       },
       "status": 200
     },
+    "key_create": {
+      "body": {
+        "IgnorePlain": false,
+        "id": 17,
+        "login_password": {
+          "login": "",
+          "password": ""
+        },
+        "name": "deploy",
+        "project_id": 8,
+        "ssh": {
+          "login": "",
+          "passphrase": "",
+          "private_key": ""
+        },
+        "string": "",
+        "type": "ssh"
+      },
+      "status": 201
+    },
+    "key_delete": {
+      "body": null,
+      "status": 204
+    },
+    "key_delete_in_use": {
+      "body": null,
+      "status": 400
+    },
+    "key_refs_unused": {
+      "body": {
+        "access_keys": [],
+        "integrations": [],
+        "inventories": [],
+        "repositories": [],
+        "schedules": [],
+        "templates": []
+      },
+      "status": 200
+    },
+    "key_refs_used_by_repository": {
+      "body": {
+        "access_keys": [],
+        "integrations": [],
+        "inventories": [],
+        "repositories": [
+          {
+            "id": 9,
+            "name": "ansible"
+          }
+        ],
+        "schedules": [],
+        "templates": []
+      },
+      "status": 200
+    },
+    "key_update": {
+      "body": null,
+      "status": 204
+    },
+    "key_update_id_mismatch": {
+      "body": {
+        "error": "Access key id in URL and in body must be the same"
+      },
+      "status": 400
+    },
+    "keys_new_project": {
+      "body": [
+        {
+          "IgnorePlain": false,
+          "id": 16,
+          "login_password": {
+            "login": "",
+            "password": ""
+          },
+          "name": "None",
+          "project_id": 8,
+          "ssh": {
+            "login": "",
+            "passphrase": "",
+            "private_key": ""
+          },
+          "string": "",
+          "type": "none"
+        }
+      ],
+      "status": 200
+    },
+    "keys_with_deploy": {
+      "body": [
+        {
+          "IgnorePlain": false,
+          "id": 16,
+          "login_password": {
+            "login": "",
+            "password": ""
+          },
+          "name": "None",
+          "project_id": 8,
+          "ssh": {
+            "login": "",
+            "passphrase": "",
+            "private_key": ""
+          },
+          "string": "",
+          "type": "none"
+        },
+        {
+          "IgnorePlain": false,
+          "id": 17,
+          "login_password": {
+            "login": "",
+            "password": ""
+          },
+          "name": "deploy",
+          "project_id": 8,
+          "ssh": {
+            "login": "",
+            "passphrase": "",
+            "private_key": ""
+          },
+          "string": "",
+          "type": "ssh"
+        }
+      ],
+      "status": 200
+    },
+    "keys_with_deploy_updated": {
+      "body": [
+        {
+          "IgnorePlain": false,
+          "id": 16,
+          "login_password": {
+            "login": "",
+            "password": ""
+          },
+          "name": "None",
+          "project_id": 8,
+          "ssh": {
+            "login": "",
+            "passphrase": "",
+            "private_key": ""
+          },
+          "string": "",
+          "type": "none"
+        },
+        {
+          "IgnorePlain": false,
+          "id": 17,
+          "login_password": {
+            "login": "",
+            "password": ""
+          },
+          "name": "deploy",
+          "project_id": 8,
+          "ssh": {
+            "login": "",
+            "passphrase": "",
+            "private_key": ""
+          },
+          "string": "",
+          "type": "login_password"
+        }
+      ],
+      "status": 200
+    },
     "login": {
       "body": null,
       "status": 204
@@ -126,8 +291,8 @@
     },
     "project_create": {
       "body": {
-        "created": "2026-09-27T17:34:22.311899351Z",
-        "id": 2,
+        "created": "2026-09-27T17:53:49.037552524Z",
+        "id": 8,
         "name": "homelab",
         "type": ""
       },
@@ -154,8 +319,8 @@
     "projects_one": {
       "body": [
         {
-          "created": "2026-09-27T17:34:22.311899Z",
-          "id": 2,
+          "created": "2026-09-27T17:53:49.037552Z",
+          "id": 8,
           "name": "homelab",
           "type": ""
         }
@@ -167,14 +332,74 @@
         {
           "alert": true,
           "alert_chat": "ops",
-          "created": "2026-09-27T17:34:22.311899Z",
-          "id": 2,
+          "created": "2026-09-27T17:53:49.037552Z",
+          "id": 8,
           "max_parallel_tasks": 3,
           "name": "homelab",
           "type": ""
         }
       ],
       "status": 200
+    },
+    "repositories_empty": {
+      "body": [],
+      "status": 200
+    },
+    "repositories_one": {
+      "body": [
+        {
+          "git_branch": "main",
+          "git_url": "git@github.com:example/ansible.git",
+          "id": 9,
+          "name": "ansible",
+          "project_id": 8,
+          "ssh_key_id": 17
+        }
+      ],
+      "status": 200
+    },
+    "repositories_one_updated": {
+      "body": [
+        {
+          "git_branch": "develop",
+          "git_url": "git@github.com:example/ansible.git",
+          "id": 9,
+          "name": "ansible",
+          "project_id": 8,
+          "ssh_key_id": 17
+        }
+      ],
+      "status": 200
+    },
+    "repository_create": {
+      "body": {
+        "git_branch": "main",
+        "git_url": "git@github.com:example/ansible.git",
+        "id": 9,
+        "name": "ansible",
+        "project_id": 8,
+        "ssh_key_id": 17
+      },
+      "status": 201
+    },
+    "repository_delete": {
+      "body": null,
+      "status": 204
+    },
+    "repository_refs_unused": {
+      "body": {
+        "access_keys": [],
+        "integrations": [],
+        "inventories": [],
+        "repositories": [],
+        "schedules": [],
+        "templates": []
+      },
+      "status": 200
+    },
+    "repository_update": {
+      "body": null,
+      "status": 204
     }
   }
 }

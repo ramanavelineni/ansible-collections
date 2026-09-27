@@ -6,7 +6,7 @@ calls with `ansible.builtin.uri`.
 
 | Collection | Manages | Status |
 |---|---|---|
-| [`ramanavelineni.semaphoreui`](ansible_collections/ramanavelineni/semaphoreui/) | Semaphore UI | in development: `info`, `project`, `project_info` |
+| [`ramanavelineni.semaphoreui`](ansible_collections/ramanavelineni/semaphoreui/) | Semaphore UI | in development: `info`, `project`, `key_store`, `repository` (+ `_info` modules) |
 | `ramanavelineni.harbor` | Harbor | planned |
 
 The design, the module lists and the order of work are in [PLAN.md](PLAN.md).

@@ -263,6 +263,29 @@ def find_by_name(items, name, what, field='name'):
     return matches[0] if matches else None
 
 
+def resolve_project(client, name):
+    """Id of the project named `name`; fails when there is none."""
+    project = find_by_name(client.list('/projects', capped=True), name, 'project')
+    if project is None:
+        raise ValueError(
+            'Project %r does not exist, or the user this module logs in as cannot see it.' % name)
+    return project['id']
+
+
+def refuse_delete_if_used(client, path, what, name):
+    """Fail with what still uses the object at `path` (via its /refs), if anything.
+
+    Semaphore refuses such a delete itself, but its answer is misleading:
+    2.19 always blames templates and 2.18 sends an empty body.
+    """
+    refs = client.get(path + '/refs') or {}
+    used = ['%s %s' % (kind.replace('_', ' '), ', '.join(sorted(r.get('name') or str(r.get('id')) for r in items)))
+            for kind, items in sorted(refs.items()) if items]
+    if used:
+        raise ValueError('Cannot delete %s %r: it is still used by %s. Change or delete those first.'
+                         % (what, name, '; '.join(used)))
+
+
 def diff_fields(desired, current):
     """Keys of `desired` whose value differs from `current`. None means "not managed"."""
     return sorted(k for k, v in desired.items() if v is not None and current.get(k) != v)
