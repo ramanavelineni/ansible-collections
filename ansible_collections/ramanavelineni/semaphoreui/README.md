@@ -22,6 +22,9 @@ what you declare.
 | `inventory_info` | lists a project's inventories (read-only) |
 | `variable_group` | a project's variable groups: extra variables, environment variables, secrets |
 | `variable_group_info` | lists a project's variable groups, with secret names but never values (read-only) |
+| `view` | a project's views (template tabs): position, hidden, sort |
+| `view_info` | lists a project's views (read-only) |
+| `template` | task templates: app, repository, inventory, variable groups, view, vaults, survey variables, task parameters, build/deploy |
 
 Every module looks objects up by name, changes only what differs from the
 options you set, and supports check mode. Objects inside a project name it
@@ -39,6 +42,12 @@ of the key.
 secrets you don't list alone unless `purge_secrets: true`, and recreates a
 secret whose type (`env` or `var`) changed, since Semaphore can't change it
 in place.
+
+`template` compares only the options you set and sends everything else back
+unchanged, including fields it doesn't manage (such as 2.19's
+`executor_image`). `task_params` is merged key by key, and a key the
+template's app doesn't know fails instead of being ignored. The built-in
+`All` view can be moved or hidden, but not deleted.
 
 Deleting (`state: absent`) fails with a list of what still uses the object,
 instead of Semaphore's own, misleading answer. `ansible-doc ramanavelineni.semaphoreui.<module>`

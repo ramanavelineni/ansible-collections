@@ -153,6 +153,46 @@ def main():
     out['inventory_update_absolute_path'] = srv.call(
         'PUT', '%s/inventory/%d' % (base, abs_inv['body']['id']), dict(abs_inv['body'], ssh_key_id=kid))
     expect(srv.call('DELETE', '%s/inventory/%d' % (base, abs_inv['body']['id'])), 204, 'delete abs inventory')
+    # Views and templates, using the key, repository and inventory above.
+    out['views_new_project'] = expect(srv.call('GET', base + '/views'), 200, 'views')
+    out['view_create'] = expect(srv.call('POST', base + '/views', {
+        'project_id': pid, 'title': 'k8s', 'position': 1}), 201, 'create view')
+    vid = out['view_create']['body']['id']
+    out['views_two'] = expect(srv.call('GET', base + '/views'), 200, 'views')
+    out['view_update'] = expect(srv.call('PUT', '%s/views/%d' % (base, vid), {
+        'id': vid, 'project_id': pid, 'title': 'k8s', 'position': 2, 'type': '', 'hidden': True}), 204, 'update view')
+    env = expect(srv.call('POST', base + '/environment', {
+        'project_id': pid, 'name': 'empty', 'json': '{}', 'env': '{}'}), 201, 'create environment')['body']
+    out['variable_groups_for_templates'] = expect(srv.call('GET', base + '/environment'), 200, 'environments')
+    out['templates_empty'] = expect(srv.call('GET', base + '/templates'), 200, 'templates')
+    out['template_create'] = expect(srv.call('POST', base + '/templates', {
+        'project_id': pid, 'name': 'site', 'app': 'ansible', 'playbook': 'site.yml', 'repository_id': rid,
+        'inventory_id': iid, 'environment_id': env['id'], 'environment_ids': [env['id']], 'view_id': vid,
+        'arguments': '["-v"]', 'task_params': {'limit': ['web']},
+        'survey_vars': [{'name': 'host', 'title': 'Host', 'type': ''}],
+        'vaults': [{'name': 'default', 'type': 'password', 'vault_key_id': kid}]}), 201, 'create template')
+    tid = out['template_create']['body']['id']
+    out['templates_one'] = expect(srv.call('GET', base + '/templates'), 200, 'templates')
+    out['template_get'] = expect(srv.call('GET', '%s/templates/%d' % (base, tid)), 200, 'template')
+    tpl = dict(out['template_get']['body'])
+    out['template_update'] = expect(srv.call('PUT', '%s/templates/%d' % (base, tid), dict(tpl, description='updated')),
+                                    204, 'update template')
+    out['template_get_updated'] = expect(srv.call('GET', '%s/templates/%d' % (base, tid)), 200, 'template')
+    out['template_update_id_mismatch'] = srv.call('PUT', '%s/templates/%d' % (base, tid), dict(tpl, id=tid + 1000))
+    out['template_refs_unused'] = expect(srv.call('GET', '%s/templates/%d/refs' % (base, tid)), 200, 'template refs')
+    tofu = expect(srv.call('POST', base + '/templates', {
+        'project_id': pid, 'name': 'infra', 'app': 'tofu', 'repository_id': rid,
+        'environment_id': env['id'], 'environment_ids': [env['id']]}), 201, 'create tofu template')
+    out['template_create_tofu'] = tofu
+    out['templates_two'] = expect(srv.call('GET', base + '/templates'), 200, 'templates')
+    out['inventory_list_hides_workspace'] = expect(srv.call('GET', base + '/inventory'), 200, 'inventories')
+    out['inventory_get_workspace'] = expect(srv.call('GET', '%s/inventory/%d' % (base, tofu['body']['inventory_id'])),
+                                            200, 'workspace inventory')
+    expect(srv.call('DELETE', '%s/templates/%d' % (base, tofu['body']['id'])), 204, 'delete tofu template')
+    out['template_delete'] = expect(srv.call('DELETE', '%s/templates/%d' % (base, tid)), 204, 'delete template')
+    expect(srv.call('DELETE', '%s/environment/%d' % (base, env['id'])), 204, 'delete environment')
+    out['view_delete'] = expect(srv.call('DELETE', '%s/views/%d' % (base, vid)), 204, 'delete view')
+
     out['inventory_refs_unused'] = expect(srv.call('GET', '%s/inventory/%d/refs' % (base, iid)), 200, 'inventory refs')
     out['inventory_delete'] = expect(srv.call('DELETE', '%s/inventory/%d' % (base, iid)), 204, 'delete inventory')
 
