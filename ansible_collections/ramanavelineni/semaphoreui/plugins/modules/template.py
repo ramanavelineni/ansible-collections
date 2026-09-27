@@ -274,7 +274,6 @@ from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.templat
     SURVEY_TO_API,
     TYPE_TO_API,
     Lookups,
-    survey_view,
     template_view,
 )
 

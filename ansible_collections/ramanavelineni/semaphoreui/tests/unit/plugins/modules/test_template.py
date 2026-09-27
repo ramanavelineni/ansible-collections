@@ -5,6 +5,7 @@ import json
 
 import pytest
 
+from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.template import survey_view
 from ansible_collections.ramanavelineni.semaphoreui.plugins.modules import template
 
 SITE = dict(project='homelab', name='site', playbook='site.yml', repository='ansible', inventory='homelab',
@@ -91,8 +92,8 @@ def test_update_keeps_everything_else(server, project, run_module):
     for field in ('repository_id', 'inventory_id', 'view_id', 'environment_ids', 'arguments', 'task_params', 'vaults'):
         assert body[field] == current[field], field
     # Survey variables go back with their default fields written out.
-    assert ([template.survey_view(v) for v in body['survey_vars']]
-            == [template.survey_view(v) for v in current['survey_vars']])
+    assert ([survey_view(v) for v in body['survey_vars']]
+            == [survey_view(v) for v in current['survey_vars']])
     assert body['description'] == 'updated'
     assert 'permissions' not in body and 'tasks' not in body
 
