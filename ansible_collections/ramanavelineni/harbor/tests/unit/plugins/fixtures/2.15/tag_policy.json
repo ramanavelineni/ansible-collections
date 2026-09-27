@@ -1,0 +1,525 @@
+{
+  "recorded_from": "v2.15.2-a97e7b83",
+  "responses": {
+    "tag_immutability_create": {
+      "body": null,
+      "headers": {
+        "location": "/api/v2.0/projects/31/immutabletagrules/26"
+      },
+      "status": 201
+    },
+    "tag_immutability_create_duplicate": {
+      "body": {
+        "errors": [
+          {
+            "code": "CONFLICT",
+            "message": "immutable rule already exists"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 409
+    },
+    "tag_immutability_delete": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "tag_immutability_delete_missing": {
+      "body": {
+        "errors": [
+          {
+            "code": "NOT_FOUND",
+            "message": "immutable rule 26 not found"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 404
+    },
+    "tag_immutability_list_disabled": {
+      "body": [
+        {
+          "action": "immutable",
+          "disabled": true,
+          "id": 26,
+          "scope_selectors": {
+            "repository": [
+              {
+                "decoration": "repoMatches",
+                "kind": "doublestar",
+                "pattern": "**"
+              }
+            ]
+          },
+          "tag_selectors": [
+            {
+              "decoration": "matches",
+              "kind": "doublestar",
+              "pattern": "v*"
+            }
+          ],
+          "template": "immutable_template"
+        }
+      ],
+      "headers": {
+        "x-total-count": "1"
+      },
+      "status": 200
+    },
+    "tag_immutability_list_empty": {
+      "body": [],
+      "headers": {
+        "x-total-count": "0"
+      },
+      "status": 200
+    },
+    "tag_immutability_list_one": {
+      "body": [
+        {
+          "action": "immutable",
+          "id": 26,
+          "scope_selectors": {
+            "repository": [
+              {
+                "decoration": "repoMatches",
+                "kind": "doublestar",
+                "pattern": "**"
+              }
+            ]
+          },
+          "tag_selectors": [
+            {
+              "decoration": "matches",
+              "kind": "doublestar",
+              "pattern": "v*"
+            }
+          ],
+          "template": "immutable_template"
+        }
+      ],
+      "headers": {
+        "x-total-count": "1"
+      },
+      "status": 200
+    },
+    "tag_immutability_toggle": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "tag_project_create": {
+      "body": null,
+      "headers": {
+        "location": "/api/v2.0/projects/31"
+      },
+      "status": 201
+    },
+    "tag_project_get": {
+      "body": {
+        "creation_time": "2026-09-27T20:19:58.231Z",
+        "current_user_role_id": 1,
+        "current_user_role_ids": [
+          1
+        ],
+        "cve_allowlist": {
+          "creation_time": "0001-01-01T00:00:00.000Z",
+          "id": 29,
+          "items": [],
+          "project_id": 31,
+          "update_time": "0001-01-01T00:00:00.000Z"
+        },
+        "metadata": {
+          "public": "false"
+        },
+        "name": "fixtures-tag-policy",
+        "owner_id": 1,
+        "owner_name": "admin",
+        "project_id": 31,
+        "repo_count": 0,
+        "update_time": "2026-09-27T20:19:58.231Z"
+      },
+      "headers": {},
+      "status": 200
+    },
+    "tag_project_get_after_retention_delete": {
+      "body": {
+        "creation_time": "2026-09-27T20:19:58.231Z",
+        "current_user_role_id": 1,
+        "current_user_role_ids": [
+          1
+        ],
+        "cve_allowlist": {
+          "creation_time": "0001-01-01T00:00:00.000Z",
+          "id": 29,
+          "items": [],
+          "project_id": 31,
+          "update_time": "0001-01-01T00:00:00.000Z"
+        },
+        "metadata": {
+          "public": "false"
+        },
+        "name": "fixtures-tag-policy",
+        "owner_id": 1,
+        "owner_name": "admin",
+        "project_id": 31,
+        "repo_count": 0,
+        "update_time": "2026-09-27T20:19:58.231Z"
+      },
+      "headers": {},
+      "status": 200
+    },
+    "tag_project_get_with_retention": {
+      "body": {
+        "creation_time": "2026-09-27T20:19:58.231Z",
+        "current_user_role_id": 1,
+        "current_user_role_ids": [
+          1
+        ],
+        "cve_allowlist": {
+          "creation_time": "0001-01-01T00:00:00.000Z",
+          "id": 29,
+          "items": [],
+          "project_id": 31,
+          "update_time": "0001-01-01T00:00:00.000Z"
+        },
+        "metadata": {
+          "public": "false",
+          "retention_id": "12"
+        },
+        "name": "fixtures-tag-policy",
+        "owner_id": 1,
+        "owner_name": "admin",
+        "project_id": 31,
+        "repo_count": 0,
+        "update_time": "2026-09-27T20:19:58.231Z"
+      },
+      "headers": {},
+      "status": 200
+    },
+    "tag_projects_list": {
+      "body": [
+        {
+          "creation_time": "2026-09-27T20:19:58.231Z",
+          "current_user_role_id": 1,
+          "current_user_role_ids": [
+            1
+          ],
+          "cve_allowlist": {
+            "creation_time": "0001-01-01T00:00:00.000Z",
+            "id": 29,
+            "items": [],
+            "project_id": 31,
+            "update_time": "0001-01-01T00:00:00.000Z"
+          },
+          "metadata": {
+            "public": "false"
+          },
+          "name": "fixtures-tag-policy",
+          "owner_id": 1,
+          "owner_name": "admin",
+          "project_id": 31,
+          "repo_count": 0,
+          "update_time": "2026-09-27T20:19:58.231Z"
+        },
+        {
+          "creation_time": "2026-09-27T19:48:48.455Z",
+          "current_user_role_id": 1,
+          "current_user_role_ids": [
+            1
+          ],
+          "cve_allowlist": {
+            "creation_time": "0001-01-01T00:00:00.000Z",
+            "id": 1,
+            "items": [],
+            "project_id": 1,
+            "update_time": "0001-01-01T00:00:00.000Z"
+          },
+          "metadata": {
+            "public": "true"
+          },
+          "name": "library",
+          "owner_id": 1,
+          "owner_name": "admin",
+          "project_id": 1,
+          "repo_count": 0,
+          "update_time": "2026-09-27T19:48:48.455Z"
+        }
+      ],
+      "headers": {
+        "x-total-count": "2"
+      },
+      "status": 200
+    },
+    "tag_retention_create": {
+      "body": null,
+      "headers": {
+        "location": "/api/v2.0/retentions/12"
+      },
+      "status": 201
+    },
+    "tag_retention_create_again": {
+      "body": {
+        "errors": [
+          {
+            "code": "BAD_REQUEST",
+            "message": "bad request: project 31 already has retention policy 12"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 400
+    },
+    "tag_retention_delete": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "tag_retention_get": {
+      "body": {
+        "algorithm": "or",
+        "id": 12,
+        "rules": [
+          {
+            "action": "retain",
+            "params": {
+              "latestPushedK": 10
+            },
+            "scope_selectors": {
+              "repository": [
+                {
+                  "decoration": "repoMatches",
+                  "kind": "doublestar",
+                  "pattern": "**"
+                }
+              ]
+            },
+            "tag_selectors": [
+              {
+                "decoration": "matches",
+                "extras": "{\"untagged\": false}",
+                "kind": "doublestar",
+                "pattern": "**"
+              }
+            ],
+            "template": "latestPushedK"
+          }
+        ],
+        "scope": {
+          "level": "project",
+          "ref": 31
+        },
+        "trigger": {
+          "kind": "Schedule",
+          "settings": {
+            "cron": ""
+          }
+        }
+      },
+      "headers": {},
+      "status": 200
+    },
+    "tag_retention_get_updated": {
+      "body": {
+        "algorithm": "or",
+        "id": 12,
+        "rules": [
+          {
+            "action": "retain",
+            "params": {
+              "latestPushedK": 10
+            },
+            "scope_selectors": {
+              "repository": [
+                {
+                  "decoration": "repoMatches",
+                  "kind": "doublestar",
+                  "pattern": "**"
+                }
+              ]
+            },
+            "tag_selectors": [
+              {
+                "decoration": "matches",
+                "extras": "{\"untagged\": false}",
+                "kind": "doublestar",
+                "pattern": "**"
+              }
+            ],
+            "template": "latestPushedK"
+          },
+          {
+            "action": "retain",
+            "params": {
+              "nDaysSinceLastPull": 180
+            },
+            "scope_selectors": {
+              "repository": [
+                {
+                  "decoration": "repoMatches",
+                  "kind": "doublestar",
+                  "pattern": "app/**"
+                }
+              ]
+            },
+            "tag_selectors": [
+              {
+                "decoration": "matches",
+                "extras": "{\"untagged\": true}",
+                "kind": "doublestar",
+                "pattern": "v*"
+              }
+            ],
+            "template": "nDaysSinceLastPull"
+          },
+          {
+            "action": "retain",
+            "disabled": true,
+            "scope_selectors": {
+              "repository": [
+                {
+                  "decoration": "repoExcludes",
+                  "kind": "doublestar",
+                  "pattern": "**"
+                }
+              ]
+            },
+            "tag_selectors": [
+              {
+                "decoration": "excludes",
+                "extras": "{\"untagged\": false}",
+                "kind": "doublestar",
+                "pattern": "tmp-*"
+              }
+            ],
+            "template": "always"
+          }
+        ],
+        "scope": {
+          "level": "project",
+          "ref": 31
+        },
+        "trigger": {
+          "kind": "Schedule",
+          "settings": {
+            "cron": "0 0 3 * * *",
+            "next_scheduled_time": "2026-09-28T03:00:00.000Z"
+          }
+        }
+      },
+      "headers": {},
+      "status": 200
+    },
+    "tag_retention_metadatas": {
+      "body": {
+        "scope_selectors": [
+          {
+            "decorations": [
+              "repoMatches",
+              "repoExcludes"
+            ],
+            "display_text": "Repositories",
+            "kind": "doublestar"
+          }
+        ],
+        "tag_selectors": [
+          {
+            "decorations": [
+              "matches",
+              "excludes"
+            ],
+            "display_text": "Tags",
+            "kind": "doublestar"
+          }
+        ],
+        "templates": [
+          {
+            "action": "retain",
+            "display_text": "the most recently pushed # artifacts",
+            "params": [
+              {
+                "required": true,
+                "type": "int",
+                "unit": "COUNT"
+              }
+            ],
+            "rule_template": "latestPushedK"
+          },
+          {
+            "action": "retain",
+            "display_text": "the most recently pulled # artifacts",
+            "params": [
+              {
+                "required": true,
+                "type": "int",
+                "unit": "COUNT"
+              }
+            ],
+            "rule_template": "latestPulledN"
+          },
+          {
+            "action": "retain",
+            "display_text": "pushed within the last # days",
+            "params": [
+              {
+                "required": true,
+                "type": "int",
+                "unit": "DAYS"
+              }
+            ],
+            "rule_template": "nDaysSinceLastPush"
+          },
+          {
+            "action": "retain",
+            "display_text": "pulled within the last # days",
+            "params": [
+              {
+                "required": true,
+                "type": "int",
+                "unit": "DAYS"
+              }
+            ],
+            "rule_template": "nDaysSinceLastPull"
+          },
+          {
+            "action": "retain",
+            "display_text": "always",
+            "params": [],
+            "rule_template": "always"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 200
+    },
+    "tag_retention_update": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "tag_retention_update_bad_cron": {
+      "body": {
+        "errors": [
+          {
+            "code": "BAD_REQUEST",
+            "message": "invalid cron string for scheduled tag retention: nope, error: expected exactly 6 fields, found 1: [nope]"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 400
+    },
+    "tag_retention_update_duplicate": {
+      "body": {
+        "errors": [
+          {
+            "code": "CONFLICT",
+            "message": "resource conflict: rule 1 is conflict with rule 0"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 409
+    }
+  }
+}

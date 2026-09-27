@@ -351,3 +351,90 @@ def webhook_view(policy, project):
         skip_cert_verify=bool(target.get('skip_cert_verify', False)),
         payload_format=target.get('payload_format') or None,
     )
+
+
+def project_by_name(client, name):
+    """The project named `name` (read on its own, so its metadata is complete); fails when missing."""
+    found = find_by_name(client.list('/projects'), name, 'project')
+    if found is None:
+        raise ValueError('Project %r does not exist, or the user this module logs in as cannot see it.' % name)
+    return client.get('/projects/%d' % found['project_id'])
+
+
+# -- tag retention and tag immutability ---------------------------------------
+#
+# Both use Harbor's selector shape: a doublestar pattern with a decoration.
+# The UI and the modules say "matches" / "excludes"; the API spells the
+# repository ones repoMatches / repoExcludes.
+
+TAG_DECORATIONS = dict(matches='matches', excludes='excludes')
+REPO_DECORATIONS = dict(matches='repoMatches', excludes='repoExcludes')
+# Retention rule templates and the unit of the number each one takes
+# (None: the template takes no number).
+RETENTION_TEMPLATES = dict(latestPushedK='count', latestPulledN='count', nDaysSinceLastPush='days',
+                           nDaysSinceLastPull='days', always=None)
+
+
+def _decoration(api_value, table):
+    for option, api in table.items():
+        if api == api_value:
+            return option
+    return api_value
+
+
+def _untagged(extras):
+    if not extras:
+        return False
+    try:
+        return bool(json.loads(extras).get('untagged', False))
+    except (ValueError, AttributeError):
+        return False
+
+
+def selectors_view(rule):
+    """The repository and tag selectors of a retention or immutability rule, as module options."""
+    repo = ((rule.get('scope_selectors') or {}).get('repository') or [{}])[0]
+    tag = (rule.get('tag_selectors') or [{}])[0]
+    return dict(
+        repositories=repo.get('pattern', '**'), repositories_decoration=_decoration(repo.get('decoration'), REPO_DECORATIONS),
+        tags=tag.get('pattern', '**'), tags_decoration=_decoration(tag.get('decoration'), TAG_DECORATIONS),
+        untagged=_untagged(tag.get('extras')),
+    )
+
+
+def selectors_body(options, with_untagged):
+    """Harbor's tag_selectors / scope_selectors for module-style options."""
+    tag = dict(kind='doublestar', decoration=TAG_DECORATIONS[options['tags_decoration']], pattern=options['tags'])
+    if with_untagged:
+        tag['extras'] = json.dumps(dict(untagged=bool(options['untagged'])))
+    return dict(
+        tag_selectors=[tag],
+        scope_selectors=dict(repository=[dict(kind='doublestar', decoration=REPO_DECORATIONS[options['repositories_decoration']],
+                                              pattern=options['repositories'])]),
+    )
+
+
+def retention_rule_view(rule):
+    view = selectors_view(rule)
+    template = rule.get('template')
+    value = (rule.get('params') or {}).get(template)
+    view.update(template=template, value=int(value) if isinstance(value, (int, float)) or str(value).isdigit() else value,
+                disabled=bool(rule.get('disabled', False)))
+    return view
+
+
+def retention_view(policy, project_name):
+    """A retention policy as the tag_retention modules return it."""
+    return dict(
+        id=policy.get('id'), project=project_name,
+        schedule=((policy.get('trigger') or {}).get('settings') or {}).get('cron') or '',
+        rules=[retention_rule_view(r) for r in policy.get('rules') or []],
+    )
+
+
+def immutability_rule_view(rule, project_name):
+    """An immutability rule as the tag_immutability modules return it."""
+    view = selectors_view(rule)
+    view.pop('untagged')
+    view.update(id=rule.get('id'), project=project_name, disabled=bool(rule.get('disabled', False)))
+    return view

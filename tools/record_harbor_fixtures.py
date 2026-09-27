@@ -30,6 +30,7 @@ import json
 import os
 import re
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -300,12 +301,93 @@ def record_registry(srv, out):
     cleanup()
 
 
+def call_unlocked(srv, method, path, body=None):
+    """srv.call, retried while Harbor has the user locked.
+
+    Harbor locks a user for 1.5 s after any failed login, and answers that
+    user's correct credentials with 401 meanwhile. On a server shared with
+    other recordings or tests, that can hit any request.
+    """
+    for dummy in range(10):
+        result = srv.call(method, path, body)
+        if result['status'] != 401:
+            return result
+        time.sleep(2)
+    return result
+
+
+def record_tag_policy(srv, out):
+    """Tag retention and tag immutability, in project fixtures-tag-policy."""
+    def call(method, path, body=None):
+        return call_unlocked(srv, method, path, body)
+
+    name = 'fixtures-tag-policy'
+    for p in call('GET', '/projects?name=%s' % name)['body'] or []:
+        if p['name'] == name:
+            sys.exit('project %s exists from an earlier run; delete it first' % name)
+    created = expect(call('POST', '/projects', {'project_name': name, 'metadata': {'public': 'false'}}),
+                     201, 'create project')
+    out['tag_project_create'] = created
+    pid = project_id_of(created)
+    out['tag_projects_list'] = expect(call('GET', '/projects?page=1&page_size=100'), 200, 'projects')
+    out['tag_project_get'] = expect(call('GET', '/projects/%d' % pid), 200, 'project')
+    out['tag_retention_metadatas'] = expect(call('GET', '/retentions/metadatas'), 200, 'retention metadatas')
+
+    def rule(template, value=None, tags='**', repos='**', tag_dec='matches', repo_dec='repoMatches',
+             untagged=False, disabled=False):
+        return {'disabled': disabled, 'action': 'retain', 'template': template,
+                'params': {} if value is None else {template: value},
+                'tag_selectors': [{'kind': 'doublestar', 'decoration': tag_dec, 'pattern': tags,
+                                   'extras': json.dumps({'untagged': untagged})}],
+                'scope_selectors': {'repository': [{'kind': 'doublestar', 'decoration': repo_dec, 'pattern': repos}]}}
+
+    policy = {'algorithm': 'or', 'scope': {'level': 'project', 'ref': pid},
+              'trigger': {'kind': 'Schedule', 'settings': {'cron': ''}},
+              'rules': [rule('latestPushedK', 10)]}
+    created = expect(call('POST', '/retentions', policy), 201, 'create retention')
+    out['tag_retention_create'] = created
+    rid = project_id_of(created)
+    out['tag_project_get_with_retention'] = expect(call('GET', '/projects/%d' % pid), 200, 'project')
+    out['tag_retention_get'] = expect(call('GET', '/retentions/%d' % rid), 200, 'retention')
+    out['tag_retention_create_again'] = call('POST', '/retentions', policy)
+    updated = dict(policy, trigger={'kind': 'Schedule', 'settings': {'cron': '0 0 3 * * *'}},
+                   rules=[rule('latestPushedK', 10),
+                          rule('nDaysSinceLastPull', 180, tags='v*', repos='app/**', untagged=True),
+                          rule('always', tags='tmp-*', tag_dec='excludes', repo_dec='repoExcludes', disabled=True)])
+    out['tag_retention_update'] = expect(call('PUT', '/retentions/%d' % rid, updated), 200, 'update retention')
+    out['tag_retention_get_updated'] = expect(call('GET', '/retentions/%d' % rid), 200, 'retention')
+    out['tag_retention_update_bad_cron'] = call('PUT', '/retentions/%d' % rid, dict(
+        updated, trigger={'kind': 'Schedule', 'settings': {'cron': 'nope'}}))
+    out['tag_retention_update_duplicate'] = call('PUT', '/retentions/%d' % rid, dict(
+        policy, rules=[rule('latestPushedK', 10), rule('latestPushedK', 10)]))
+    out['tag_retention_delete'] = expect(call('DELETE', '/retentions/%d' % rid), 200, 'delete retention')
+    out['tag_project_get_after_retention_delete'] = expect(call('GET', '/projects/%d' % pid), 200, 'project')
+
+    base = '/projects/%d/immutabletagrules' % pid
+    immutable = {'disabled': False, 'action': 'immutable', 'template': 'immutable_template',
+                 'tag_selectors': [{'kind': 'doublestar', 'decoration': 'matches', 'pattern': 'v*'}],
+                 'scope_selectors': {'repository': [{'kind': 'doublestar', 'decoration': 'repoMatches', 'pattern': '**'}]}}
+    out['tag_immutability_list_empty'] = expect(call('GET', base + '?page=1&page_size=100'), 200, 'immutable rules')
+    created = expect(call('POST', base, immutable), 201, 'create immutable rule')
+    out['tag_immutability_create'] = created
+    iid = project_id_of(created)
+    out['tag_immutability_create_duplicate'] = call('POST', base, immutable)
+    out['tag_immutability_list_one'] = expect(call('GET', base + '?page=1&page_size=100'), 200, 'immutable rules')
+    out['tag_immutability_toggle'] = expect(call('PUT', '%s/%d' % (base, iid), dict(immutable, id=iid, disabled=True)),
+                                            200, 'disable immutable rule')
+    out['tag_immutability_list_disabled'] = expect(call('GET', base + '?page=1&page_size=100'), 200, 'immutable rules')
+    out['tag_immutability_delete'] = expect(call('DELETE', '%s/%d' % (base, iid)), 200, 'delete immutable rule')
+    out['tag_immutability_delete_missing'] = call('DELETE', '%s/%d' % (base, iid))
+    expect(call('DELETE', '/projects/%d' % pid), 200, 'delete project')
+
+
 # Area name -> recorder. Each writes fixtures/<major.minor>/<area>.json.
 AREAS = {
     'core': record_core,
     'robot': record_robot,
     'registry': record_registry,
     'webhook': record_webhook,
+    'tag_policy': record_tag_policy,
 }
 
 

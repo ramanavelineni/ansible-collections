@@ -18,5 +18,9 @@ action_groups:
     - replication_info
     - robot_account
     - robot_account_info
+    - tag_immutability
+    - tag_immutability_info
+    - tag_retention
+    - tag_retention_info
     - webhook
     - webhook_info
