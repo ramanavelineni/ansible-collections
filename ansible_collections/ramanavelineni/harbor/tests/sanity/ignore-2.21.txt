@@ -7,3 +7,5 @@ plugins/modules/replication.py validate-modules:missing-gplv3-license # Apache-2
 plugins/modules/replication_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/robot_account.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/robot_account_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/webhook.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/webhook_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE

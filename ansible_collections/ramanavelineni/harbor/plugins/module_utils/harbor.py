@@ -336,3 +336,18 @@ def robot_account_view(robot, project, name=None, prefix=DEFAULT_ROBOT_PREFIX):
         expires_at=robot.get('expires_at'), disable=bool(robot.get('disable', False)),
         permissions=canonical_permissions(robot.get('permissions')),
     )
+
+
+def webhook_view(policy, project):
+    """A webhook as the webhook modules return it: first target flattened, auth header hidden."""
+    targets = policy.get('targets') or []
+    target = targets[0] if targets else {}
+    return dict(
+        id=policy.get('id'), name=policy.get('name'), project=project, project_id=policy.get('project_id'),
+        description=policy.get('description') or '', enabled=bool(policy.get('enabled', False)),
+        event_types=sorted(policy.get('event_types') or []),
+        notify_type=target.get('type'), address=target.get('address'),
+        auth_header_set=bool(target.get('auth_header')),
+        skip_cert_verify=bool(target.get('skip_cert_verify', False)),
+        payload_format=target.get('payload_format') or None,
+    )

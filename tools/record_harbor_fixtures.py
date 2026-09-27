@@ -196,6 +196,43 @@ def record_robot(srv, out):
     out['robot_delete'] = expect(srv.call('DELETE', '/robots/%d' % pcreated['body']['id']), 200, 'delete project robot')
     expect(srv.call('DELETE', '/robots/%d' % rid), 200, 'delete robot')
     out['robot_get_deleted'] = srv.call('GET', '/robots/%d' % rid)
+
+
+def record_webhook(srv, out):
+    """Webhook policies of project fixtures-webhook (dummy endpoints nothing listens on)."""
+    name = 'fixtures-webhook'
+    for p in srv.call('GET', '/projects?name=%s' % name)['body'] or []:
+        if p['name'] == name:
+            for pol in srv.call('GET', '/projects/%d/webhook/policies' % p['project_id'])['body'] or []:
+                expect(srv.call('DELETE', '/projects/%d/webhook/policies/%d' % (p['project_id'], pol['id'])),
+                       200, 'delete leftover webhook')
+            expect(srv.call('DELETE', '/projects/%d' % p['project_id']), 200, 'delete leftover project')
+    pid = project_id_of(expect(srv.call('POST', '/projects', {'project_name': name, 'metadata': {'public': 'false'}}),
+                               201, 'create project'))
+    out['webhook_projects'] = expect(srv.call('GET', '/projects?name=%s&page=1&page_size=100' % name), 200, 'projects')
+    base = '/projects/%d/webhook/policies' % pid
+    out['webhook_events'] = expect(srv.call('GET', '/projects/%d/webhook/events' % pid), 200, 'webhook events')
+    out['webhook_list_empty'] = expect(srv.call('GET', base + '?page=1&page_size=100'), 200, 'webhooks')
+    policy = {'name': 'ci-notify', 'description': 'recorded', 'enabled': True,
+              'event_types': ['DELETE_ARTIFACT', 'PUSH_ARTIFACT'],
+              'targets': [{'type': 'http', 'address': 'http://127.0.0.1:9/hook',
+                           'auth_header': 'Bearer not-a-real-token', 'skip_cert_verify': False,
+                           'payload_format': 'Default'}]}
+    created = expect(srv.call('POST', base, policy), 201, 'create webhook')
+    out['webhook_create'] = created
+    wid = project_id_of(created)
+    out['webhook_get'] = expect(srv.call('GET', '%s/%d' % (base, wid)), 200, 'webhook')
+    out['webhook_list_one'] = expect(srv.call('GET', base + '?page=1&page_size=100'), 200, 'webhooks')
+    out['webhook_create_conflict'] = srv.call('POST', base, policy)
+    out['webhook_create_bad_event'] = srv.call('POST', base, dict(policy, name='bad', event_types=['NOPE']))
+    out['webhook_update'] = expect(srv.call('PUT', '%s/%d' % (base, wid), dict(policy, enabled=False)), 200,
+                                   'update webhook')
+    out['webhook_get_updated'] = expect(srv.call('GET', '%s/%d' % (base, wid)), 200, 'webhook')
+    two = dict(policy, targets=policy['targets'] + [{'type': 'slack', 'address': 'http://127.0.0.1:9/slack'}])
+    expect(srv.call('PUT', '%s/%d' % (base, wid), two), 200, 'update webhook to two targets')
+    out['webhook_list_two_targets'] = expect(srv.call('GET', base + '?page=1&page_size=100'), 200, 'webhooks')
+    out['webhook_delete'] = expect(srv.call('DELETE', '%s/%d' % (base, wid)), 200, 'delete webhook')
+    out['webhook_delete_missing'] = srv.call('DELETE', '%s/%d' % (base, wid))
     expect(srv.call('DELETE', '/projects/%d' % pid), 200, 'delete project')
 
 
@@ -268,6 +305,7 @@ AREAS = {
     'core': record_core,
     'robot': record_robot,
     'registry': record_registry,
+    'webhook': record_webhook,
 }
 
 
