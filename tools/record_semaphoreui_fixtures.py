@@ -323,10 +323,59 @@ def record_team(srv, out):
     cleanup()
 
 
+# Placeholder for the one-time registration token Semaphore hands out: the
+# real one is a live credential until it expires, so it is never written.
+RECORDED_TOKEN = 'smrs_recorded-registration-token'
+
+
+def record_runner(srv, out):
+    """Global runners (and what a Community server says about project runners).
+
+    Runners are global objects, so this only touches runners named rn-fixture*
+    and a project named rn-fixtures, and works next to anything else.
+    """
+    for runner in expect(srv.call('GET', '/runners'), 200, 'runners')['body'] or []:
+        if runner['name'].startswith('rn-fixture'):
+            expect(srv.call('DELETE', '/runners/%d' % runner['id']), 204, 'delete leftover runner')
+    out['runner_create'] = expect(srv.call('POST', '/runners', {
+        'name': 'rn-fixture', 'max_parallel_tasks': 2, 'webhook': '', 'active': True, 'is_default': False,
+        'tags': ['b', 'a']}), 201, 'create runner')
+    rid = out['runner_create']['body']['id']
+    listing = expect(srv.call('GET', '/runners'), 200, 'runners')
+    # Other people's runners may be on the server; keep only this one.
+    listing['body'] = [r for r in listing['body'] if r['id'] == rid]
+    out['runner_list_one'] = listing
+    out['runner_get'] = expect(srv.call('GET', '/runners/%d' % rid), 200, 'runner')
+    token = expect(srv.call('POST', '/runners/%d/registration-token' % rid), 200, 'registration token')
+    if not token['body']['registration_token'].startswith('smrs_'):
+        sys.exit('registration token has an unexpected shape')
+    token['body']['registration_token'] = RECORDED_TOKEN
+    out['runner_registration_token'] = token
+    runner = dict(out['runner_get']['body'])
+    out['runner_update'] = expect(srv.call('PUT', '/runners/%d' % rid, dict(runner, webhook='https://hooks.example.com/r')),
+                                  204, 'update runner')
+    listing = expect(srv.call('GET', '/runners'), 200, 'runners')
+    listing['body'] = [r for r in listing['body'] if r['id'] == rid]
+    out['runner_list_one_updated'] = listing
+    out['runner_delete'] = expect(srv.call('DELETE', '/runners/%d' % rid), 204, 'delete runner')
+    out['runner_get_deleted'] = srv.call('GET', '/runners/%d' % rid)
+
+    for project in expect(srv.call('GET', '/projects'), 200, 'projects')['body'] or []:
+        if project['name'] == 'rn-fixtures':
+            expect(srv.call('DELETE', '/project/%d' % project['id']), 204, 'delete leftover project')
+    pid = expect(srv.call('POST', '/projects', {'name': 'rn-fixtures'}), 201, 'create project')['body']['id']
+    # Project runners are a Pro feature; a Community server answers 404.
+    out['runner_project_list_community'] = srv.call('GET', '/project/%d/runners' % pid)
+    out['runner_project_create_community'] = srv.call('POST', '/project/%d/runners' % pid, {
+        'name': 'rn-fixture', 'project_id': pid})
+    expect(srv.call('DELETE', '/project/%d' % pid), 204, 'delete project')
+
+
 # Area name -> recorder. Each writes fixtures/<major.minor>/<area>.json.
 AREAS = {
     'core': record_core,
     'team': record_team,
+    'runner': record_runner,
 }
 
 

@@ -1,0 +1,118 @@
+{
+  "recorded_from": "v2.18.30-9dcfe85-1788086332",
+  "responses": {
+    "runner_create": {
+      "body": {
+        "active": true,
+        "cleaning_requested": null,
+        "id": 4,
+        "is_default": false,
+        "max_parallel_tasks": 2,
+        "name": "rn-fixture",
+        "private_key": "",
+        "project_id": null,
+        "registered": false,
+        "tags": [
+          "b",
+          "a"
+        ],
+        "token": "",
+        "touched": null,
+        "webhook": ""
+      },
+      "status": 201
+    },
+    "runner_delete": {
+      "body": null,
+      "status": 204
+    },
+    "runner_get": {
+      "body": {
+        "active": true,
+        "cleaning_requested": null,
+        "id": 4,
+        "is_default": false,
+        "max_parallel_tasks": 2,
+        "name": "rn-fixture",
+        "project_id": null,
+        "registered": false,
+        "tags": [
+          "a",
+          "b"
+        ],
+        "touched": null,
+        "webhook": ""
+      },
+      "status": 200
+    },
+    "runner_get_deleted": {
+      "body": {
+        "error": "Runner not found"
+      },
+      "status": 404
+    },
+    "runner_list_one": {
+      "body": [
+        {
+          "active": true,
+          "cleaning_requested": null,
+          "id": 4,
+          "is_default": false,
+          "max_parallel_tasks": 2,
+          "name": "rn-fixture",
+          "project_id": null,
+          "registered": false,
+          "tags": [
+            "a",
+            "b"
+          ],
+          "touched": null,
+          "webhook": ""
+        }
+      ],
+      "status": 200
+    },
+    "runner_list_one_updated": {
+      "body": [
+        {
+          "active": true,
+          "cleaning_requested": null,
+          "id": 4,
+          "is_default": false,
+          "max_parallel_tasks": 2,
+          "name": "rn-fixture",
+          "project_id": null,
+          "registered": false,
+          "tags": [
+            "a",
+            "b"
+          ],
+          "touched": null,
+          "webhook": "https://hooks.example.com/r"
+        }
+      ],
+      "status": 200
+    },
+    "runner_project_create_community": {
+      "body": {
+        "error": "Your plan does not allow adding more runners. Please upgrade your plan."
+      },
+      "status": 403
+    },
+    "runner_project_list_community": {
+      "body": [],
+      "status": 200
+    },
+    "runner_registration_token": {
+      "body": {
+        "registration_token": "smrs_recorded-registration-token",
+        "runner_id": 4
+      },
+      "status": 200
+    },
+    "runner_update": {
+      "body": null,
+      "status": 204
+    }
+  }
+}

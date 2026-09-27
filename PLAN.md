@@ -156,7 +156,7 @@ out within its own call, so no session state crosses tasks.
 | Module | Manages | Quirks to handle inside the module |
 |---|---|---|
 | `user` | global users | the login user can't modify itself; password is a secret |
-| `runner` | global and project runners | the registration token is returned only once, so it goes into the module result |
+| `runner` | global and project runners | a new runner has no credentials: the module asks for a one-time registration token (valid 1 hour) right after creating it and returns it; `regenerate_token` gets a new one, which resets an already registered runner; the update replaces every field (tags included), so the whole runner is sent; the global list includes project runners, so global lookups filter on `project_id`; project runners are Pro-only (Community lists none and answers 403 on create), so their success paths are unit-tested only |
 | `project` | projects | the API caps the list at 200 rows: fail rather than miss projects; `state: absent` needs `confirm_delete: true` because it deletes everything inside |
 | `key_store` | Key Store entries (`ssh`, `login_password`, `none`) | PUT needs `id` and `project_id` in the body and `override_secret: true`, or the secret is silently ignored. Secret required on create; omitted on an existing key means "leave it". Type changes happen in place (a change to `ssh`/`login_password` needs the secret). **Every update of a key a repository uses makes Semaphore delete that repository's checkouts**: such a key's secret is skipped with a warning, and a type change fails, unless `force_repository_key_update: true` |
 | `repository` | Git repositories and local paths | `git_branch` required unless `git_url` is a local path; changing `git_url` deletes the checkouts |
