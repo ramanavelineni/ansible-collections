@@ -1,64 +1,38 @@
 # ramanavelineni.harbor
 
-Declarative, idempotent Ansible modules for [Harbor](https://goharbor.io):
-one module per resource, looked up by name, changed only when it differs from
-what you declare.
+**Configure [Harbor](https://goharbor.io) as code.** Projects, robot accounts,
+registries, replication, retention and immutability rules, webhooks and system
+settings, each described once and kept that way.
 
-> **Status: in development.** Only the modules below exist so far; the
-> rest are planned in [PLAN.md](../../../PLAN.md).
+[![CI](https://github.com/ramanavelineni/ansible-collections/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ramanavelineni/ansible-collections/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](https://github.com/ramanavelineni/ansible-collections/blob/main/LICENSE)
+![ansible-core 2.18–2.21](https://img.shields.io/badge/ansible--core-2.18%20%E2%80%93%202.21-EE0000?logo=ansible)
+![Harbor 2.14 | 2.15](https://img.shields.io/badge/Harbor-2.14%20%7C%202.15-60B932)
 
-## Modules
+Every module finds its object **by name**, changes only what differs from the
+options you set, and supports **check mode and `--diff`**. Objects refer to
+each other by name: a replication rule's `src_registry: dockerhub`, a robot
+account's `project: apps`.
 
-| Module | Manages |
-|---|---|
-| `info` | server version and whether it is tested (read-only) |
-| `project` | projects: visibility, metadata, proxy-cache registry, storage quota (`state: absent` needs `confirm_delete: true`) |
-| `project_info` | lists projects (read-only) |
-| `robot_account` | system and project robot accounts: permissions (compared in any order), duration, description, secret |
-| `robot_account_info` | lists system or project robot accounts, never secrets (read-only) |
-| `registry` | registry endpoints (Administration > Registries): type, URL, credentials, CA certificate (2.15) |
-| `registry_info` | lists registry endpoints, never secrets (read-only) |
-| `replication` | replication rules (Administration > Replications): pull or push, trigger, filters |
-| `replication_info` | lists replication rules (read-only) |
-| `webhook` | a project's webhooks: events, endpoint, auth header, payload format |
-| `webhook_info` | lists a project's webhooks, without their auth headers (read-only) |
-| `tag_retention` | a project's tag retention policy: rules and schedule (never starts a run) |
-| `tag_retention_info` | reads a project's tag retention policy (read-only) |
-| `tag_immutability` | one tag immutability rule of a project, identified by its patterns; enable, disable, delete |
-| `tag_immutability_info` | lists a project's tag immutability rules (read-only) |
-| `configuration` | system settings by API name (auth, OIDC, LDAP, robot name prefix, …); secrets as separate `no_log` options |
-| `configuration_info` | reads every setting, secrets left out (read-only) |
-| `garbage_collection` | the garbage collection schedule and its settings |
-| `garbage_collection_info` | the schedule and recent runs (read-only) |
-| `scan_all` | the schedule of the vulnerability scan of all artifacts (needs a default scanner) |
-| `scan_all_info` | the schedule and latest metrics (read-only) |
-| `log_rotation` | the audit log purge schedule, retention and event types |
-| `log_rotation_info` | the schedule and recent purges (read-only) |
+## Install
 
-Every module looks objects up by name, changes only what differs from the
-options you set, and supports check mode. `ansible-doc ramanavelineni.harbor.<module>`
-shows the full documentation.
+In `requirements.yml` (no Galaxy account needed):
 
-`project` checks metadata keys and values before sending them: Harbor itself
-silently drops unknown keys and stores an invalid severity as `unknown`.
+```yaml
+collections:
+  - name: https://github.com/ramanavelineni/ansible-collections.git#/ansible_collections/ramanavelineni/harbor
+    type: git
+    version: harbor-v0.1.0
+```
 
-`registry` sends a declared `access_secret` on every run (`update_secret: always`)
-or only when the endpoint is created (`on_create`); Harbor never returns it.
-Harbor checks that an endpoint is reachable whenever it is created or changed.
-An endpoint's type can't be changed, so a different type fails with
-instructions. `replication` compares filters regardless of their order and
-checks cron expressions and filters before sending anything.
+```sh
+ansible-galaxy collection install -r requirements.yml
+```
 
-## Connecting
+Needs ansible-core 2.18 or newer and Harbor 2.14 or 2.15. Other versions work
+but print a warning.
 
-Harbor's API only takes HTTP basic authentication. Each module takes `url`,
-`username` and `password`: an administrator, an ordinary user, a robot
-account (`robot$name` and its secret) or an OIDC user with their CLI secret.
-Harbor answers some requests anonymously when the credentials are wrong
-instead of refusing them, so every module first checks that the login was
-accepted.
-
-Set the connection once for a play with the collection's action group:
+## Example
 
 ```yaml
 - hosts: localhost
@@ -68,39 +42,157 @@ Set the connection once for a play with the collection's action group:
       url: https://harbor.example.com
       username: admin
       password: "{{ harbor_admin_password }}"
-      ca_path: /etc/ssl/certs/my-ca.pem   # optional: a private CA
   tasks:
-    - ramanavelineni.harbor.project:
+    - name: Docker Hub as an upstream
+      ramanavelineni.harbor.registry:
+        name: dockerhub
+        type: docker-hub
+        endpoint_url: https://hub.docker.com
+
+    - name: Pull-through cache of Docker Hub
+      ramanavelineni.harbor.project:
+        name: proxy-docker
+        public: true
+        proxy_registry: dockerhub
+
+    - name: Private project, scanned on push, 50 GiB quota
+      ramanavelineni.harbor.project:
         name: apps
         metadata:
           auto_scan: true
+          severity: high
+          prevent_vul: true
         quota_gb: 50
+
+    - name: Keep the 10 newest artifacts per repository, pruned nightly
+      ramanavelineni.harbor.tag_retention:
+        project: apps
+        schedule: "0 0 3 * * *"
+        rules:
+          - template: latestPushedK
+            value: 10
+
+    - name: CI robot that can push to apps
+      ramanavelineni.harbor.robot_account:
+        name: ci
+        level: project
+        project: apps
+        permissions:
+          - access:
+              - {resource: repository, action: pull}
+              - {resource: repository, action: push}
+      register: ci_robot
+      no_log: true   # a new robot's generated secret is in the result
+
+    - name: Weekly garbage collection
+      ramanavelineni.harbor.garbage_collection:
+        schedule: custom
+        cron: "0 0 4 * * 0"
+        delete_untagged: true
 ```
 
-The same options can come from environment variables: `HARBOR_URL`,
-`HARBOR_USERNAME`, `HARBOR_PASSWORD`, `HARBOR_VALIDATE_CERTS`,
-`HARBOR_CA_PATH`.
+Run it with `--check --diff` first to see what would change.
 
-## Requirements
+## Modules
 
-- ansible-core 2.18 or newer
-- Harbor 2.14 or 2.15
+| Area | Module | Read-only |
+|---|---|---|
+| Server | | `info`: version, tested flag |
+| Projects | `project`: visibility, metadata, proxy cache, quota | `project_info` |
+| Robot accounts | `robot_account`: system or project level | `robot_account_info` |
+| Registries (endpoints) | `registry` | `registry_info` |
+| Replication rules | `replication`: pull or push, trigger, filters | `replication_info` |
+| Webhooks | `webhook` | `webhook_info` |
+| Tag retention | `tag_retention`: rules and schedule | `tag_retention_info` |
+| Tag immutability | `tag_immutability`: one rule per task | `tag_immutability_info` |
+| Configuration | `configuration`: auth, OIDC, LDAP and other settings | `configuration_info` |
+| Garbage collection | `garbage_collection`: schedule | `garbage_collection_info` |
+| Vulnerability scan all | `scan_all`: schedule | `scan_all_info` |
+| Audit log rotation | `log_rotation`: schedule and retention | `log_rotation_info` |
 
-## Installing
+Full documentation for each: `ansible-doc ramanavelineni.harbor.<module>`.
 
-From Git (no Ansible Galaxy account needed), in `requirements.yml`:
+## Connecting
 
-```yaml
-collections:
-  - name: https://github.com/ramanavelineni/ansible-collections.git#/ansible_collections/ramanavelineni/harbor
-    type: git
-    version: main   # use a harbor-vX.Y.Z tag once one exists
-```
+Harbor's API only takes HTTP basic authentication, so each module takes `url`
+(with or without `/api/v2.0`), `username` and `password`. That can be an
+administrator, an ordinary user, a robot account (`robot$name` and its secret)
+or an OIDC user with their CLI secret. Set them once per play with the action
+group `group/ramanavelineni.harbor.harbor`, as in the example, or through
+environment variables:
 
-```sh
-ansible-galaxy collection install -r requirements.yml
-```
+| Option | Environment variable |
+|---|---|
+| `url` | `HARBOR_URL` |
+| `username` / `password` | `HARBOR_USERNAME` / `HARBOR_PASSWORD` |
+| `validate_certs` / `ca_path` | `HARBOR_VALIDATE_CERTS` / `HARBOR_CA_PATH` |
 
-## License
+**Wrong credentials don't always fail in Harbor.** Harbor answers many requests
+as an anonymous user instead, so every module checks the login first. Harbor
+also locks a user for 1.5 s after a failed login. A module that hits the lock
+waits and tries once more, but automation that shares one account with
+something else that might fail to log in is better off with its own account.
 
-Apache-2.0. See [LICENSE](../../../LICENSE).
+## Good to know
+
+<details>
+<summary><b>Secrets</b> (<code>robot_account</code>, <code>registry</code>, <code>configuration</code>)</summary>
+
+Harbor never returns a stored secret, so a changed secret can't be detected.
+`update_secret: always` (the default) sends the declared secret on every run
+and reports a change; `on_create` sends it only when the object is created.
+
+- `robot_account`: without a declared secret, Harbor generates one, which is
+  returned once when the robot is created. Register the task with
+  `no_log: true`.
+- `configuration`: `oidc_client_secret` and `ldap_search_password` are separate
+  options, never keys in `settings`, so they're never printed.
+- `webhook`: Harbor *does* return the auth header, so it's only sent when it
+  differs; it's still never in the module's output.
+
+</details>
+
+<details>
+<summary><b>Projects, registries, replication</b></summary>
+
+- `project` checks metadata keys and values before sending them, because
+  Harbor silently drops unknown keys and stores an invalid severity as
+  `unknown`. A project's proxy-cache registry can only be set when it's
+  created.
+- `registry`: Harbor checks that an endpoint is reachable whenever it's
+  created or changed. An endpoint's type can't be changed, so a different
+  type fails with instructions to recreate it.
+- `replication` checks cron expressions (6 fields, seconds `0`) and filters
+  before sending anything.
+
+</details>
+
+<details>
+<summary><b>Retention, immutability, schedules</b></summary>
+
+- `tag_retention` manages a project's single policy, and its `rules` are the
+  complete list. It never starts a retention run.
+- `tag_immutability` manages one rule per task, identified by its patterns.
+- `garbage_collection`, `scan_all` and `log_rotation` only manage schedules.
+  They never start a run. `scan_all` needs a vulnerability scanner installed
+  in Harbor.
+
+</details>
+
+<details>
+<summary><b>Configuration</b></summary>
+
+`configuration` takes a `settings` dict of Harbor's own setting names and
+sends only those that differ. Unknown keys and wrong types fail before
+anything is sent, because Harbor would silently ignore or reject them.
+`auth_mode` can only change while no user other than the admin exists.
+
+</details>
+
+## More
+
+- [Repository and other collections](https://github.com/ramanavelineni/ansible-collections)
+- [Design notes and every Harbor API quirk found](https://github.com/ramanavelineni/ansible-collections/blob/main/PLAN.md)
+- [Changelog](https://github.com/ramanavelineni/ansible-collections/blob/main/ansible_collections/ramanavelineni/harbor/CHANGELOG.md)
+
+Apache-2.0 licensed.

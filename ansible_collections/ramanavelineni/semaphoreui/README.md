@@ -1,83 +1,38 @@
 # ramanavelineni.semaphoreui
 
-Declarative, idempotent Ansible modules for [Semaphore UI](https://semaphoreui.com):
-one module per resource, looked up by name, changed only when it differs from
-what you declare.
+**Configure [Semaphore UI](https://semaphoreui.com) as code.** Projects, keys,
+repositories, inventories, variable groups, templates, schedules, webhooks,
+users and runners, each described once and kept that way.
 
-> **Status: in development.** Only the modules below exist so far; the
-> rest are planned in [PLAN.md](../../../PLAN.md).
+[![CI](https://github.com/ramanavelineni/ansible-collections/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ramanavelineni/ansible-collections/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](https://github.com/ramanavelineni/ansible-collections/blob/main/LICENSE)
+![ansible-core 2.18–2.21](https://img.shields.io/badge/ansible--core-2.18%20%E2%80%93%202.21-EE0000?logo=ansible)
+![Semaphore UI 2.18 | 2.19](https://img.shields.io/badge/Semaphore%20UI-2.18%20%7C%202.19-7B42BC)
 
-## Modules
+Every module finds its object **by name**, changes only what differs from the
+options you set, and supports **check mode and `--diff`**. Objects refer to
+each other by name too: a repository's `ssh_key: deploy`, a template's
+`inventory: homelab`.
 
-| Module | Manages |
-|---|---|
-| `info` | server version, whether it is tested, registered apps (read-only) |
-| `project` | projects (`state: present` / `absent`; deleting needs `confirm_delete: true`) |
-| `project_info` | lists projects (read-only) |
-| `key_store` | keys in a project's Key Store: `ssh`, `login_password`, `none` |
-| `key_store_info` | lists a project's keys and the repositories using each (read-only) |
-| `repository` | a project's repositories |
-| `repository_info` | lists a project's repositories (read-only) |
-| `inventory` | a project's inventories: `file`, `static`, `static-yaml` |
-| `inventory_info` | lists a project's inventories (read-only) |
-| `variable_group` | a project's variable groups: extra variables, environment variables, secrets |
-| `variable_group_info` | lists a project's variable groups, with secret names but never values (read-only) |
-| `view` | a project's views (template tabs): position, hidden, sort |
-| `view_info` | lists a project's views (read-only) |
-| `template` | task templates: app, repository, inventory, variable groups, view, vaults, survey variables, task parameters, build/deploy |
-| `template_info` | lists a project's templates in the shape `template` takes (read-only) |
-| `schedule` | cron schedules, commit pollers and one-off run-at schedules |
-| `schedule_info` | lists a project's schedules, including commit pollers (read-only) |
-| `integration` | inbound webhooks: authentication, matchers, extracted values; returns the webhook URL |
-| `integration_info` | lists a project's integrations with their webhook URLs (read-only) |
-| `team_member` | a user's role in a project's team (`owner`, `manager`, `task_runner`, `guest`) |
-| `team_member_info` | lists a project's team (read-only) |
-| `runner` | global runners, and project runners on Semaphore Pro; returns a registration token for a new runner |
-| `runner_info` | lists global or project runners (read-only) |
-| `user` | global users; the managed user is `login` / `user_password`, since `username` / `password` are the module's own login |
-| `user_info` | lists users (read-only) |
+## Install
 
-Every module looks objects up by name, changes only what differs from the
-options you set, and supports check mode. Objects inside a project name it
-with `project:`, and refer to each other by name too (a repository's
-`ssh_key: github-deploy`).
+In `requirements.yml` (no Galaxy account needed):
 
-Secrets can't be read back from Semaphore. `key_store` therefore sends a
-declared secret on every run (`update_secret: always`, reported as changed),
-or only when the key is created (`update_secret: on_create`). It never sends
-the secret of a key a repository uses unless `force_repository_key_update: true`
-is set: Semaphore deletes every checkout of those repositories on each update
-of the key.
+```yaml
+collections:
+  - name: https://github.com/ramanavelineni/ansible-collections.git#/ansible_collections/ramanavelineni/semaphoreui
+    type: git
+    version: semaphoreui-v0.1.0
+```
 
-`variable_group` handles its secrets the same way (`update_secret`), leaves
-secrets you don't list alone unless `purge_secrets: true`, and recreates a
-secret whose type (`env` or `var`) changed, since Semaphore can't change it
-in place.
+```sh
+ansible-galaxy collection install -r requirements.yml
+```
 
-`template` compares only the options you set and sends everything else back
-unchanged, including fields it doesn't manage (such as 2.19's
-`executor_image`). `task_params` is merged key by key, and a key the
-template's app doesn't know fails instead of being ignored. The built-in
-`All` view can be moved or hidden, but not deleted.
+Needs ansible-core 2.18 or newer and Semaphore UI 2.18 or 2.19. Other versions
+work but print a warning.
 
-`schedule` finds commit pollers too, although Semaphore's project schedule
-list leaves them out, and refuses `active: false` on a poller because
-Semaphore would keep running it. `integration` makes sure the integration
-has a webhook URL and returns it.
-
-`team_member` takes the member as `user:` (`username` is the login
-option), never removes or downgrades a project's last owner, and never
-changes the membership of the user it logs in as.
-
-Deleting (`state: absent`) fails with a list of what still uses the object,
-instead of Semaphore's own, misleading answer. `ansible-doc ramanavelineni.semaphoreui.<module>`
-shows the full documentation.
-
-## Connecting
-
-Each module takes `url` and either `api_token` or `username` + `password`
-(logged in and out within the task). Set them once for a play with the
-collection's action group:
+## Example
 
 ```yaml
 - hosts: localhost
@@ -86,37 +41,173 @@ collection's action group:
     group/ramanavelineni.semaphoreui.semaphoreui:
       url: https://semaphore.example.com
       api_token: "{{ semaphore_api_token }}"
-      ca_path: /etc/ssl/certs/my-ca.pem   # optional: a private CA
   tasks:
-    - ramanavelineni.semaphoreui.project:
+    - name: Project
+      ramanavelineni.semaphoreui.project:
         name: homelab
-        max_parallel_tasks: 0
+
+    - name: Deploy key, set once and left alone afterwards
+      ramanavelineni.semaphoreui.key_store:
+        project: homelab
+        name: deploy
+        type: ssh
+        ssh:
+          login: git
+          private_key: "{{ vault_deploy_key }}"
+        update_secret: on_create
+
+    - name: Repository
+      ramanavelineni.semaphoreui.repository:
+        project: homelab
+        name: ansible
+        git_url: git@github.com:example/ansible.git
+        git_branch: main
+        ssh_key: deploy
+
+    - name: Inventory read from the repository
+      ramanavelineni.semaphoreui.inventory:
+        project: homelab
+        name: homelab
+        type: file
+        inventory: inventories/homelab/hosts
+        repository: ansible
+        ssh_key: deploy
+
+    - name: Variable group with a secret
+      ramanavelineni.semaphoreui.variable_group:
+        project: homelab
+        name: default
+        env:
+          TZ: UTC
+        secrets:
+          - name: API_TOKEN
+            type: env
+            value: "{{ vault_api_token }}"
+
+    - name: Template
+      ramanavelineni.semaphoreui.template:
+        project: homelab
+        name: site
+        playbook: site.yml
+        repository: ansible
+        inventory: homelab
+        variable_groups: [default]
+
+    - name: Run it whenever main moves (checked every 5 minutes)
+      ramanavelineni.semaphoreui.schedule:
+        project: homelab
+        name: site-on-push
+        template: site
+        repository: ansible
+        cron: "*/5 * * * *"
 ```
 
-The same options can come from environment variables: `SEMAPHORE_URL`,
-`SEMAPHORE_API_TOKEN`, `SEMAPHORE_USERNAME`, `SEMAPHORE_PASSWORD`,
-`SEMAPHORE_VALIDATE_CERTS`, `SEMAPHORE_CA_PATH`.
+Run it with `--check --diff` first to see what would change.
 
-## Requirements
+## Modules
 
-- ansible-core 2.18 or newer
-- Semaphore UI 2.18 or 2.19
+| Area | Module | Read-only |
+|---|---|---|
+| Server | | `info`: version, tested flag, registered apps |
+| Projects | `project` | `project_info` |
+| Key Store | `key_store`: `ssh`, `login_password`, `none` | `key_store_info` |
+| Repositories | `repository` | `repository_info` |
+| Inventories | `inventory`: `file`, `static`, `static-yaml` | `inventory_info` |
+| Variable groups | `variable_group`: extra vars, env vars, secrets | `variable_group_info` |
+| Views (template tabs) | `view` | `view_info` |
+| Task templates | `template` | `template_info` |
+| Schedules | `schedule`: cron, commit poller, run-at | `schedule_info` |
+| Integrations (inbound webhooks) | `integration`: returns the webhook URL | `integration_info` |
+| Team | `team_member` | `team_member_info` |
+| Runners | `runner`: global, and project runners on Pro | `runner_info` |
+| Users | `user` | `user_info` |
 
-## Installing
+Full documentation for each: `ansible-doc ramanavelineni.semaphoreui.<module>`.
 
-From Git (no Ansible Galaxy account needed), in `requirements.yml`:
+## Connecting
 
-```yaml
-collections:
-  - name: https://github.com/ramanavelineni/ansible-collections.git#/ansible_collections/ramanavelineni/semaphoreui
-    type: git
-    version: main   # use a semaphoreui-vX.Y.Z tag once one exists
-```
+Each module takes `url` (with or without `/api`) and either an `api_token` or
+`username` + `password`. With a password, the module logs in and out within
+the task. Set them once per play with the action group
+`group/ramanavelineni.semaphoreui.semaphoreui`, as in the example, or through
+environment variables:
 
-```sh
-ansible-galaxy collection install -r requirements.yml
-```
+| Option | Environment variable |
+|---|---|
+| `url` | `SEMAPHORE_URL` |
+| `api_token` | `SEMAPHORE_API_TOKEN` |
+| `username` / `password` | `SEMAPHORE_USERNAME` / `SEMAPHORE_PASSWORD` |
+| `validate_certs` / `ca_path` | `SEMAPHORE_VALIDATE_CERTS` / `SEMAPHORE_CA_PATH` |
 
-## License
+`ca_path` points at a private CA's certificate, so you don't have to turn off
+certificate checks.
 
-Apache-2.0. See [LICENSE](../../../LICENSE).
+## Good to know
+
+<details>
+<summary><b>Secrets</b> (<code>key_store</code>, <code>variable_group</code>, <code>user</code>)</summary>
+
+Semaphore never returns a stored secret, so a changed secret can't be
+detected. `update_secret: always` (the default) sends the declared secret on
+every run and reports a change; `on_create` sends it only when the object is
+created. Leave the secret out to keep the stored one.
+
+`key_store` never sends the secret of a key a repository uses unless
+`force_repository_key_update: true` is set: Semaphore deletes every checkout of
+those repositories whenever such a key is updated.
+
+`variable_group` leaves secrets you don't list alone unless
+`purge_secrets: true`, and recreates a secret whose type (`env` or `var`)
+changed, since Semaphore can't change it in place.
+
+</details>
+
+<details>
+<summary><b>Templates</b></summary>
+
+- Fields the module doesn't manage (such as 2.19's `executor_image`) are sent
+  back unchanged on every update.
+- `task_params` is merged key by key, and a key the template's app doesn't
+  know fails instead of being silently ignored.
+- A Terraform/OpenTofu template created without an inventory gets a
+  workspace inventory named `default` from Semaphore, and keeps it through
+  later updates.
+- `type` is `task`, `build` or `deploy`; survey variable types are `string`,
+  `int`, `enum` and `text` (`text` needs 2.19).
+
+</details>
+
+<details>
+<summary><b>Schedules, integrations, team, users, runners</b></summary>
+
+- `schedule` also finds commit pollers, which Semaphore's own project list
+  leaves out, and refuses `active: false` on a poller, because Semaphore keeps
+  running pollers whatever `active` says. Use `state: absent` to stop one.
+- `integration` makes sure the integration has a webhook URL and returns it.
+  Matchers and extracted values are complete lists.
+- `team_member` never removes or downgrades a project's last owner, and never
+  changes the membership of the user it logs in as. The member is `user:`,
+  because `username` is the login option.
+- `user` names the managed user `login:` / `user_password:` for the same
+  reason, and never changes the user it logs in as.
+- `runner` returns a new runner's registration token. Register the task with
+  `no_log: true`, since a module can't mask values it returns.
+
+</details>
+
+<details>
+<summary><b>Deleting</b></summary>
+
+`state: absent` fails with a list of what still uses the object: which
+templates use an inventory, which repositories use a key. Deleting a project
+also needs `confirm_delete: true`, because it deletes everything inside.
+
+</details>
+
+## More
+
+- [Repository and other collections](https://github.com/ramanavelineni/ansible-collections)
+- [Design notes and every Semaphore API quirk found](https://github.com/ramanavelineni/ansible-collections/blob/main/PLAN.md)
+- [Changelog](https://github.com/ramanavelineni/ansible-collections/blob/main/ansible_collections/ramanavelineni/semaphoreui/CHANGELOG.md)
+
+Apache-2.0 licensed.
