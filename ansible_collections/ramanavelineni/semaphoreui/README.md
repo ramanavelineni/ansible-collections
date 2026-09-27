@@ -18,6 +18,10 @@ what you declare.
 | `key_store_info` | lists a project's keys and the repositories using each (read-only) |
 | `repository` | a project's repositories |
 | `repository_info` | lists a project's repositories (read-only) |
+| `inventory` | a project's inventories: `file`, `static`, `static-yaml` |
+| `inventory_info` | lists a project's inventories (read-only) |
+| `variable_group` | a project's variable groups: extra variables, environment variables, secrets |
+| `variable_group_info` | lists a project's variable groups, with secret names but never values (read-only) |
 
 Every module looks objects up by name, changes only what differs from the
 options you set, and supports check mode. Objects inside a project name it
@@ -30,6 +34,11 @@ or only when the key is created (`update_secret: on_create`). It never sends
 the secret of a key a repository uses unless `force_repository_key_update: true`
 is set: Semaphore deletes every checkout of those repositories on each update
 of the key.
+
+`variable_group` handles its secrets the same way (`update_secret`), leaves
+secrets you don't list alone unless `purge_secrets: true`, and recreates a
+secret whose type (`env` or `var`) changed, since Semaphore can't change it
+in place.
 
 Deleting (`state: absent`) fails with a list of what still uses the object,
 instead of Semaphore's own, misleading answer. `ansible-doc ramanavelineni.semaphoreui.<module>`
