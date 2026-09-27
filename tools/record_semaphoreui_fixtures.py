@@ -284,9 +284,49 @@ def record_core(srv, out):
     expect(srv.call('POST', '/auth/login', {'auth': srv.username, 'password': srv.password}), 204, 'login')
 
 
+def record_team(srv, out):
+    """Project membership, in project fixtures-team with two throwaway users."""
+    project_name = 'fixtures-team'
+    usernames = ('tm-fixture-a', 'tm-fixture-b')
+
+    def cleanup():
+        for p in expect(srv.call('GET', '/projects'), 200, 'projects')['body'] or []:
+            if p['name'] == project_name:
+                expect(srv.call('DELETE', '/project/%d' % p['id']), 204, 'delete leftover project')
+        for u in expect(srv.call('GET', '/users'), 200, 'users')['body'] or []:
+            if u['username'] in usernames:
+                expect(srv.call('DELETE', '/users/%d' % u['id']), 204, 'delete leftover user')
+
+    cleanup()
+    users = {}
+    for name in usernames:
+        users[name] = expect(srv.call('POST', '/users', {
+            'username': name, 'name': name.upper(), 'email': name + '@example.com',
+            'password': 'not-a-real-password-1', 'admin': False}), 201, 'create user')['body']
+    out['team_user_current'] = expect(srv.call('GET', '/user'), 200, 'current user')
+    out['team_users_search'] = expect(srv.call('GET', '/users?s=tm-fixture-a'), 200, 'search users')
+    out['team_users_search_prefix'] = expect(srv.call('GET', '/users?s=tm-fixture'), 200, 'search users by prefix')
+    project = expect(srv.call('POST', '/projects', {'name': project_name}), 201, 'create project')['body']
+    pid = project['id']
+    base = '/project/%d/users' % pid
+    out['team_projects_list'] = expect(srv.call('GET', '/projects'), 200, 'projects')
+    out['team_members_initial'] = expect(srv.call('GET', base), 200, 'members')
+    a, b = users['tm-fixture-a']['id'], users['tm-fixture-b']['id']
+    out['team_member_add'] = expect(srv.call('POST', base, {'user_id': a, 'role': 'manager'}), 204, 'add member')
+    out['team_member_add_duplicate'] = srv.call('POST', base, {'user_id': a, 'role': 'manager'})
+    out['team_member_add_bad_role'] = srv.call('POST', base, {'user_id': b, 'role': 'nope'})
+    out['team_members_two'] = expect(srv.call('GET', base), 200, 'members')
+    out['team_member_update'] = expect(srv.call('PUT', '%s/%d' % (base, a), {'role': 'owner'}), 204, 'update member')
+    out['team_members_updated'] = expect(srv.call('GET', base), 200, 'members')
+    out['team_member_remove'] = expect(srv.call('DELETE', '%s/%d' % (base, a)), 204, 'remove member')
+    out['team_members_after_remove'] = expect(srv.call('GET', base), 200, 'members')
+    cleanup()
+
+
 # Area name -> recorder. Each writes fixtures/<major.minor>/<area>.json.
 AREAS = {
     'core': record_core,
+    'team': record_team,
 }
 
 
