@@ -180,6 +180,57 @@ def main():
     out['template_get_updated'] = expect(srv.call('GET', '%s/templates/%d' % (base, tid)), 200, 'template')
     out['template_update_id_mismatch'] = srv.call('PUT', '%s/templates/%d' % (base, tid), dict(tpl, id=tid + 1000))
     out['template_refs_unused'] = expect(srv.call('GET', '%s/templates/%d/refs' % (base, tid)), 200, 'template refs')
+
+    # Schedules on the template above: a cron schedule and a commit poller.
+    out['schedules_empty'] = expect(srv.call('GET', base + '/schedules'), 200, 'schedules')
+    out['schedule_create'] = expect(srv.call('POST', base + '/schedules', {
+        'project_id': pid, 'template_id': tid, 'name': 'nightly', 'cron_format': '0 3 * * *', 'active': True}),
+        201, 'create schedule')
+    sid = out['schedule_create']['body']['id']
+    out['schedule_create_poller'] = expect(srv.call('POST', base + '/schedules', {
+        'project_id': pid, 'template_id': tid, 'name': 'on-push', 'cron_format': '*/5 * * * *',
+        'repository_id': rid, 'active': True}), 201, 'create poller')
+    out['schedules_project_list'] = expect(srv.call('GET', base + '/schedules'), 200, 'schedules')
+    out['schedules_template_pollers'] = expect(srv.call('GET', '%s/templates/%d/schedules' % (base, tid)),
+                                               200, 'template schedules')
+    out['schedule_get'] = expect(srv.call('GET', '%s/schedules/%d' % (base, sid)), 200, 'schedule')
+    sched = dict(out['schedule_get']['body'])
+    out['schedule_update'] = expect(srv.call('PUT', '%s/schedules/%d' % (base, sid), dict(sched, active=False)),
+                                    204, 'update schedule')
+    out['schedule_update_bad_cron'] = srv.call('PUT', '%s/schedules/%d' % (base, sid), dict(sched, cron_format='bad cron'))
+    out['schedule_delete'] = expect(srv.call('DELETE', '%s/schedules/%d' % (base, sid)), 204, 'delete schedule')
+    expect(srv.call('DELETE', '%s/schedules/%d' % (base, out['schedule_create_poller']['body']['id'])), 204, 'delete poller')
+
+    # An integration on the template above, with a matcher, a value and an alias.
+    out['integrations_empty'] = expect(srv.call('GET', base + '/integrations'), 200, 'integrations')
+    out['integration_create'] = expect(srv.call('POST', base + '/integrations', {
+        'project_id': pid, 'name': 'gh', 'template_id': tid, 'auth_method': 'token', 'auth_secret_id': kid,
+        'auth_header': 'X-Token', 'searchable': False}), 201, 'create integration')
+    gid = out['integration_create']['body']['id']
+    ipath = '%s/integrations/%d' % (base, gid)
+    out['integrations_one'] = expect(srv.call('GET', base + '/integrations'), 200, 'integrations')
+    out['integration_get'] = expect(srv.call('GET', ipath), 200, 'integration')
+    out['integration_matchers_empty'] = expect(srv.call('GET', ipath + '/matchers'), 200, 'matchers')
+    out['integration_matcher_create'] = expect(srv.call('POST', ipath + '/matchers', {
+        'integration_id': gid, 'name': 'main', 'match_type': 'body', 'method': 'equals', 'body_data_type': 'json',
+        'key': 'ref', 'value': 'refs/heads/main'}), 200, 'create matcher')
+    out['integration_matchers_one'] = expect(srv.call('GET', ipath + '/matchers'), 200, 'matchers')
+    mid = out['integration_matcher_create']['body']['id']
+    out['integration_matcher_update'] = expect(srv.call('PUT', '%s/matchers/%d' % (ipath, mid), dict(
+        out['integration_matcher_create']['body'], value='refs/heads/develop')), 204, 'update matcher')
+    out['integration_values_empty'] = expect(srv.call('GET', ipath + '/values'), 200, 'values')
+    out['integration_value_create'] = expect(srv.call('POST', ipath + '/values', {
+        'integration_id': gid, 'name': 'sha', 'value_source': 'body', 'body_data_type': 'json', 'key': 'after',
+        'variable': 'COMMIT_SHA', 'variable_type': 'environment'}), 201, 'create value')
+    out['integration_values_one'] = expect(srv.call('GET', ipath + '/values'), 200, 'values')
+    out['integration_aliases_empty'] = expect(srv.call('GET', ipath + '/aliases'), 200, 'aliases')
+    out['integration_alias_create'] = expect(srv.call('POST', ipath + '/aliases', {}), 200, 'create alias')
+    out['integration_aliases_one'] = expect(srv.call('GET', ipath + '/aliases'), 200, 'aliases')
+    out['integration_update'] = expect(srv.call('PUT', ipath, dict(out['integration_get']['body'], searchable=True)),
+                                       204, 'update integration')
+    out['integration_refs_unused'] = expect(srv.call('GET', ipath + '/refs'), 200, 'integration refs')
+    out['integration_matcher_delete'] = expect(srv.call('DELETE', '%s/matchers/%d' % (ipath, mid)), 204, 'delete matcher')
+    out['integration_delete'] = expect(srv.call('DELETE', ipath), 204, 'delete integration')
     tofu = expect(srv.call('POST', base + '/templates', {
         'project_id': pid, 'name': 'infra', 'app': 'tofu', 'repository_id': rid,
         'environment_id': env['id'], 'environment_ids': [env['id']]}), 201, 'create tofu template')

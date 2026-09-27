@@ -9,7 +9,7 @@ They start from the two roles in the homelab ansible repo,
 both APIs and work around their quirks. The collections move that knowledge
 into Python modules and make it usable by anyone.
 
-Status: phase 2 in progress. Done: scaffolding, client, `info`, `project`, `key_store`, `repository`, `inventory`, `variable_group` and their `_info` modules (phase 2 complete); phase 3 in progress: `view`, `template`.
+Status: phase 2 in progress. Done: scaffolding, client, `info`, `project`, `key_store`, `repository`, `inventory`, `variable_group` and their `_info` modules (phase 2 complete); phase 3 in progress: `view`, `template`, `schedule`, `integration`.
 
 ---
 
@@ -164,8 +164,8 @@ out within its own call, so no session state crosses tasks.
 | `variable_group` | variable groups (environments) and their secrets | secrets are a list of `{name, type, value}` (a dict keyed by name would mask the words `env`/`var` in all output once marked `no_log`); `update_secret` like `key_store`; undeclared secrets left alone unless `purge_secrets: true`; a type change is a delete + create in one update |
 | `view` | UI tabs: position, hidden, sort | the update must send the current `type` back; the built-in `All` view can't be deleted by the module; `filter` isn't written by Semaphore's update and is left alone |
 | `template` | task templates, including build/deploy, vaults and surveys | the list omits `vaults`, so each template is read on its own; PUT rewrites every column and the vault and variable-group lists (a vault left out is deleted), so the whole current template goes back with the changes; references the caller didn't change keep their ids (a Terraform-family template's own workspace inventory is hidden from the inventory list and would be lost if resolved by name); `variable_groups` is a list; only fields 2.18 and 2.19 share are managed; `type` is `task`/`build`/`deploy` and survey `type` `string`/`int`/`enum`/`text` (`text` needs 2.19); `task_params` merged per key, keys checked per app |
-| `schedule` | cron schedules and commit pollers | pollers don't appear in the project schedule list and are read per template |
-| `integration` | webhook integrations, matchers, extracted values | `auth_header` is a secret |
+| `schedule` | cron schedules, commit pollers, run-at schedules | the project list leaves out pollers and each template's list has only its pollers, so both are read; `active: false` on a poller fails (Semaphore's scheduler ignores it); task-parameter overrides are read from the single schedule and sent back (an update without them unlinks them); an update resets the poller's last commit, so its next tick runs |
+| `integration` | webhook integrations, matchers, extracted values | `auth_header` is only a header name; the secret is a `login_password` key (`auth_key`); matchers and extracted values are exact lists matched by name; the module ensures one webhook alias and returns the URLs; creating an alias or matcher answers 200, not 201 |
 | `team_member` | project membership and role | |
 | `info` | server version and registered apps | for the version check the role does today |
 | `*_info` | read-only versions of the above | |

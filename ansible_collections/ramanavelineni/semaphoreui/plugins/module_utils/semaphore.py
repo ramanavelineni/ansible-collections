@@ -8,6 +8,8 @@ import re
 import socket
 import time
 
+from datetime import datetime, timezone
+
 from http.cookiejar import CookieJar
 from urllib.error import HTTPError, URLError
 
@@ -153,8 +155,10 @@ class SemaphoreClient(object):
     def get(self, path):
         return self.request('GET', path, expected=(200,), retry=True)
 
-    def post(self, path, body):
-        return self.request('POST', path, body=body, expected=(201,), retry=False)
+    def post(self, path, body, expected=(201,)):
+        # Most creates answer 201; a few (integration aliases and matchers)
+        # answer 200, and their callers say so.
+        return self.request('POST', path, body=body, expected=expected, retry=False)
 
     def put(self, path, body):
         return self.request('PUT', path, body=body, expected=(204,), retry=True)
@@ -331,4 +335,75 @@ def variable_group_view(group, secrets):
         json=_parse_json_field(group.get('json'), 'extra variables', group.get('name')),
         env=_parse_json_field(group.get('env'), 'environment variables', group.get('name')),
         secrets=sorted((dict(name=s['name'], type=s['type']) for s in secrets), key=lambda s: s['name']),
+    )
+
+
+def normalize_time(value):
+    """An ISO 8601 time as a comparable UTC string, or the input when it doesn't parse."""
+    if not value:
+        return None
+    text = value.strip().replace('Z', '+00:00')
+    if '.' in text:
+        # Go sends up to nanoseconds; Python parses at most microseconds.
+        head, rest = text.split('.', 1)
+        digits = len(rest) - len(rest.lstrip('0123456789'))
+        text = head + '.' + rest[:digits][:6].ljust(6, '0') + rest[digits:]
+    try:
+        moment = datetime.fromisoformat(text)
+    except ValueError:
+        return value
+    if moment.tzinfo is not None:
+        moment = moment.astimezone(timezone.utc).replace(tzinfo=None)
+    return moment.strftime('%Y-%m-%dT%H:%M:%S') + (moment.strftime('.%f') if moment.microsecond else '') + 'Z'
+
+
+def all_schedules(client, base, templates):
+    """Every schedule in the project, with its template's name.
+
+    The project list leaves out commit pollers, and each template's list has
+    only its pollers; together they are complete. Neither carries a
+    schedule's task-parameter overrides: read the schedule itself for those.
+    """
+    out = client.list(base + '/schedules')
+    names = dict((t['id'], t.get('name')) for t in templates)
+    for tpl in templates:
+        for sched in client.list('%s/templates/%d/schedules' % (base, tpl['id'])):
+            out.append(dict(sched, tpl_name=names.get(sched.get('template_id'))))
+    return out
+
+
+def schedule_view(sched, repos, templates):
+    """A schedule as the schedule modules return it."""
+    kind = 'run_at' if sched.get('type') == 'run_at' else ('poller' if sched.get('repository_id') else 'cron')
+    return dict(
+        id=sched.get('id'), name=sched.get('name'), project_id=sched.get('project_id'),
+        template=templates.get(sched.get('template_id')), kind=kind,
+        cron=sched.get('cron_format') or '', repository=repos.get(sched.get('repository_id')),
+        run_at=normalize_time(sched.get('run_at')), delete_after_run=bool(sched.get('delete_after_run', False)),
+        active=bool(sched.get('active', False)),
+    )
+
+
+MATCHER_FIELDS = ('match_type', 'method', 'body_data_type', 'key', 'value')
+VALUE_FIELDS = ('value_source', 'body_data_type', 'key', 'variable', 'variable_type')
+# The API spells "no authentication" as "".
+NO_AUTH = 'none'
+
+
+def item_view(item, fields):
+    """An integration matcher or extracted value, with the given fields."""
+    return dict([('name', item.get('name'))] + [(f, item.get(f) or '') for f in fields])
+
+
+def integration_view(integ, templates, keys, matchers, values):
+    """An integration as the integration modules return it."""
+    return dict(
+        id=integ.get('id'), name=integ.get('name'), project_id=integ.get('project_id'),
+        template=templates.get(integ.get('template_id')),
+        auth_method=integ.get('auth_method') or NO_AUTH,
+        auth_key=keys.get(integ.get('auth_secret_id')),
+        auth_header=integ.get('auth_header') or '',
+        searchable=bool(integ.get('searchable', False)),
+        matchers=sorted((item_view(m, MATCHER_FIELDS) for m in matchers), key=lambda m: m['name']),
+        extract_values=sorted((item_view(v, VALUE_FIELDS) for v in values), key=lambda v: v['name']),
     )
