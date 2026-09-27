@@ -25,6 +25,7 @@ what you declare.
 | `view` | a project's views (template tabs): position, hidden, sort |
 | `view_info` | lists a project's views (read-only) |
 | `template` | task templates: app, repository, inventory, variable groups, view, vaults, survey variables, task parameters, build/deploy |
+| `template_info` | lists a project's templates in the shape `template` takes (read-only) |
 | `schedule` | cron schedules, commit pollers and one-off run-at schedules |
 | `schedule_info` | lists a project's schedules, including commit pollers (read-only) |
 | `integration` | inbound webhooks: authentication, matchers, extracted values; returns the webhook URL |

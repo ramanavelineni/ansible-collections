@@ -26,6 +26,7 @@ action_groups:
     - team_member
     - team_member_info
     - template
+    - template_info
     - user
     - user_info
     - variable_group
