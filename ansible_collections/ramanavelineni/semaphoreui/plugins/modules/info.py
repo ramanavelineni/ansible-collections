@@ -14,19 +14,12 @@ author:
   - ramanavelineni (@ramanavelineni)
 extends_documentation_fragment:
   - ramanavelineni.semaphoreui.auth
-  - ansible.builtin.action_common_attributes
-  - ansible.builtin.action_common_attributes.actiongroups
+  - ramanavelineni.semaphoreui.attributes
 attributes:
   check_mode:
     support: full
   diff_mode:
     support: none
-  platform:
-    platforms: all
-  action_group:
-    support: full
-    membership:
-      - ramanavelineni.semaphoreui.semaphoreui
 '''
 
 EXAMPLES = r'''
