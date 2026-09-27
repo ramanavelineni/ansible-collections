@@ -1,0 +1,640 @@
+{
+  "recorded_from": "v2.14.4-79a297f7",
+  "responses": {
+    "system_configurations": {
+      "body": {
+        "audit_log_forward_endpoint": {
+          "editable": true,
+          "value": ""
+        },
+        "auth_mode": {
+          "editable": true,
+          "value": "db_auth"
+        },
+        "banner_message": {
+          "editable": true,
+          "value": ""
+        },
+        "disabled_audit_log_event_types": {
+          "editable": true,
+          "value": ""
+        },
+        "http_authproxy_admin_groups": {
+          "editable": true,
+          "value": ""
+        },
+        "http_authproxy_admin_usernames": {
+          "editable": true,
+          "value": ""
+        },
+        "http_authproxy_endpoint": {
+          "editable": true,
+          "value": ""
+        },
+        "http_authproxy_server_certificate": {
+          "editable": true,
+          "value": ""
+        },
+        "http_authproxy_skip_search": {
+          "editable": true,
+          "value": false
+        },
+        "http_authproxy_tokenreview_endpoint": {
+          "editable": true,
+          "value": ""
+        },
+        "http_authproxy_verify_cert": {
+          "editable": true,
+          "value": true
+        },
+        "ldap_base_dn": {
+          "editable": true,
+          "value": ""
+        },
+        "ldap_filter": {
+          "editable": true,
+          "value": ""
+        },
+        "ldap_group_admin_dn": {
+          "editable": true,
+          "value": ""
+        },
+        "ldap_group_attach_parallel": {
+          "editable": true,
+          "value": false
+        },
+        "ldap_group_attribute_name": {
+          "editable": true,
+          "value": ""
+        },
+        "ldap_group_base_dn": {
+          "editable": true,
+          "value": ""
+        },
+        "ldap_group_membership_attribute": {
+          "editable": true,
+          "value": "memberof"
+        },
+        "ldap_group_search_filter": {
+          "editable": true,
+          "value": ""
+        },
+        "ldap_group_search_scope": {
+          "editable": true,
+          "value": 2
+        },
+        "ldap_scope": {
+          "editable": true,
+          "value": 2
+        },
+        "ldap_search_dn": {
+          "editable": true,
+          "value": ""
+        },
+        "ldap_timeout": {
+          "editable": true,
+          "value": 5
+        },
+        "ldap_uid": {
+          "editable": true,
+          "value": "cn"
+        },
+        "ldap_url": {
+          "editable": true,
+          "value": ""
+        },
+        "ldap_verify_cert": {
+          "editable": true,
+          "value": true
+        },
+        "notification_enable": {
+          "editable": true,
+          "value": true
+        },
+        "oidc_admin_group": {
+          "editable": true,
+          "value": ""
+        },
+        "oidc_auto_onboard": {
+          "editable": true,
+          "value": false
+        },
+        "oidc_client_id": {
+          "editable": true,
+          "value": ""
+        },
+        "oidc_endpoint": {
+          "editable": true,
+          "value": ""
+        },
+        "oidc_extra_redirect_parms": {
+          "editable": true,
+          "value": "{}"
+        },
+        "oidc_group_filter": {
+          "editable": true,
+          "value": ""
+        },
+        "oidc_groups_claim": {
+          "editable": true,
+          "value": ""
+        },
+        "oidc_logout": {
+          "editable": true,
+          "value": false
+        },
+        "oidc_name": {
+          "editable": true,
+          "value": ""
+        },
+        "oidc_scope": {
+          "editable": true,
+          "value": ""
+        },
+        "oidc_user_claim": {
+          "editable": true,
+          "value": ""
+        },
+        "oidc_verify_cert": {
+          "editable": true,
+          "value": true
+        },
+        "primary_auth_mode": {
+          "editable": true,
+          "value": false
+        },
+        "project_creation_restriction": {
+          "editable": true,
+          "value": "everyone"
+        },
+        "quota_per_project_enable": {
+          "editable": true,
+          "value": true
+        },
+        "read_only": {
+          "editable": true,
+          "value": false
+        },
+        "robot_name_prefix": {
+          "editable": true,
+          "value": "robot$"
+        },
+        "robot_token_duration": {
+          "editable": true,
+          "value": 30
+        },
+        "scan_all_policy": {},
+        "scanner_skip_update_pulltime": {
+          "editable": true,
+          "value": false
+        },
+        "self_registration": {
+          "editable": true,
+          "value": false
+        },
+        "session_timeout": {
+          "editable": true,
+          "value": 60
+        },
+        "skip_audit_log_database": {
+          "editable": true,
+          "value": false
+        },
+        "storage_per_project": {
+          "editable": true,
+          "value": -1
+        },
+        "token_expiration": {
+          "editable": true,
+          "value": 30
+        },
+        "uaa_client_id": {
+          "editable": true,
+          "value": ""
+        },
+        "uaa_client_secret": {
+          "editable": true,
+          "value": ""
+        },
+        "uaa_endpoint": {
+          "editable": true,
+          "value": ""
+        },
+        "uaa_verify_cert": {
+          "editable": true,
+          "value": false
+        }
+      },
+      "headers": {},
+      "status": 200
+    },
+    "system_configurations_bad_type": {
+      "body": {
+        "errors": [
+          {
+            "code": "UNPROCESSABLE_ENTITY",
+            "message": "validation failure list:\nparsing configurations body from \"\" failed, because json: cannot unmarshal string into Go struct field Configurations.session_timeout of type int64"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 422
+    },
+    "system_configurations_bad_value": {
+      "body": {
+        "errors": [
+          {
+            "code": "BAD_REQUEST",
+            "message": "the session_timeout value must be positive"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 400
+    },
+    "system_configurations_update": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "system_configurations_updated": {
+      "body": {
+        "audit_log_forward_endpoint": {
+          "editable": true,
+          "value": ""
+        },
+        "auth_mode": {
+          "editable": true,
+          "value": "db_auth"
+        },
+        "banner_message": {
+          "editable": true,
+          "value": "fixtures-system"
+        },
+        "disabled_audit_log_event_types": {
+          "editable": true,
+          "value": ""
+        },
+        "http_authproxy_admin_groups": {
+          "editable": true,
+          "value": ""
+        },
+        "http_authproxy_admin_usernames": {
+          "editable": true,
+          "value": ""
+        },
+        "http_authproxy_endpoint": {
+          "editable": true,
+          "value": ""
+        },
+        "http_authproxy_server_certificate": {
+          "editable": true,
+          "value": ""
+        },
+        "http_authproxy_skip_search": {
+          "editable": true,
+          "value": false
+        },
+        "http_authproxy_tokenreview_endpoint": {
+          "editable": true,
+          "value": ""
+        },
+        "http_authproxy_verify_cert": {
+          "editable": true,
+          "value": true
+        },
+        "ldap_base_dn": {
+          "editable": true,
+          "value": ""
+        },
+        "ldap_filter": {
+          "editable": true,
+          "value": ""
+        },
+        "ldap_group_admin_dn": {
+          "editable": true,
+          "value": ""
+        },
+        "ldap_group_attach_parallel": {
+          "editable": true,
+          "value": false
+        },
+        "ldap_group_attribute_name": {
+          "editable": true,
+          "value": ""
+        },
+        "ldap_group_base_dn": {
+          "editable": true,
+          "value": ""
+        },
+        "ldap_group_membership_attribute": {
+          "editable": true,
+          "value": "memberof"
+        },
+        "ldap_group_search_filter": {
+          "editable": true,
+          "value": ""
+        },
+        "ldap_group_search_scope": {
+          "editable": true,
+          "value": 2
+        },
+        "ldap_scope": {
+          "editable": true,
+          "value": 2
+        },
+        "ldap_search_dn": {
+          "editable": true,
+          "value": ""
+        },
+        "ldap_timeout": {
+          "editable": true,
+          "value": 5
+        },
+        "ldap_uid": {
+          "editable": true,
+          "value": "cn"
+        },
+        "ldap_url": {
+          "editable": true,
+          "value": ""
+        },
+        "ldap_verify_cert": {
+          "editable": true,
+          "value": true
+        },
+        "notification_enable": {
+          "editable": true,
+          "value": true
+        },
+        "oidc_admin_group": {
+          "editable": true,
+          "value": ""
+        },
+        "oidc_auto_onboard": {
+          "editable": true,
+          "value": false
+        },
+        "oidc_client_id": {
+          "editable": true,
+          "value": ""
+        },
+        "oidc_endpoint": {
+          "editable": true,
+          "value": ""
+        },
+        "oidc_extra_redirect_parms": {
+          "editable": true,
+          "value": "{}"
+        },
+        "oidc_group_filter": {
+          "editable": true,
+          "value": ""
+        },
+        "oidc_groups_claim": {
+          "editable": true,
+          "value": ""
+        },
+        "oidc_logout": {
+          "editable": true,
+          "value": false
+        },
+        "oidc_name": {
+          "editable": true,
+          "value": ""
+        },
+        "oidc_scope": {
+          "editable": true,
+          "value": ""
+        },
+        "oidc_user_claim": {
+          "editable": true,
+          "value": ""
+        },
+        "oidc_verify_cert": {
+          "editable": true,
+          "value": true
+        },
+        "primary_auth_mode": {
+          "editable": true,
+          "value": false
+        },
+        "project_creation_restriction": {
+          "editable": true,
+          "value": "everyone"
+        },
+        "quota_per_project_enable": {
+          "editable": true,
+          "value": true
+        },
+        "read_only": {
+          "editable": true,
+          "value": false
+        },
+        "robot_name_prefix": {
+          "editable": true,
+          "value": "robot$"
+        },
+        "robot_token_duration": {
+          "editable": true,
+          "value": 30
+        },
+        "scan_all_policy": {},
+        "scanner_skip_update_pulltime": {
+          "editable": true,
+          "value": false
+        },
+        "self_registration": {
+          "editable": true,
+          "value": false
+        },
+        "session_timeout": {
+          "editable": true,
+          "value": 45
+        },
+        "skip_audit_log_database": {
+          "editable": true,
+          "value": false
+        },
+        "storage_per_project": {
+          "editable": true,
+          "value": -1
+        },
+        "token_expiration": {
+          "editable": true,
+          "value": 30
+        },
+        "uaa_client_id": {
+          "editable": true,
+          "value": ""
+        },
+        "uaa_client_secret": {
+          "editable": true,
+          "value": ""
+        },
+        "uaa_endpoint": {
+          "editable": true,
+          "value": ""
+        },
+        "uaa_verify_cert": {
+          "editable": true,
+          "value": false
+        }
+      },
+      "headers": {},
+      "status": 200
+    },
+    "system_event_types": {
+      "body": [
+        {
+          "event_type": "create_artifact"
+        },
+        {
+          "event_type": "delete_artifact"
+        },
+        {
+          "event_type": "pull_artifact"
+        },
+        {
+          "event_type": "create_project"
+        },
+        {
+          "event_type": "delete_project"
+        },
+        {
+          "event_type": "delete_repository"
+        },
+        {
+          "event_type": "login_user"
+        },
+        {
+          "event_type": "logout_user"
+        },
+        {
+          "event_type": "create_user"
+        },
+        {
+          "event_type": "delete_user"
+        },
+        {
+          "event_type": "update_user"
+        },
+        {
+          "event_type": "create_robot"
+        },
+        {
+          "event_type": "delete_robot"
+        },
+        {
+          "event_type": "update_configuration"
+        }
+      ],
+      "headers": {},
+      "status": 200
+    },
+    "system_gc_history": {
+      "body": [],
+      "headers": {
+        "x-total-count": "0"
+      },
+      "status": 200
+    },
+    "system_gc_schedule_bad_cron": {
+      "body": {
+        "errors": [
+          {
+            "code": "BAD_REQUEST",
+            "message": "invalid cron string for scheduled gc: 0 4 * * 0, error: expected exactly 6 fields, found 5: [0 4 * * 0]"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 400
+    },
+    "system_gc_schedule_custom": {
+      "body": {
+        "creation_time": "2026-09-27T20:17:05.442Z",
+        "id": 19,
+        "job_kind": "0 0 4 * * 0",
+        "job_parameters": "{\"delete_untagged\":true,\"workers\":2}",
+        "job_status": "Running",
+        "schedule": {
+          "cron": "0 0 4 * * 0",
+          "next_scheduled_time": "2026-10-04T04:00:00.000Z",
+          "type": "Custom"
+        },
+        "update_time": "2026-09-27T20:17:05.442Z"
+      },
+      "headers": {},
+      "status": 200
+    },
+    "system_gc_schedule_none": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "system_gc_schedule_update": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "system_purge_history": {
+      "body": [],
+      "headers": {
+        "x-total-count": "0"
+      },
+      "status": 200
+    },
+    "system_purge_schedule_custom": {
+      "body": {
+        "creation_time": "2026-09-27T20:17:05.534Z",
+        "id": 20,
+        "job_kind": "0 0 6 * * *",
+        "job_parameters": "{\"audit_retention_hour\":720,\"include_event_types\":\"create_artifact,delete_artifact\"}",
+        "job_status": "Running",
+        "schedule": {
+          "cron": "0 0 6 * * *",
+          "next_scheduled_time": "2026-09-28T06:00:00.000Z",
+          "type": "Custom"
+        },
+        "update_time": "2026-09-27T20:17:05.534Z"
+      },
+      "headers": {},
+      "status": 200
+    },
+    "system_purge_schedule_no_parameters": {
+      "body": {
+        "errors": [
+          {
+            "code": "BAD_REQUEST",
+            "message": "bad request: schedule parameter cann't be empty"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 400
+    },
+    "system_purge_schedule_none": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "system_purge_schedule_update": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "system_scan_all_no_scanner": {
+      "body": {
+        "errors": [
+          {
+            "code": "PRECONDITION",
+            "message": "no scanner is configured, it's not possible to scan"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 412
+    }
+  }
+}

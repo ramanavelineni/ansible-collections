@@ -9,7 +9,13 @@ requires_ansible: ">=2.18.0"
 #       password: "{{ harbor_admin_password }}"
 action_groups:
   harbor:
+    - configuration
+    - configuration_info
+    - garbage_collection
+    - garbage_collection_info
     - info
+    - log_rotation
+    - log_rotation_info
     - project
     - project_info
     - registry
@@ -18,6 +24,8 @@ action_groups:
     - replication_info
     - robot_account
     - robot_account_info
+    - scan_all
+    - scan_all_info
     - tag_immutability
     - tag_immutability_info
     - tag_retention
