@@ -1,2 +1,13 @@
 ---
 requires_ansible: ">=2.18.0"
+
+# Lets playbooks set the connection options once:
+#   module_defaults:
+#     group/ramanavelineni.semaphoreui.semaphoreui:
+#       url: https://semaphore.example.com
+#       api_token: "{{ semaphore_api_token }}"
+action_groups:
+  semaphoreui:
+    - info
+    - project
+    - project_info

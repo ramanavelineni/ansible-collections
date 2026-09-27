@@ -4,8 +4,44 @@ Declarative, idempotent Ansible modules for [Semaphore UI](https://semaphoreui.c
 one module per resource, looked up by name, changed only when it differs from
 what you declare.
 
-> **Status: not usable yet.** This collection has no modules so far. The
-> design and the order of work are in [PLAN.md](../../../PLAN.md).
+> **Status: in development.** Only the modules below exist so far; the
+> rest are planned in [PLAN.md](../../../PLAN.md).
+
+## Modules
+
+| Module | Manages |
+|---|---|
+| `info` | server version, whether it is tested, registered apps (read-only) |
+| `project` | projects (`state: present` / `absent`; deleting needs `confirm_delete: true`) |
+| `project_info` | lists projects (read-only) |
+
+Every module looks objects up by name, changes only what differs from the
+options you set, and supports check mode. `ansible-doc ramanavelineni.semaphoreui.<module>`
+shows the full documentation.
+
+## Connecting
+
+Each module takes `url` and either `api_token` or `username` + `password`
+(logged in and out within the task). Set them once for a play with the
+collection's action group:
+
+```yaml
+- hosts: localhost
+  gather_facts: false
+  module_defaults:
+    group/ramanavelineni.semaphoreui.semaphoreui:
+      url: https://semaphore.example.com
+      api_token: "{{ semaphore_api_token }}"
+      ca_path: /etc/ssl/certs/my-ca.pem   # optional: a private CA
+  tasks:
+    - ramanavelineni.semaphoreui.project:
+        name: homelab
+        max_parallel_tasks: 0
+```
+
+The same options can come from environment variables: `SEMAPHORE_URL`,
+`SEMAPHORE_API_TOKEN`, `SEMAPHORE_USERNAME`, `SEMAPHORE_PASSWORD`,
+`SEMAPHORE_VALIDATE_CERTS`, `SEMAPHORE_CA_PATH`.
 
 ## Requirements
 

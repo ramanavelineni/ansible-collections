@@ -1,0 +1,180 @@
+{
+  "recorded_from": "v2.18.30-9dcfe85-1788086332",
+  "responses": {
+    "apps": {
+      "body": [
+        {
+          "active": true,
+          "args": null,
+          "color": "",
+          "dark_color": "",
+          "icon": "",
+          "id": "ansible",
+          "path": "",
+          "priority": 1000,
+          "title": ""
+        },
+        {
+          "active": true,
+          "args": null,
+          "color": "",
+          "dark_color": "",
+          "icon": "",
+          "id": "terraform",
+          "path": "",
+          "priority": 900,
+          "title": ""
+        },
+        {
+          "active": true,
+          "args": null,
+          "color": "",
+          "dark_color": "",
+          "icon": "",
+          "id": "terragrunt",
+          "path": "",
+          "priority": 850,
+          "title": ""
+        },
+        {
+          "active": true,
+          "args": null,
+          "color": "",
+          "dark_color": "",
+          "icon": "",
+          "id": "tofu",
+          "path": "",
+          "priority": 800,
+          "title": ""
+        },
+        {
+          "active": true,
+          "args": null,
+          "color": "",
+          "dark_color": "",
+          "icon": "",
+          "id": "bash",
+          "path": "",
+          "priority": 700,
+          "title": ""
+        },
+        {
+          "active": false,
+          "args": null,
+          "color": "",
+          "dark_color": "",
+          "icon": "",
+          "id": "powershell",
+          "path": "",
+          "priority": 600,
+          "title": ""
+        },
+        {
+          "active": false,
+          "args": null,
+          "color": "",
+          "dark_color": "",
+          "icon": "",
+          "id": "python",
+          "path": "",
+          "priority": 500,
+          "title": ""
+        }
+      ],
+      "status": 200
+    },
+    "info": {
+      "body": {
+        "ansible": "ansible [core 2.20.8]\n  config file = /etc/ansible/ansible.cfg\n  configured module search path = ['/home/semaphore/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']\n  ansible python module location = /opt/semaphore/apps/ansible/13.5.0/venv/lib/python3.12/site-packages/ansible\n  ansible collection location = /home/semaphore/.ansible/collections:/usr/share/ansible/collections\n  executable location = /opt/semaphore/apps/ansible/13.5.0/venv/bin/ansible\n  python version = 3.12.14 (main, Aug 13 2026, 19:38:13) [GCC 14.2.0] (/opt/semaphore/apps/ansible/13.5.0/venv/bin/python3)\n  jinja version = 3.1.6\n  pyyaml version = 6.0.3 (with libyaml v0.2.5)\n",
+        "auth_methods": {},
+        "boltdb_used": false,
+        "features": {
+          "custom_roles_management": false,
+          "high_availability": false,
+          "project_runners": false,
+          "secret_storage_management": false,
+          "secret_storage_management_ex": false,
+          "secret_storages": false,
+          "task_summary": false,
+          "terraform_backend": false
+        },
+        "git_client": "cmd_git",
+        "login_with_password": true,
+        "roles": [],
+        "schedule_timezone": "UTC",
+        "subscription_state": "",
+        "teams": {
+          "invite_type": "username"
+        },
+        "use_remote_runner": false,
+        "version": "v2.18.30-9dcfe85-1788086332",
+        "web_host": ""
+      },
+      "status": 200
+    },
+    "login": {
+      "body": null,
+      "status": 204
+    },
+    "login_bad_password": {
+      "body": null,
+      "status": 401
+    },
+    "logout": {
+      "body": null,
+      "status": 204
+    },
+    "project_create": {
+      "body": {
+        "created": "2026-09-27T17:34:22.311899351Z",
+        "id": 2,
+        "name": "homelab",
+        "type": ""
+      },
+      "status": 201
+    },
+    "project_delete": {
+      "body": null,
+      "status": 204
+    },
+    "project_update": {
+      "body": null,
+      "status": 204
+    },
+    "project_update_id_mismatch": {
+      "body": {
+        "error": "Project ID in body and URL must be the same"
+      },
+      "status": 400
+    },
+    "projects_empty": {
+      "body": [],
+      "status": 200
+    },
+    "projects_one": {
+      "body": [
+        {
+          "created": "2026-09-27T17:34:22.311899Z",
+          "id": 2,
+          "name": "homelab",
+          "type": ""
+        }
+      ],
+      "status": 200
+    },
+    "projects_one_updated": {
+      "body": [
+        {
+          "alert": true,
+          "alert_chat": "ops",
+          "created": "2026-09-27T17:34:22.311899Z",
+          "id": 2,
+          "max_parallel_tasks": 3,
+          "name": "homelab",
+          "type": ""
+        }
+      ],
+      "status": 200
+    }
+  }
+}
