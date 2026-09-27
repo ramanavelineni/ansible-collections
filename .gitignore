@@ -1,0 +1,17 @@
+# ansible-test output and caches
+tests/output/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Built collection tarballs (make build)
+/build/
+*.tar.gz
+
+# antsibull-changelog plugin cache
+changelogs/.plugin-cache.yaml
+
+# Local environments
+.venv/
+venv/
+.DS_Store

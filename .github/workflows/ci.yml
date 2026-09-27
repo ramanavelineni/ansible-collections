@@ -1,0 +1,61 @@
+---
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changelog:
+    name: Changelog fragments (${{ matrix.collection }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        collection: [semaphoreui]
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+      - run: pip install antsibull-changelog==0.35.1
+      - run: antsibull-changelog lint
+        working-directory: ansible_collections/ramanavelineni/${{ matrix.collection }}
+
+  sanity:
+    name: Sanity (${{ matrix.collection }}, ${{ matrix.ansible }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        collection: [semaphoreui]
+        ansible: [stable-2.18, stable-2.19, stable-2.20, stable-2.21]
+    steps:
+      - uses: ansible-community/ansible-test-gh-action@v1.18.0
+        with:
+          ansible-core-version: ${{ matrix.ansible }}
+          collection-root: ansible_collections/ramanavelineni/${{ matrix.collection }}
+          testing-type: sanity
+
+  units:
+    name: Units (${{ matrix.collection }}, ${{ matrix.ansible }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        collection: [semaphoreui]
+        ansible: [stable-2.18, stable-2.19, stable-2.20, stable-2.21]
+    steps:
+      - uses: ansible-community/ansible-test-gh-action@v1.18.0
+        with:
+          ansible-core-version: ${{ matrix.ansible }}
+          collection-root: ansible_collections/ramanavelineni/${{ matrix.collection }}
+          testing-type: units

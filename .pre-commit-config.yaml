@@ -1,0 +1,24 @@
+---
+# Light checks only; ansible-test sanity and unit tests run through
+# `make sanity` / `make units` and in CI.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+
+  - repo: local
+    hooks:
+      - id: antsibull-changelog-lint
+        name: antsibull-changelog lint
+        language: python
+        additional_dependencies: [antsibull-changelog==0.35.1]
+        entry: >-
+          bash -c 'for d in ansible_collections/*/*/; do
+          (cd "$d" && antsibull-changelog lint) || exit 1; done'
+        files: ^ansible_collections/[^/]+/[^/]+/changelogs/
+        pass_filenames: false

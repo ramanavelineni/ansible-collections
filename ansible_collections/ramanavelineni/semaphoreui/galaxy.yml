@@ -1,0 +1,29 @@
+---
+namespace: ramanavelineni
+name: semaphoreui
+version: 0.1.0
+readme: README.md
+authors:
+  - ramanavelineni <12130750+ramanavelineni@users.noreply.github.com>
+description: >-
+  Declarative, idempotent modules for Semaphore UI: projects, access keys,
+  repositories, inventories, environments, views, templates, schedules,
+  integrations, runners, users and project membership.
+license:
+  - Apache-2.0
+tags:
+  - semaphoreui
+  - semaphore
+  - api
+  - automation
+  - infrastructure
+dependencies: {}
+repository: https://github.com/ramanavelineni/ansible-collections
+documentation: https://github.com/ramanavelineni/ansible-collections/tree/main/ansible_collections/ramanavelineni/semaphoreui
+homepage: https://github.com/ramanavelineni/ansible-collections
+issues: https://github.com/ramanavelineni/ansible-collections/issues
+build_ignore:
+  - .gitignore
+  - changelogs/.plugin-cache.yaml
+  - tests/output
+  - "*.tar.gz"
