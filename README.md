@@ -7,7 +7,7 @@ calls with `ansible.builtin.uri`.
 | Collection | Manages | Status |
 |---|---|---|
 | [`ramanavelineni.semaphoreui`](ansible_collections/ramanavelineni/semaphoreui/) | Semaphore UI | in development: `info`, `project`, `key_store`, `repository`, `inventory`, `variable_group`, `view`, `template`, `schedule`, `integration`, `team_member`, `runner`, `user` (+ `_info` modules) |
-| [`ramanavelineni.harbor`](ansible_collections/ramanavelineni/harbor/) | Harbor | in development: `info`, `project`, `robot_account`, `tag_retention`, `tag_immutability` (+ `_info` modules) |
+| [`ramanavelineni.harbor`](ansible_collections/ramanavelineni/harbor/) | Harbor | in development: `info`, `project`, `registry`, `replication`, `robot_account`, `tag_retention`, `tag_immutability`, `webhook`, `configuration`, `garbage_collection`, `scan_all`, `log_rotation` (+ `_info` modules) |
 
 The design, the module lists and the order of work are in [PLAN.md](PLAN.md).
 

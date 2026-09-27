@@ -381,6 +381,60 @@ def record_tag_policy(srv, out):
     expect(call('DELETE', '/projects/%d' % pid), 200, 'delete project')
 
 
+def record_system(srv, out):
+    """Configuration and the GC / Scan All / log rotation schedules.
+
+    All of these are global, so the area puts back what it changes: the
+    settings it touches and the GC and log rotation schedules. It never sends
+    schedule type Manual, which would start a run. Scan All can only be
+    recorded as refused, because it needs a vulnerability scanner.
+    """
+    config = expect(srv.call('GET', '/configurations'), 200, 'configurations')
+    banner = config['body']['banner_message']['value']
+    session = config['body']['session_timeout']['value']
+    gc_before = expect(srv.call('GET', '/system/gc/schedule'), 200, 'gc schedule')
+    purge_before = expect(srv.call('GET', '/system/purgeaudit/schedule'), 200, 'purge schedule')
+    if gc_before['body'] or purge_before['body']:
+        sys.exit('the GC or log rotation schedule is set; record the system area on a server without them')
+
+    out['system_configurations'] = config
+    out['system_configurations_update'] = expect(srv.call('PUT', '/configurations', {
+        'banner_message': 'fixtures-system', 'session_timeout': 45}), 200, 'update configurations')
+    out['system_configurations_updated'] = expect(srv.call('GET', '/configurations'), 200, 'configurations')
+    out['system_configurations_bad_value'] = srv.call('PUT', '/configurations', {'session_timeout': 0})
+    out['system_configurations_bad_type'] = srv.call('PUT', '/configurations', {'session_timeout': 'abc'})
+    expect(srv.call('PUT', '/configurations', {'banner_message': banner, 'session_timeout': session}),
+           200, 'restore configurations')
+    out['system_event_types'] = expect(srv.call('GET', '/auditlog-exts/events'), 200, 'audit event types')
+
+    try:
+        out['system_gc_schedule_none'] = gc_before
+        out['system_gc_schedule_update'] = expect(srv.call('PUT', '/system/gc/schedule', {
+            'schedule': {'type': 'Custom', 'cron': '0 0 4 * * 0'},
+            'parameters': {'delete_untagged': True, 'workers': 2}}), 200, 'set gc schedule')
+        out['system_gc_schedule_custom'] = expect(srv.call('GET', '/system/gc/schedule'), 200, 'gc schedule')
+        out['system_gc_schedule_bad_cron'] = srv.call('PUT', '/system/gc/schedule', {
+            'schedule': {'type': 'Custom', 'cron': '0 4 * * 0'}})
+        out['system_gc_history'] = expect(srv.call('GET', '/system/gc?page=1&page_size=10&sort=-creation_time'),
+                                          200, 'gc history')
+        out['system_purge_schedule_none'] = purge_before
+        out['system_purge_schedule_no_parameters'] = srv.call('PUT', '/system/purgeaudit/schedule', {
+            'schedule': {'type': 'Custom', 'cron': '0 0 6 * * *'}})
+        out['system_purge_schedule_update'] = expect(srv.call('PUT', '/system/purgeaudit/schedule', {
+            'schedule': {'type': 'Custom', 'cron': '0 0 6 * * *'},
+            'parameters': {'audit_retention_hour': 720, 'include_event_types': 'create_artifact,delete_artifact'}}),
+            200, 'set purge schedule')
+        out['system_purge_schedule_custom'] = expect(srv.call('GET', '/system/purgeaudit/schedule'), 200, 'purge schedule')
+        out['system_purge_history'] = expect(srv.call('GET', '/system/purgeaudit?page=1&page_size=10&sort=-creation_time'),
+                                             200, 'purge history')
+        out['system_scan_all_no_scanner'] = srv.call('GET', '/system/scanAll/schedule')
+    finally:
+        expect(srv.call('PUT', '/system/gc/schedule', {'schedule': {'type': 'None'}}), 200, 'remove gc schedule')
+        expect(srv.call('PUT', '/system/purgeaudit/schedule', {
+            'schedule': {'type': 'None'},
+            'parameters': {'audit_retention_hour': 720, 'include_event_types': ''}}), 200, 'remove purge schedule')
+
+
 # Area name -> recorder. Each writes fixtures/<major.minor>/<area>.json.
 AREAS = {
     'core': record_core,
@@ -388,6 +442,7 @@ AREAS = {
     'registry': record_registry,
     'webhook': record_webhook,
     'tag_policy': record_tag_policy,
+    'system': record_system,
 }
 
 

@@ -26,6 +26,14 @@ what you declare.
 | `tag_retention_info` | reads a project's tag retention policy (read-only) |
 | `tag_immutability` | one tag immutability rule of a project, identified by its patterns; enable, disable, delete |
 | `tag_immutability_info` | lists a project's tag immutability rules (read-only) |
+| `configuration` | system settings by API name (auth, OIDC, LDAP, robot name prefix, …); secrets as separate `no_log` options |
+| `configuration_info` | reads every setting, secrets left out (read-only) |
+| `garbage_collection` | the garbage collection schedule and its settings |
+| `garbage_collection_info` | the schedule and recent runs (read-only) |
+| `scan_all` | the schedule of the vulnerability scan of all artifacts (needs a default scanner) |
+| `scan_all_info` | the schedule and latest metrics (read-only) |
+| `log_rotation` | the audit log purge schedule, retention and event types |
+| `log_rotation_info` | the schedule and recent purges (read-only) |
 
 Every module looks objects up by name, changes only what differs from the
 options you set, and supports check mode. `ansible-doc ramanavelineni.harbor.<module>`
