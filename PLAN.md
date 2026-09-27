@@ -166,7 +166,7 @@ out within its own call, so no session state crosses tasks.
 | `template` | task templates, including build/deploy, vaults and surveys | the list omits `vaults`, so each template is read on its own; PUT rewrites every column and the vault and variable-group lists (a vault left out is deleted), so the whole current template goes back with the changes; references the caller didn't change keep their ids (a Terraform-family template's own workspace inventory is hidden from the inventory list and would be lost if resolved by name); `variable_groups` is a list; only fields 2.18 and 2.19 share are managed; `type` is `task`/`build`/`deploy` and survey `type` `string`/`int`/`enum`/`text` (`text` needs 2.19); `task_params` merged per key, keys checked per app |
 | `schedule` | cron schedules, commit pollers, run-at schedules | the project list leaves out pollers and each template's list has only its pollers, so both are read; `active: false` on a poller fails (Semaphore's scheduler ignores it); task-parameter overrides are read from the single schedule and sent back (an update without them unlinks them); an update resets the poller's last commit, so its next tick runs |
 | `integration` | webhook integrations, matchers, extracted values | `auth_header` is only a header name; the secret is a `login_password` key (`auth_key`); matchers and extracted values are exact lists matched by name; the module ensures one webhook alias and returns the URLs; creating an alias or matcher answers 200, not 201 |
-| `team_member` | project membership and role | |
+| `team_member` | project membership and role | the member is `user:` (the connection already uses `username`); the user must exist, looked up with `GET /users?s=` (a username prefix match, so the exact name is picked out); add answers 204 with no body, a duplicate 409, an unknown role a bare 400 (non-built-in roles are Pro custom-role slugs); refuses to remove or downgrade the last owner, and to change the login user's own membership (found with `GET /user`) |
 | `info` | server version and registered apps | for the version check the role does today |
 | `*_info` | read-only versions of the above | |
 
@@ -222,7 +222,7 @@ be. `semaphore_config` keeps its own `fail`/`warn` switch on top of `info`.
    `environment`, with their `_info` modules. Semaphore goes first because
    it has no usable declarative collection today.
 3. **semaphoreui complete.** `view`, `template`, `schedule`, `integration`,
-   `runner`, `user`, `project_member`. Release `semaphoreui-v0.1.0`.
+   `runner`, `user`, `team_member`. Release `semaphoreui-v0.1.0`.
 4. **Switch `semaphore_config` to the collection.** Add the Git source to
    `collections/requirements.yml` in the ansible repo. The role keeps loading
    project files, validating, the version switch and the never-delete rule

@@ -1,0 +1,83 @@
+#!/usr/bin/python
+# Copyright: ramanavelineni
+# Apache License 2.0 (see LICENSE or https://www.apache.org/licenses/LICENSE-2.0)
+
+DOCUMENTATION = r'''
+module: team_member_info
+short_description: List the team of a Semaphore UI project
+version_added: 0.1.0
+description:
+  - Lists the users who belong to a project and their roles, optionally only one user.
+author:
+  - ramanavelineni (@ramanavelineni)
+extends_documentation_fragment:
+  - ramanavelineni.semaphoreui.auth
+  - ramanavelineni.semaphoreui.attributes
+attributes:
+  check_mode:
+    support: full
+  diff_mode:
+    support: none
+options:
+  project:
+    description:
+      - Name of the project.
+    type: str
+    required: true
+  user:
+    description:
+      - Only return this user's membership (by username).
+    type: str
+'''
+
+EXAMPLES = r'''
+- name: Who is in the homelab project
+  ramanavelineni.semaphoreui.team_member_info:
+    project: homelab
+  register: result
+'''
+
+RETURN = r'''
+members:
+  description: Matching members, sorted by username.
+  returned: always
+  type: list
+  elements: dict
+  sample:
+    - user_id: 3
+      username: rc
+      name: RC
+      role: owner
+      project_id: 1
+'''
+
+from ansible.module_utils.basic import AnsibleModule
+from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
+    resolve_project,
+    run_module,
+    semaphore_argument_spec,
+    semaphore_module_kwargs,
+)
+
+
+def list_members(module, client):
+    client.warn_if_untested()
+    project_id = resolve_project(client, module.params['project'])
+    out = []
+    for member in client.list('/project/%d/users' % project_id):
+        if module.params['user'] is not None and member.get('username') != module.params['user']:
+            continue
+        out.append(dict(user_id=member.get('id'), username=member.get('username'), name=member.get('name') or '',
+                        role=member.get('role') or '', project_id=project_id))
+    return dict(changed=False, members=sorted(out, key=lambda m: (m['username'] or '', m['user_id'] or 0)))
+
+
+def main():
+    argument_spec = semaphore_argument_spec()
+    argument_spec.update(project=dict(type='str', required=True), user=dict(type='str'))
+    module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True, **semaphore_module_kwargs())
+    run_module(module, lambda client: list_members(module, client))
+
+
+if __name__ == '__main__':
+    main()

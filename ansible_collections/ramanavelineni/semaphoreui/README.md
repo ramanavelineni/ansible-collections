@@ -29,6 +29,8 @@ what you declare.
 | `schedule_info` | lists a project's schedules, including commit pollers (read-only) |
 | `integration` | inbound webhooks: authentication, matchers, extracted values; returns the webhook URL |
 | `integration_info` | lists a project's integrations with their webhook URLs (read-only) |
+| `team_member` | a user's role in a project's team (`owner`, `manager`, `task_runner`, `guest`) |
+| `team_member_info` | lists a project's team (read-only) |
 
 Every module looks objects up by name, changes only what differs from the
 options you set, and supports check mode. Objects inside a project name it
@@ -57,6 +59,10 @@ template's app doesn't know fails instead of being ignored. The built-in
 list leaves them out, and refuses `active: false` on a poller because
 Semaphore would keep running it. `integration` makes sure the integration
 has a webhook URL and returns it.
+
+`team_member` takes the member as `user:` (`username` is the login
+option), never removes or downgrades a project's last owner, and never
+changes the membership of the user it logs in as.
 
 Deleting (`state: absent`) fails with a list of what still uses the object,
 instead of Semaphore's own, misleading answer. `ansible-doc ramanavelineni.semaphoreui.<module>`

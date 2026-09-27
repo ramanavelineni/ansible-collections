@@ -1,0 +1,151 @@
+{
+  "recorded_from": "v2.19.12-012ed06-1788086368",
+  "responses": {
+    "team_member_add": {
+      "body": null,
+      "status": 204
+    },
+    "team_member_add_bad_role": {
+      "body": null,
+      "status": 400
+    },
+    "team_member_add_duplicate": {
+      "body": null,
+      "status": 409
+    },
+    "team_member_remove": {
+      "body": null,
+      "status": 204
+    },
+    "team_member_update": {
+      "body": null,
+      "status": 204
+    },
+    "team_members_after_remove": {
+      "body": [
+        {
+          "id": 1,
+          "name": "Admin",
+          "role": "owner",
+          "username": "admin"
+        }
+      ],
+      "status": 200
+    },
+    "team_members_initial": {
+      "body": [
+        {
+          "id": 1,
+          "name": "Admin",
+          "role": "owner",
+          "username": "admin"
+        }
+      ],
+      "status": 200
+    },
+    "team_members_two": {
+      "body": [
+        {
+          "id": 1,
+          "name": "Admin",
+          "role": "owner",
+          "username": "admin"
+        },
+        {
+          "id": 14,
+          "name": "TM-FIXTURE-A",
+          "role": "manager",
+          "username": "tm-fixture-a"
+        }
+      ],
+      "status": 200
+    },
+    "team_members_updated": {
+      "body": [
+        {
+          "id": 1,
+          "name": "Admin",
+          "role": "owner",
+          "username": "admin"
+        },
+        {
+          "id": 14,
+          "name": "TM-FIXTURE-A",
+          "role": "owner",
+          "username": "tm-fixture-a"
+        }
+      ],
+      "status": 200
+    },
+    "team_projects_list": {
+      "body": [
+        {
+          "created": "2026-09-27T19:30:29.746353Z",
+          "id": 45,
+          "name": "fixtures-team",
+          "type": ""
+        }
+      ],
+      "status": 200
+    },
+    "team_user_current": {
+      "body": {
+        "admin": true,
+        "alert": false,
+        "can_create_project": true,
+        "created": "2026-09-27T17:32:06Z",
+        "email": "admin@localhost",
+        "external": false,
+        "has_active_subscription": false,
+        "id": 1,
+        "name": "Admin",
+        "pro": false,
+        "username": "admin"
+      },
+      "status": 200
+    },
+    "team_users_search": {
+      "body": [
+        {
+          "admin": false,
+          "alert": false,
+          "created": "2026-09-27T19:30:29Z",
+          "email": "tm-fixture-a@example.com",
+          "external": false,
+          "id": 14,
+          "name": "TM-FIXTURE-A",
+          "pro": false,
+          "username": "tm-fixture-a"
+        }
+      ],
+      "status": 200
+    },
+    "team_users_search_prefix": {
+      "body": [
+        {
+          "admin": false,
+          "alert": false,
+          "created": "2026-09-27T19:30:29Z",
+          "email": "tm-fixture-a@example.com",
+          "external": false,
+          "id": 14,
+          "name": "TM-FIXTURE-A",
+          "pro": false,
+          "username": "tm-fixture-a"
+        },
+        {
+          "admin": false,
+          "alert": false,
+          "created": "2026-09-27T19:30:29Z",
+          "email": "tm-fixture-b@example.com",
+          "external": false,
+          "id": 15,
+          "name": "TM-FIXTURE-B",
+          "pro": false,
+          "username": "tm-fixture-b"
+        }
+      ],
+      "status": 200
+    }
+  }
+}
