@@ -26,18 +26,24 @@ PATCH_TARGET = 'ansible_collections.ramanavelineni.semaphoreui.plugins.module_ut
 CONNECTION = dict(url='https://semaphore.example.com', username='admin', password='s3cret-pw')
 
 
-try:
-    from ansible.module_utils.testing import patch_module_args
-except ImportError:  # ansible-core 2.18
-    @contextlib.contextmanager
-    def patch_module_args(args=None):
-        payload = json.dumps(dict(ANSIBLE_MODULE_ARGS=args or {})).encode()
-        original = basic._ANSIBLE_ARGS
-        basic._ANSIBLE_ARGS = payload
-        try:
-            yield
-        finally:
-            basic._ANSIBLE_ARGS = original
+@contextlib.contextmanager
+def patch_module_args(args=None):
+    """Expose `args` to AnsibleModule, the way the controller passes them.
+
+    Deliberately not ansible.module_utils.testing.patch_module_args: that file
+    carries ansible-core's GPL-3.0, and this collection is Apache-2.0. basic.py
+    (Simplified BSD) reads these two module globals; 2.18 has no profile.
+    """
+    payload = json.dumps(dict(ANSIBLE_MODULE_ARGS=args or {})).encode()
+    saved = dict((name, getattr(basic, name)) for name in ('_ANSIBLE_ARGS', '_ANSIBLE_PROFILE') if hasattr(basic, name))
+    basic._ANSIBLE_ARGS = payload
+    if '_ANSIBLE_PROFILE' in saved:
+        basic._ANSIBLE_PROFILE = 'legacy'
+    try:
+        yield
+    finally:
+        for name, value in saved.items():
+            setattr(basic, name, value)
 
 
 def load_fixtures(version):

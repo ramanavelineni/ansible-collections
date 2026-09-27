@@ -1,3 +1,11 @@
 plugins/modules/info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/inventory.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/inventory_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/key_store.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/key_store_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/project.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/project_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/repository.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/repository_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/variable_group.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/variable_group_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE

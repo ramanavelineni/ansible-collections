@@ -263,6 +263,29 @@ def find_by_name(items, name, what, field='name'):
     return matches[0] if matches else None
 
 
+def resolve_project(client, name):
+    """Id of the project named `name`; fails when there is none."""
+    project = find_by_name(client.list('/projects', capped=True), name, 'project')
+    if project is None:
+        raise ValueError(
+            'Project %r does not exist, or the user this module logs in as cannot see it.' % name)
+    return project['id']
+
+
+def refuse_delete_if_used(client, path, what, name):
+    """Fail with what still uses the object at `path` (via its /refs), if anything.
+
+    Semaphore refuses such a delete itself, but its answer is misleading:
+    2.19 always blames templates and 2.18 sends an empty body.
+    """
+    refs = client.get(path + '/refs') or {}
+    used = ['%s %s' % (kind.replace('_', ' '), ', '.join(sorted(r.get('name') or str(r.get('id')) for r in items)))
+            for kind, items in sorted(refs.items()) if items]
+    if used:
+        raise ValueError('Cannot delete %s %r: it is still used by %s. Change or delete those first.'
+                         % (what, name, '; '.join(used)))
+
+
 def diff_fields(desired, current):
     """Keys of `desired` whose value differs from `current`. None means "not managed"."""
     return sorted(k for k, v in desired.items() if v is not None and current.get(k) != v)
@@ -289,3 +312,23 @@ def run_module(module, handler):
         module.fail_json(msg=to_text(e))
     client.close()
     module.exit_json(**result)
+
+
+def _parse_json_field(text, what, name):
+    if not text:
+        return {}
+    try:
+        value = json.loads(text)
+    except ValueError:
+        raise ValueError('Variable group %r holds %s that are not valid JSON; fix them in Semaphore first.' % (name, what))
+    return value if isinstance(value, dict) else {}
+
+
+def variable_group_view(group, secrets):
+    """A variable group as modules return it: json/env parsed, secrets as name/type."""
+    return dict(
+        id=group.get('id'), name=group.get('name'), project_id=group.get('project_id'),
+        json=_parse_json_field(group.get('json'), 'extra variables', group.get('name')),
+        env=_parse_json_field(group.get('env'), 'environment variables', group.get('name')),
+        secrets=sorted((dict(name=s['name'], type=s['type']) for s in secrets), key=lambda s: s['name']),
+    )

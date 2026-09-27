@@ -119,6 +119,249 @@
       },
       "status": 200
     },
+    "inventories_empty": {
+      "body": [],
+      "status": 200
+    },
+    "inventories_one": {
+      "body": [
+        {
+          "become_key_id": null,
+          "id": 4,
+          "inventory": "inventories/homelab/hosts",
+          "name": "homelab",
+          "project_id": 15,
+          "repository_id": 15,
+          "ssh_key_id": 36,
+          "template_id": null,
+          "type": "file"
+        }
+      ],
+      "status": 200
+    },
+    "inventories_one_updated": {
+      "body": [
+        {
+          "become_key_id": 36,
+          "id": 4,
+          "inventory": "inventories/homelab/hosts",
+          "name": "homelab",
+          "project_id": 15,
+          "repository_id": 15,
+          "ssh_key_id": 36,
+          "template_id": null,
+          "type": "file"
+        }
+      ],
+      "status": 200
+    },
+    "inventory_create": {
+      "body": {
+        "become_key_id": null,
+        "id": 4,
+        "inventory": "inventories/homelab/hosts",
+        "name": "homelab",
+        "project_id": 15,
+        "repository_id": 15,
+        "ssh_key_id": 36,
+        "template_id": null,
+        "type": "file"
+      },
+      "status": 201
+    },
+    "inventory_delete": {
+      "body": null,
+      "status": 204
+    },
+    "inventory_refs_unused": {
+      "body": {
+        "access_keys": [],
+        "integrations": [],
+        "inventories": [],
+        "repositories": [],
+        "schedules": [],
+        "templates": []
+      },
+      "status": 200
+    },
+    "inventory_update": {
+      "body": null,
+      "status": 204
+    },
+    "inventory_update_absolute_path": {
+      "body": {
+        "error": "Invalid inventory file pathname. Must be: path/to/inventory."
+      },
+      "status": 400
+    },
+    "key_create": {
+      "body": {
+        "IgnorePlain": false,
+        "id": 36,
+        "login_password": {
+          "login": "",
+          "password": ""
+        },
+        "name": "deploy",
+        "project_id": 15,
+        "ssh": {
+          "login": "",
+          "passphrase": "",
+          "private_key": ""
+        },
+        "string": "",
+        "type": "ssh"
+      },
+      "status": 201
+    },
+    "key_delete": {
+      "body": null,
+      "status": 204
+    },
+    "key_delete_in_use": {
+      "body": {
+        "error": "Access Key is in use by one or more templates",
+        "inUse": true
+      },
+      "status": 400
+    },
+    "key_refs_unused": {
+      "body": {
+        "access_keys": [],
+        "integrations": [],
+        "inventories": [],
+        "repositories": [],
+        "schedules": [],
+        "templates": []
+      },
+      "status": 200
+    },
+    "key_refs_used_by_repository": {
+      "body": {
+        "access_keys": [],
+        "integrations": [],
+        "inventories": [],
+        "repositories": [
+          {
+            "id": 15,
+            "name": "ansible"
+          }
+        ],
+        "schedules": [],
+        "templates": []
+      },
+      "status": 200
+    },
+    "key_update": {
+      "body": null,
+      "status": 204
+    },
+    "key_update_id_mismatch": {
+      "body": {
+        "error": "Access key id in URL and in body must be the same"
+      },
+      "status": 400
+    },
+    "keys_new_project": {
+      "body": [
+        {
+          "IgnorePlain": false,
+          "id": 35,
+          "login_password": {
+            "login": "",
+            "password": ""
+          },
+          "name": "None",
+          "project_id": 15,
+          "ssh": {
+            "login": "",
+            "passphrase": "",
+            "private_key": ""
+          },
+          "string": "",
+          "type": "none"
+        }
+      ],
+      "status": 200
+    },
+    "keys_with_deploy": {
+      "body": [
+        {
+          "IgnorePlain": false,
+          "id": 35,
+          "login_password": {
+            "login": "",
+            "password": ""
+          },
+          "name": "None",
+          "project_id": 15,
+          "ssh": {
+            "login": "",
+            "passphrase": "",
+            "private_key": ""
+          },
+          "string": "",
+          "type": "none"
+        },
+        {
+          "IgnorePlain": false,
+          "id": 36,
+          "login_password": {
+            "login": "",
+            "password": ""
+          },
+          "name": "deploy",
+          "project_id": 15,
+          "ssh": {
+            "login": "",
+            "passphrase": "",
+            "private_key": ""
+          },
+          "string": "",
+          "type": "ssh"
+        }
+      ],
+      "status": 200
+    },
+    "keys_with_deploy_updated": {
+      "body": [
+        {
+          "IgnorePlain": false,
+          "id": 35,
+          "login_password": {
+            "login": "",
+            "password": ""
+          },
+          "name": "None",
+          "project_id": 15,
+          "ssh": {
+            "login": "",
+            "passphrase": "",
+            "private_key": ""
+          },
+          "string": "",
+          "type": "none"
+        },
+        {
+          "IgnorePlain": false,
+          "id": 36,
+          "login_password": {
+            "login": "",
+            "password": ""
+          },
+          "name": "deploy",
+          "project_id": 15,
+          "ssh": {
+            "login": "",
+            "passphrase": "",
+            "private_key": ""
+          },
+          "string": "",
+          "type": "login_password"
+        }
+      ],
+      "status": 200
+    },
     "login": {
       "body": null,
       "status": 204
@@ -133,8 +376,8 @@
     },
     "project_create": {
       "body": {
-        "created": "2026-09-27T17:34:21.427511477Z",
-        "id": 2,
+        "created": "2026-09-27T18:10:08.067171074Z",
+        "id": 15,
         "name": "homelab",
         "type": ""
       },
@@ -161,8 +404,8 @@
     "projects_one": {
       "body": [
         {
-          "created": "2026-09-27T17:34:21.427511Z",
-          "id": 2,
+          "created": "2026-09-27T18:10:08.067171Z",
+          "id": 15,
           "name": "homelab",
           "type": ""
         }
@@ -174,11 +417,190 @@
         {
           "alert": true,
           "alert_chat": "ops",
-          "created": "2026-09-27T17:34:21.427511Z",
-          "id": 2,
+          "created": "2026-09-27T18:10:08.067171Z",
+          "id": 15,
           "max_parallel_tasks": 3,
           "name": "homelab",
           "type": ""
+        }
+      ],
+      "status": 200
+    },
+    "repositories_empty": {
+      "body": [],
+      "status": 200
+    },
+    "repositories_one": {
+      "body": [
+        {
+          "git_branch": "main",
+          "git_url": "git@github.com:example/ansible.git",
+          "id": 15,
+          "name": "ansible",
+          "project_id": 15,
+          "ssh_key_id": 36
+        }
+      ],
+      "status": 200
+    },
+    "repositories_one_updated": {
+      "body": [
+        {
+          "git_branch": "develop",
+          "git_url": "git@github.com:example/ansible.git",
+          "id": 15,
+          "name": "ansible",
+          "project_id": 15,
+          "ssh_key_id": 36
+        }
+      ],
+      "status": 200
+    },
+    "repository_create": {
+      "body": {
+        "git_branch": "main",
+        "git_url": "git@github.com:example/ansible.git",
+        "id": 15,
+        "name": "ansible",
+        "project_id": 15,
+        "ssh_key_id": 36
+      },
+      "status": 201
+    },
+    "repository_delete": {
+      "body": null,
+      "status": 204
+    },
+    "repository_refs_unused": {
+      "body": {
+        "access_keys": [],
+        "integrations": [],
+        "inventories": [],
+        "repositories": [],
+        "schedules": [],
+        "templates": []
+      },
+      "status": 200
+    },
+    "repository_update": {
+      "body": null,
+      "status": 204
+    },
+    "variable_group_create": {
+      "body": {
+        "env": "{\"TZ\": \"UTC\"}",
+        "id": 4,
+        "json": "{\"harbor_url\": \"https://harbor.example.com\"}",
+        "name": "harbor",
+        "password": null,
+        "project_id": 15,
+        "sync_enabled": false,
+        "sync_interval": 0,
+        "sync_paths": []
+      },
+      "status": 201
+    },
+    "variable_group_delete": {
+      "body": null,
+      "status": 204
+    },
+    "variable_group_get": {
+      "body": {
+        "env": "{\"TZ\": \"UTC\"}",
+        "id": 4,
+        "json": "{\"harbor_url\": \"https://harbor.example.com\"}",
+        "name": "harbor",
+        "password": null,
+        "project_id": 15,
+        "secrets": [
+          {
+            "id": 37,
+            "name": "TOKEN",
+            "operation": "",
+            "secret": "",
+            "type": "env"
+          },
+          {
+            "id": 38,
+            "name": "db_pw",
+            "operation": "",
+            "secret": "",
+            "type": "var"
+          }
+        ],
+        "sync_enabled": false,
+        "sync_interval": 0,
+        "sync_paths": []
+      },
+      "status": 200
+    },
+    "variable_group_get_updated": {
+      "body": {
+        "env": "{\"TZ\": \"Europe/Oslo\"}",
+        "id": 4,
+        "json": "{\"harbor_url\": \"https://harbor.example.com\"}",
+        "name": "harbor",
+        "password": null,
+        "project_id": 15,
+        "secrets": [
+          {
+            "id": 39,
+            "name": "TOKEN",
+            "operation": "",
+            "secret": "",
+            "type": "var"
+          },
+          {
+            "id": 38,
+            "name": "db_pw",
+            "operation": "",
+            "secret": "",
+            "type": "var"
+          }
+        ],
+        "sync_enabled": false,
+        "sync_interval": 0,
+        "sync_paths": []
+      },
+      "status": 200
+    },
+    "variable_group_refs_unused": {
+      "body": {
+        "access_keys": [],
+        "integrations": [],
+        "inventories": [],
+        "repositories": [],
+        "schedules": [],
+        "templates": []
+      },
+      "status": 200
+    },
+    "variable_group_update": {
+      "body": null,
+      "status": 204
+    },
+    "variable_group_update_id_mismatch": {
+      "body": {
+        "error": "Environment ID in body and URL must be the same"
+      },
+      "status": 400
+    },
+    "variable_groups_empty": {
+      "body": [],
+      "status": 200
+    },
+    "variable_groups_one": {
+      "body": [
+        {
+          "env": "{\"TZ\": \"UTC\"}",
+          "id": 4,
+          "json": "{\"harbor_url\": \"https://harbor.example.com\"}",
+          "name": "harbor",
+          "password": null,
+          "project_id": 15,
+          "sync_enabled": false,
+          "sync_interval": 0,
+          "sync_paths": []
         }
       ],
       "status": 200

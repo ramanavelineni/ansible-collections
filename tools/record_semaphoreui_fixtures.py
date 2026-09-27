@@ -35,6 +35,10 @@ FIXTURES = os.path.join(HERE, '..', 'ansible_collections', 'ramanavelineni', 'se
                         'tests', 'unit', 'plugins', 'fixtures')
 
 
+# Not a key: Semaphore stores whatever it is given, and never returns it.
+FAKE_PRIVATE_KEY = '-----BEGIN OPENSSH PRIVATE KEY-----\nnot-a-real-key\n-----END OPENSSH PRIVATE KEY-----'
+
+
 class Server(object):
     def __init__(self, url):
         self.url = url.rstrip('/')
@@ -108,6 +112,82 @@ def main():
     token = expect(srv.call('POST', '/user/tokens'), 201, 'create token')['body']['id']
     expect(srv.call('GET', '/info', token=token), 200, 'info with token')
     expect(srv.call('DELETE', '/user/tokens/%s' % token), 204, 'delete token')
+
+    # Key Store and repositories, inside the project above.
+    base = '/project/%d' % pid
+    out['keys_new_project'] = expect(srv.call('GET', base + '/keys'), 200, 'keys')
+    out['key_create'] = expect(srv.call('POST', base + '/keys', {
+        'project_id': pid, 'name': 'deploy', 'type': 'ssh',
+        'ssh': {'login': 'git', 'passphrase': '', 'private_key': FAKE_PRIVATE_KEY}}), 201, 'create key')
+    kid = out['key_create']['body']['id']
+    out['keys_with_deploy'] = expect(srv.call('GET', base + '/keys'), 200, 'keys')
+    out['key_update_id_mismatch'] = srv.call('PUT', '%s/keys/%d' % (base, kid), {
+        'id': kid + 1000, 'project_id': pid, 'name': 'deploy', 'type': 'none', 'override_secret': True})
+    out['key_update'] = expect(srv.call('PUT', '%s/keys/%d' % (base, kid), {
+        'id': kid, 'project_id': pid, 'name': 'deploy', 'type': 'login_password', 'override_secret': True,
+        'login_password': {'login': '', 'password': 'not-a-real-password'}}), 204, 'update key')
+    out['keys_with_deploy_updated'] = expect(srv.call('GET', base + '/keys'), 200, 'keys')
+    out['key_refs_unused'] = expect(srv.call('GET', '%s/keys/%d/refs' % (base, kid)), 200, 'key refs')
+
+    out['repositories_empty'] = expect(srv.call('GET', base + '/repositories'), 200, 'repositories')
+    out['repository_create'] = expect(srv.call('POST', base + '/repositories', {
+        'project_id': pid, 'name': 'ansible', 'git_url': 'git@github.com:example/ansible.git',
+        'git_branch': 'main', 'ssh_key_id': kid}), 201, 'create repository')
+    rid = out['repository_create']['body']['id']
+    out['repositories_one'] = expect(srv.call('GET', base + '/repositories'), 200, 'repositories')
+    out['key_refs_used_by_repository'] = expect(srv.call('GET', '%s/keys/%d/refs' % (base, kid)), 200, 'key refs')
+    out['key_delete_in_use'] = srv.call('DELETE', '%s/keys/%d' % (base, kid))
+    # Inventories, using the key and repository above.
+    out['inventories_empty'] = expect(srv.call('GET', base + '/inventory'), 200, 'inventories')
+    out['inventory_create'] = expect(srv.call('POST', base + '/inventory', {
+        'project_id': pid, 'name': 'homelab', 'type': 'file', 'inventory': 'inventories/homelab/hosts',
+        'repository_id': rid, 'ssh_key_id': kid, 'become_key_id': None}), 201, 'create inventory')
+    iid = out['inventory_create']['body']['id']
+    out['inventories_one'] = expect(srv.call('GET', base + '/inventory'), 200, 'inventories')
+    inv = dict(out['inventory_create']['body'])
+    out['inventory_update'] = expect(srv.call('PUT', '%s/inventory/%d' % (base, iid), dict(inv, become_key_id=kid)),
+                                     204, 'update inventory')
+    out['inventories_one_updated'] = expect(srv.call('GET', base + '/inventory'), 200, 'inventories')
+    abs_inv = expect(srv.call('POST', base + '/inventory', {
+        'project_id': pid, 'name': 'abs', 'type': 'file', 'inventory': '/etc/ansible/hosts'}), 201, 'create abs inventory')
+    out['inventory_update_absolute_path'] = srv.call(
+        'PUT', '%s/inventory/%d' % (base, abs_inv['body']['id']), dict(abs_inv['body'], ssh_key_id=kid))
+    expect(srv.call('DELETE', '%s/inventory/%d' % (base, abs_inv['body']['id'])), 204, 'delete abs inventory')
+    out['inventory_refs_unused'] = expect(srv.call('GET', '%s/inventory/%d/refs' % (base, iid)), 200, 'inventory refs')
+    out['inventory_delete'] = expect(srv.call('DELETE', '%s/inventory/%d' % (base, iid)), 204, 'delete inventory')
+
+    # Variable groups (environments) and their secrets.
+    out['variable_groups_empty'] = expect(srv.call('GET', base + '/environment'), 200, 'environments')
+    out['variable_group_create'] = expect(srv.call('POST', base + '/environment', {
+        'project_id': pid, 'name': 'harbor', 'json': '{"harbor_url": "https://harbor.example.com"}',
+        'env': '{"TZ": "UTC"}', 'secrets': [
+            {'name': 'TOKEN', 'type': 'env', 'secret': 'not-a-real-token', 'operation': 'create'},
+            {'name': 'db_pw', 'type': 'var', 'secret': 'not-a-real-password', 'operation': 'create'}]}),
+        201, 'create environment')
+    eid = out['variable_group_create']['body']['id']
+    out['variable_groups_one'] = expect(srv.call('GET', base + '/environment'), 200, 'environments')
+    out['variable_group_get'] = expect(srv.call('GET', '%s/environment/%d' % (base, eid)), 200, 'environment')
+    token = [s for s in out['variable_group_get']['body']['secrets'] if s['name'] == 'TOKEN'][0]
+    group = dict(out['variable_group_get']['body'])
+    group.pop('secrets')
+    out['variable_group_update'] = expect(srv.call('PUT', '%s/environment/%d' % (base, eid), dict(
+        group, env='{"TZ": "Europe/Oslo"}', secrets=[
+            dict(id=token['id'], name='TOKEN', type='env', secret='', operation='delete'),
+            dict(name='TOKEN', type='var', secret='not-a-real-token', operation='create')])),
+        204, 'update environment')
+    out['variable_group_get_updated'] = expect(srv.call('GET', '%s/environment/%d' % (base, eid)), 200, 'environment')
+    out['variable_group_update_id_mismatch'] = srv.call(
+        'PUT', '%s/environment/%d' % (base, eid), dict(group, id=eid + 1000, secrets=[]))
+    out['variable_group_refs_unused'] = expect(srv.call('GET', '%s/environment/%d/refs' % (base, eid)), 200, 'environment refs')
+    out['variable_group_delete'] = expect(srv.call('DELETE', '%s/environment/%d' % (base, eid)), 204, 'delete environment')
+
+    out['repository_update'] = expect(srv.call('PUT', '%s/repositories/%d' % (base, rid), {
+        'id': rid, 'project_id': pid, 'name': 'ansible', 'git_url': 'git@github.com:example/ansible.git',
+        'git_branch': 'develop', 'ssh_key_id': kid}), 204, 'update repository')
+    out['repositories_one_updated'] = expect(srv.call('GET', base + '/repositories'), 200, 'repositories')
+    out['repository_refs_unused'] = expect(srv.call('GET', '%s/repositories/%d/refs' % (base, rid)), 200, 'repository refs')
+    out['repository_delete'] = expect(srv.call('DELETE', '%s/repositories/%d' % (base, rid)), 204, 'delete repository')
+    out['key_delete'] = expect(srv.call('DELETE', '%s/keys/%d' % (base, kid)), 204, 'delete key')
 
     out['project_delete'] = expect(srv.call('DELETE', '/project/%d' % pid), 204, 'delete project')
     out['logout'] = expect(srv.call('POST', '/auth/logout'), 204, 'logout')
