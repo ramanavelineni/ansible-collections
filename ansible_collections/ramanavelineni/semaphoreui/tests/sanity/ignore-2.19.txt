@@ -16,6 +16,8 @@ plugins/modules/schedule_info.py validate-modules:missing-gplv3-license # Apache
 plugins/modules/team_member.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/team_member_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/template.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/user.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/user_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/variable_group.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/variable_group_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/view.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE

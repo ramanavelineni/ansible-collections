@@ -371,11 +371,42 @@ def record_runner(srv, out):
     expect(srv.call('DELETE', '/project/%d' % pid), 204, 'delete project')
 
 
+def record_user(srv, out):
+    """Global users: a local and an external one, created and deleted again.
+
+    Works next to other users. The recorder never logs in as the users it
+    creates, because Semaphore 2.18 cannot delete a user who has a session.
+    """
+    stamp = str(os.getpid())
+    login, ext = 'us-fixture-' + stamp, 'us-fixture-ext-' + stamp
+    out['user_me'] = expect(srv.call('GET', '/user'), 200, 'current user')
+    out['user_create'] = expect(srv.call('POST', '/users', {
+        'username': login, 'name': 'Fixture', 'email': login + '@example.com', 'admin': False, 'alert': False,
+        'external': False, 'password': 'not-a-real-password'}), 201, 'create user')
+    uid = out['user_create']['body']['id']
+    out['user_create_external'] = expect(srv.call('POST', '/users', {
+        'username': ext, 'name': 'External', 'email': ext + '@example.com', 'external': True}), 201, 'create external user')
+    xid = out['user_create_external']['body']['id']
+    out['user_create_duplicate_email'] = srv.call('POST', '/users', {
+        'username': login + '-dup', 'name': 'Dup', 'email': login + '@example.com', 'password': 'not-a-real-password'})
+    out['user_list'] = expect(srv.call('GET', '/users'), 200, 'users')
+    user = dict(out['user_create']['body'])
+    out['user_update'] = expect(srv.call('PUT', '/users/%d' % uid, dict(user, name='Fixture Team', alert=True)),
+                                204, 'update user')
+    out['user_list_updated'] = expect(srv.call('GET', '/users'), 200, 'users')
+    out['user_password'] = expect(srv.call('POST', '/users/%d/password' % uid, {'password': 'not-a-real-password-2'}),
+                                  204, 'set password')
+    out['user_password_external'] = srv.call('POST', '/users/%d/password' % xid, {'password': 'not-a-real-password'})
+    out['user_delete'] = expect(srv.call('DELETE', '/users/%d' % uid), 204, 'delete user')
+    expect(srv.call('DELETE', '/users/%d' % xid), 204, 'delete external user')
+
+
 # Area name -> recorder. Each writes fixtures/<major.minor>/<area>.json.
 AREAS = {
     'core': record_core,
     'team': record_team,
     'runner': record_runner,
+    'user': record_user,
 }
 
 

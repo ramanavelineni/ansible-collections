@@ -9,7 +9,7 @@ They start from the two roles in the homelab ansible repo,
 both APIs and work around their quirks. The collections move that knowledge
 into Python modules and make it usable by anyone.
 
-Status: phase 2 in progress. Done: scaffolding, client, `info`, `project`, `key_store`, `repository`, `inventory`, `variable_group` and their `_info` modules (phase 2 complete); phase 3 in progress: `view`, `template`, `schedule`, `integration`.
+Status: phase 2 in progress. Done: scaffolding, client, `info`, `project`, `key_store`, `repository`, `inventory`, `variable_group` and their `_info` modules (phase 2 complete); phase 3 in progress: `view`, `template`, `schedule`, `integration`, `user`.
 
 ---
 
@@ -155,7 +155,7 @@ out within its own call, so no session state crosses tasks.
 
 | Module | Manages | Quirks to handle inside the module |
 |---|---|---|
-| `user` | global users | the login user can't modify itself; password is a secret |
+| `user` | global users | options `login` / `user_password` (the connection options own `username` / `password`); PUT rewrites name, username, email, alert, admin and pro together, so the current values go back; the password has its own endpoint (no current password needed for an admin setting someone else's) and follows `update_secret`; `external` is fixed at creation and external users take no password (Semaphore answers 400); duplicate emails get a bare 400, so they fail early; the login user is never changed or deleted (its password is skipped with a warning); Semaphore 2.18 can't delete a user who ever logged in (no ON DELETE CASCADE on sessions until 2.19: bare 500), explained in the failure |
 | `runner` | global and project runners | a new runner has no credentials: the module asks for a one-time registration token (valid 1 hour) right after creating it and returns it; `regenerate_token` gets a new one, which resets an already registered runner; the update replaces every field (tags included), so the whole runner is sent; the global list includes project runners, so global lookups filter on `project_id`; project runners are Pro-only (Community lists none and answers 403 on create), so their success paths are unit-tested only |
 | `project` | projects | the API caps the list at 200 rows: fail rather than miss projects; `state: absent` needs `confirm_delete: true` because it deletes everything inside |
 | `key_store` | Key Store entries (`ssh`, `login_password`, `none`) | PUT needs `id` and `project_id` in the body and `override_secret: true`, or the secret is silently ignored. Secret required on create; omitted on an existing key means "leave it". Type changes happen in place (a change to `ssh`/`login_password` needs the secret). **Every update of a key a repository uses makes Semaphore delete that repository's checkouts**: such a key's secret is skipped with a warning, and a type change fails, unless `force_repository_key_update: true` |

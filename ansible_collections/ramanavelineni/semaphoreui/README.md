@@ -33,6 +33,8 @@ what you declare.
 | `team_member_info` | lists a project's team (read-only) |
 | `runner` | global runners, and project runners on Semaphore Pro; returns a registration token for a new runner |
 | `runner_info` | lists global or project runners (read-only) |
+| `user` | global users; the managed user is `login` / `user_password`, since `username` / `password` are the module's own login |
+| `user_info` | lists users (read-only) |
 
 Every module looks objects up by name, changes only what differs from the
 options you set, and supports check mode. Objects inside a project name it
