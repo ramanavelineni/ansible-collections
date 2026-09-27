@@ -1,0 +1,430 @@
+{
+  "recorded_from": "v2.14.4-79a297f7",
+  "responses": {
+    "project_create": {
+      "body": null,
+      "headers": {
+        "location": "/api/v2.0/projects/8"
+      },
+      "status": 201
+    },
+    "project_create_conflict": {
+      "body": {
+        "errors": [
+          {
+            "code": "CONFLICT",
+            "message": "The project named fixtures-core already exists"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 409
+    },
+    "project_create_proxy": {
+      "body": null,
+      "headers": {
+        "location": "/api/v2.0/projects/10"
+      },
+      "status": 201
+    },
+    "project_delete": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "project_delete_missing": {
+      "body": {
+        "errors": [
+          {
+            "code": "NOT_FOUND",
+            "message": "project 8 not found"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 404
+    },
+    "project_get": {
+      "body": {
+        "creation_time": "2026-09-27T19:57:26.249Z",
+        "current_user_role_id": 1,
+        "current_user_role_ids": [
+          1
+        ],
+        "cve_allowlist": {
+          "creation_time": "0001-01-01T00:00:00.000Z",
+          "id": 7,
+          "items": [],
+          "project_id": 8,
+          "update_time": "0001-01-01T00:00:00.000Z"
+        },
+        "metadata": {
+          "auto_scan": "true",
+          "public": "false"
+        },
+        "name": "fixtures-core",
+        "owner_id": 1,
+        "owner_name": "admin",
+        "project_id": 8,
+        "repo_count": 0,
+        "update_time": "2026-09-27T19:57:26.249Z"
+      },
+      "headers": {},
+      "status": 200
+    },
+    "project_get_proxy": {
+      "body": {
+        "creation_time": "2026-09-27T19:57:27.598Z",
+        "current_user_role_id": 1,
+        "current_user_role_ids": [
+          1
+        ],
+        "cve_allowlist": {
+          "creation_time": "0001-01-01T00:00:00.000Z",
+          "id": 8,
+          "items": [],
+          "project_id": 10,
+          "update_time": "0001-01-01T00:00:00.000Z"
+        },
+        "metadata": {
+          "public": "true",
+          "retention_id": "2"
+        },
+        "name": "fixtures-core-proxy",
+        "owner_id": 1,
+        "owner_name": "admin",
+        "project_id": 10,
+        "registry_id": 3,
+        "repo_count": 0,
+        "update_time": "2026-09-27T19:57:27.598Z"
+      },
+      "headers": {},
+      "status": 200
+    },
+    "project_get_updated": {
+      "body": {
+        "creation_time": "2026-09-27T19:57:26.249Z",
+        "current_user_role_id": 1,
+        "current_user_role_ids": [
+          1
+        ],
+        "cve_allowlist": {
+          "creation_time": "0001-01-01T00:00:00.000Z",
+          "id": 7,
+          "items": [],
+          "project_id": 8,
+          "update_time": "0001-01-01T00:00:00.000Z"
+        },
+        "metadata": {
+          "auto_scan": "true",
+          "public": "true",
+          "severity": "high"
+        },
+        "name": "fixtures-core",
+        "owner_id": 1,
+        "owner_name": "admin",
+        "project_id": 8,
+        "repo_count": 0,
+        "update_time": "2026-09-27T19:57:26.249Z"
+      },
+      "headers": {},
+      "status": 200
+    },
+    "project_update": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "projects_before": {
+      "body": [
+        {
+          "creation_time": "2026-09-27T19:50:58.378Z",
+          "current_user_role_id": 1,
+          "current_user_role_ids": [
+            1
+          ],
+          "cve_allowlist": {
+            "creation_time": "0001-01-01T00:00:00.000Z",
+            "id": 1,
+            "items": [],
+            "project_id": 1,
+            "update_time": "0001-01-01T00:00:00.000Z"
+          },
+          "metadata": {
+            "public": "true"
+          },
+          "name": "library",
+          "owner_id": 1,
+          "owner_name": "admin",
+          "project_id": 1,
+          "repo_count": 0,
+          "update_time": "2026-09-27T19:50:58.378Z"
+        }
+      ],
+      "headers": {
+        "x-total-count": "1"
+      },
+      "status": 200
+    },
+    "projects_with_created": {
+      "body": [
+        {
+          "creation_time": "2026-09-27T19:57:26.249Z",
+          "current_user_role_id": 1,
+          "current_user_role_ids": [
+            1
+          ],
+          "cve_allowlist": {
+            "creation_time": "0001-01-01T00:00:00.000Z",
+            "id": 7,
+            "items": [],
+            "project_id": 8,
+            "update_time": "0001-01-01T00:00:00.000Z"
+          },
+          "metadata": {
+            "auto_scan": "true",
+            "public": "false"
+          },
+          "name": "fixtures-core",
+          "owner_id": 1,
+          "owner_name": "admin",
+          "project_id": 8,
+          "repo_count": 0,
+          "update_time": "2026-09-27T19:57:26.249Z"
+        },
+        {
+          "creation_time": "2026-09-27T19:50:58.378Z",
+          "current_user_role_id": 1,
+          "current_user_role_ids": [
+            1
+          ],
+          "cve_allowlist": {
+            "creation_time": "0001-01-01T00:00:00.000Z",
+            "id": 1,
+            "items": [],
+            "project_id": 1,
+            "update_time": "0001-01-01T00:00:00.000Z"
+          },
+          "metadata": {
+            "public": "true"
+          },
+          "name": "library",
+          "owner_id": 1,
+          "owner_name": "admin",
+          "project_id": 1,
+          "repo_count": 0,
+          "update_time": "2026-09-27T19:50:58.378Z"
+        }
+      ],
+      "headers": {
+        "x-total-count": "2"
+      },
+      "status": 200
+    },
+    "projects_with_updated": {
+      "body": [
+        {
+          "creation_time": "2026-09-27T19:57:26.249Z",
+          "current_user_role_id": 1,
+          "current_user_role_ids": [
+            1
+          ],
+          "cve_allowlist": {
+            "creation_time": "0001-01-01T00:00:00.000Z",
+            "id": 7,
+            "items": [],
+            "project_id": 8,
+            "update_time": "0001-01-01T00:00:00.000Z"
+          },
+          "metadata": {
+            "auto_scan": "true",
+            "public": "true",
+            "severity": "high"
+          },
+          "name": "fixtures-core",
+          "owner_id": 1,
+          "owner_name": "admin",
+          "project_id": 8,
+          "repo_count": 0,
+          "update_time": "2026-09-27T19:57:26.249Z"
+        },
+        {
+          "creation_time": "2026-09-27T19:50:58.378Z",
+          "current_user_role_id": 1,
+          "current_user_role_ids": [
+            1
+          ],
+          "cve_allowlist": {
+            "creation_time": "0001-01-01T00:00:00.000Z",
+            "id": 1,
+            "items": [],
+            "project_id": 1,
+            "update_time": "0001-01-01T00:00:00.000Z"
+          },
+          "metadata": {
+            "public": "true"
+          },
+          "name": "library",
+          "owner_id": 1,
+          "owner_name": "admin",
+          "project_id": 1,
+          "repo_count": 0,
+          "update_time": "2026-09-27T19:50:58.378Z"
+        }
+      ],
+      "headers": {
+        "x-total-count": "2"
+      },
+      "status": 200
+    },
+    "quota_update": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "quotas_all": {
+      "body": [
+        {
+          "creation_time": "2026-09-27T19:57:26.278Z",
+          "hard": {
+            "storage": 5368709120
+          },
+          "id": 7,
+          "ref": {
+            "id": 8,
+            "name": "fixtures-core",
+            "owner_name": ""
+          },
+          "update_time": "2026-09-27T19:57:26.278Z",
+          "used": {
+            "storage": 0
+          }
+        },
+        {
+          "creation_time": "2026-09-27T19:50:58.890Z",
+          "hard": {
+            "storage": -1
+          },
+          "id": 1,
+          "ref": {
+            "id": 1,
+            "name": "library",
+            "owner_name": ""
+          },
+          "update_time": "2026-09-27T19:50:58.890Z",
+          "used": {
+            "storage": 0
+          }
+        }
+      ],
+      "headers": {
+        "x-total-count": "2"
+      },
+      "status": 200
+    },
+    "quotas_created": {
+      "body": [
+        {
+          "creation_time": "2026-09-27T19:57:26.278Z",
+          "hard": {
+            "storage": 5368709120
+          },
+          "id": 7,
+          "ref": {
+            "id": 8,
+            "name": "fixtures-core",
+            "owner_name": ""
+          },
+          "update_time": "2026-09-27T19:57:26.278Z",
+          "used": {
+            "storage": 0
+          }
+        }
+      ],
+      "headers": {
+        "x-total-count": "1"
+      },
+      "status": 200
+    },
+    "quotas_created_updated": {
+      "body": [
+        {
+          "creation_time": "2026-09-27T19:57:26.278Z",
+          "hard": {
+            "storage": -1
+          },
+          "id": 7,
+          "ref": {
+            "id": 8,
+            "name": "fixtures-core",
+            "owner_name": ""
+          },
+          "update_time": "2026-09-27T19:57:26.278Z",
+          "used": {
+            "storage": 0
+          }
+        }
+      ],
+      "headers": {
+        "x-total-count": "1"
+      },
+      "status": 200
+    },
+    "registries_empty": {
+      "body": [],
+      "headers": {
+        "x-total-count": "0"
+      },
+      "status": 200
+    },
+    "registries_one": {
+      "body": [
+        {
+          "creation_time": "2026-09-27T19:57:27.555Z",
+          "credential": {},
+          "id": 3,
+          "name": "fixtures-core-hub",
+          "status": "healthy",
+          "type": "docker-hub",
+          "update_time": "2026-09-27T19:57:27.555Z",
+          "url": "https://hub.docker.com"
+        }
+      ],
+      "headers": {
+        "x-total-count": "1"
+      },
+      "status": 200
+    },
+    "systeminfo": {
+      "body": {
+        "auth_mode": "db_auth",
+        "banner_message": "",
+        "current_time": "2026-09-27T19:57:24.605Z",
+        "external_url": "http://harbor-v2144.lab:8080",
+        "harbor_version": "v2.14.4-79a297f7",
+        "has_ca_root": false,
+        "notification_enable": true,
+        "oidc_provider_name": "",
+        "primary_auth_mode": false,
+        "project_creation_restriction": "everyone",
+        "read_only": false,
+        "registry_storage_provider_name": "filesystem",
+        "registry_url": "harbor-v2144.lab:8080",
+        "self_registration": false
+      },
+      "headers": {},
+      "status": 200
+    },
+    "systeminfo_anonymous": {
+      "body": {
+        "auth_mode": "db_auth",
+        "banner_message": "",
+        "oidc_provider_name": "",
+        "primary_auth_mode": false,
+        "self_registration": false
+      },
+      "headers": {},
+      "status": 200
+    }
+  }
+}

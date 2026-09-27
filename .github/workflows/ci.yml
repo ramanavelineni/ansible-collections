@@ -27,7 +27,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        collection: [semaphoreui]
+        collection: [semaphoreui, harbor]
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-python@v7.0.0
@@ -43,7 +43,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        collection: [semaphoreui]
+        collection: [semaphoreui, harbor]
         ansible: [stable-2.18, stable-2.19, stable-2.20, stable-2.21]
     steps:
       - uses: ansible-community/ansible-test-gh-action@v1.18.0
@@ -58,7 +58,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        collection: [semaphoreui]
+        collection: [semaphoreui, harbor]
         ansible: [stable-2.18, stable-2.19, stable-2.20, stable-2.21]
     steps:
       - uses: ansible-community/ansible-test-gh-action@v1.18.0

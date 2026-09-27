@@ -1,0 +1,3 @@
+plugins/modules/info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/project.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/project_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE

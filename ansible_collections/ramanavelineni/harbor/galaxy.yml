@@ -1,0 +1,29 @@
+---
+namespace: ramanavelineni
+name: harbor
+version: 0.1.0
+readme: README.md
+authors:
+  - ramanavelineni <12130750+ramanavelineni@users.noreply.github.com>
+description: >-
+  Declarative, idempotent modules for Harbor: projects, registries, robot
+  accounts, tag retention and immutability, webhooks, replications, system
+  configuration and job schedules.
+license:
+  - Apache-2.0
+tags:
+  - harbor
+  - registry
+  - containers
+  - api
+  - infrastructure
+dependencies: {}
+repository: https://github.com/ramanavelineni/ansible-collections
+documentation: https://github.com/ramanavelineni/ansible-collections/tree/main/ansible_collections/ramanavelineni/harbor
+homepage: https://github.com/ramanavelineni/ansible-collections
+issues: https://github.com/ramanavelineni/ansible-collections/issues
+build_ignore:
+  - .gitignore
+  - changelogs/.plugin-cache.yaml
+  - tests/output
+  - "*.tar.gz"

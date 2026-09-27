@@ -6,8 +6,8 @@ calls with `ansible.builtin.uri`.
 
 | Collection | Manages | Status |
 |---|---|---|
-| [`ramanavelineni.semaphoreui`](ansible_collections/ramanavelineni/semaphoreui/) | Semaphore UI | in development: `info`, `project`, `key_store`, `repository`, `inventory`, `variable_group`, `view`, `template`, `schedule`, `integration`, `user` (+ `_info` modules) |
-| `ramanavelineni.harbor` | Harbor | planned |
+| [`ramanavelineni.semaphoreui`](ansible_collections/ramanavelineni/semaphoreui/) | Semaphore UI | in development: `info`, `project`, `key_store`, `repository`, `inventory`, `variable_group`, `view`, `template`, `schedule`, `integration`, `team_member`, `runner`, `user` (+ `_info` modules) |
+| [`ramanavelineni.harbor`](ansible_collections/ramanavelineni/harbor/) | Harbor | in development: `info`, `project`, `project_info` |
 
 The design, the module lists and the order of work are in [PLAN.md](PLAN.md).
 
@@ -37,7 +37,9 @@ Unit tests run the modules against responses recorded from real servers,
 stored under `tests/unit/plugins/fixtures/<major.minor>/<area>.json` in each
 collection. To re-record them (for a new tested version, or a new module),
 start a throwaway server of that version and run the recorder; see the
-docstring in `tools/record_semaphoreui_fixtures.py`.
+docstrings in `tools/record_semaphoreui_fixtures.py` and
+`tools/record_harbor_fixtures.py`. Both record one area at a time, so areas
+can be recorded separately.
 
 Every change that affects users adds a changelog fragment under
 `ansible_collections/ramanavelineni/<collection>/changelogs/fragments/`.

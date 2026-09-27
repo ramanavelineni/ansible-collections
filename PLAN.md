@@ -9,7 +9,7 @@ They start from the two roles in the homelab ansible repo,
 both APIs and work around their quirks. The collections move that knowledge
 into Python modules and make it usable by anyone.
 
-Status: phase 2 in progress. Done: scaffolding, client, `info`, `project`, `key_store`, `repository`, `inventory`, `variable_group` and their `_info` modules (phase 2 complete); phase 3 in progress: `view`, `template`, `schedule`, `integration`, `user`.
+Status: semaphoreui phases 1–3 complete (every module listed below, with its `_info` module). Harbor: scaffold, client, `info`, `project`, `project_info`; the other Harbor areas are in progress.
 
 ---
 
@@ -33,7 +33,7 @@ Status: phase 2 in progress. Done: scaffolding, client, `info`, `project`, `key_
 | Unit-test fixtures | recorded from a throwaway local Semaphore container (2.18 and 2.19, SQLite) on the development machine, never from the homelab |
 | Tooling | Makefile targets for local runs, `ansible-community/ansible-test-gh-action` in CI, light pre-commit hooks |
 | Commits | first commit (scaffolding only) directly on `main`; everything after goes through a feature branch and pull request; no Co-Authored-By trailer; the owner pushes |
-| Harbor | Harbor v2 API, tested against 2.15 (homelab runs 2.15.1) |
+| Harbor | Harbor v2 API, tested against 2.14 and 2.15 (fixtures from 2.14.4 and 2.15.2; the homelab runs 2.15.1) |
 | Semaphore | tested against 2.18 and 2.19, matching `semaphore_config_tested_versions` |
 
 Apache-2.0 fits with ansible-core: modules import `ansible.module_utils.basic`
@@ -69,8 +69,8 @@ ansible-collections/
     │   │   ├── module_utils/semaphore.py  # HTTP client, pagination, diff helpers
     │   │   └── modules/
     │   └── tests/unit/
-    └── harbor/                            # created when phase 5 starts
-        └── (same shape; module_utils/harbor.py)
+    └── harbor/
+        └── (same shape; module_utils/harbor.py, fixtures per area)
 ```
 
 Each collection stands alone, with no dependency between them. The small
@@ -126,20 +126,24 @@ These apply to both collections and replace what each role now does by hand.
 
 ## ramanavelineni.harbor
 
-Scope matches `roles/harbor_config`. Harbor API v2, basic auth with an admin
-user or robot account.
+Scope matches `roles/harbor_config`. Harbor API v2, HTTP basic auth only
+(admin, user, robot account, or an OIDC user's CLI secret), with
+`HARBOR_*` environment fallbacks. Module names follow the Harbor UI labels,
+singular. Robot and write-only configuration secrets follow `update_secret`
+(`always` / `on_create`), as in semaphoreui.
 
-| Module | Manages | Notes from the role |
+| Module | Manages | Notes |
 |---|---|---|
-| `configuration` | `/configurations` system settings, including auth mode and OIDC | key-level diff; only the keys given are compared and sent |
-| `schedule` | GC, scan-all and audit-log purge schedules | create or update on cron drift |
+| `configuration` | `/configurations` system settings, including auth mode and OIDC | key-level diff; only the keys given are compared and sent; write-only keys (OIDC client secret) follow `update_secret` |
+| `garbage_collection`, scan-all, audit-log purge | job schedules | create or update on cron drift |
 | `registry` | registry endpoints (proxy-cache upstreams, replication targets) | `type` and `url` can't be changed after creation: fail with instructions instead of trying |
-| `project` | projects, metadata (public, auto_scan, severity, …), storage quota | the proxy-cache registry binding can't be changed after creation: fail with instructions |
-| `robot` | system and project robot accounts, permissions, secret | secret set on create; re-applied according to `update_secret` |
-| `retention_policy` | tag retention rules per project | rules matched by content, not by id |
-| `immutability_rule` | tag immutability rules per project | matched by content |
-| `webhook` | webhook policies per project | `auth_header` is a secret |
-| `replication_policy` | replication policies | matched by name |
+| `project` | projects: public, metadata, proxy-cache registry, storage quota | done. `PUT /projects/{id}` merges the given metadata keys; a top-level `public` is ignored (sent as `metadata.public`); Harbor silently drops unknown metadata keys and stores an invalid severity as `unknown`, so keys and values are checked first (2.15 adds `proxy_cache_local_on_not_found`); the proxy-cache registry can't change after creation: fail with instructions; create answers 201 with an empty body and the id in `Location`; `/projects/<n>` takes a numeric `<n>` as an id, so projects are addressed by id; quota via `/quotas?reference=project&reference_id=` and `PUT /quotas/{id}`; delete needs `confirm_delete` and fails first while repositories remain |
+| `robot_account` | system and project robot accounts, permissions, secret | without a declared secret Harbor generates one, returned (no_log) on create only |
+| `tag_retention` | tag retention rules per project | rules matched by content, not by id |
+| `tag_immutability` | tag immutability rules per project | matched by content |
+| `webhook` | webhook policies per project | |
+| `replication` | replication policies | matched by name |
+| `info` | server version | done. Harbor answers `/systeminfo` (and even `/projects`, with public projects only) anonymously when the credentials are wrong; only an authenticated `/systeminfo` carries `harbor_version`, so every module checks that first and fails on bad credentials |
 | `*_info` | read-only versions of the above | |
 
 Before building, compare against `xrow.harbor` on Galaxy and note any
