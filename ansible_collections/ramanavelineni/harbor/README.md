@@ -16,6 +16,10 @@ what you declare.
 | `project_info` | lists projects (read-only) |
 | `robot_account` | system and project robot accounts: permissions (compared in any order), duration, description, secret |
 | `robot_account_info` | lists system or project robot accounts, never secrets (read-only) |
+| `registry` | registry endpoints (Administration > Registries): type, URL, credentials, CA certificate (2.15) |
+| `registry_info` | lists registry endpoints, never secrets (read-only) |
+| `replication` | replication rules (Administration > Replications): pull or push, trigger, filters |
+| `replication_info` | lists replication rules (read-only) |
 
 Every module looks objects up by name, changes only what differs from the
 options you set, and supports check mode. `ansible-doc ramanavelineni.harbor.<module>`
@@ -23,6 +27,13 @@ shows the full documentation.
 
 `project` checks metadata keys and values before sending them: Harbor itself
 silently drops unknown keys and stores an invalid severity as `unknown`.
+
+`registry` sends a declared `access_secret` on every run (`update_secret: always`)
+or only when the endpoint is created (`on_create`); Harbor never returns it.
+Harbor checks that an endpoint is reachable whenever it is created or changed.
+An endpoint's type can't be changed, so a different type fails with
+instructions. `replication` compares filters regardless of their order and
+checks cron expressions and filters before sending anything.
 
 ## Connecting
 
