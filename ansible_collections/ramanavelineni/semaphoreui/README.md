@@ -25,6 +25,10 @@ what you declare.
 | `view` | a project's views (template tabs): position, hidden, sort |
 | `view_info` | lists a project's views (read-only) |
 | `template` | task templates: app, repository, inventory, variable groups, view, vaults, survey variables, task parameters, build/deploy |
+| `schedule` | cron schedules, commit pollers and one-off run-at schedules |
+| `schedule_info` | lists a project's schedules, including commit pollers (read-only) |
+| `integration` | inbound webhooks: authentication, matchers, extracted values; returns the webhook URL |
+| `integration_info` | lists a project's integrations with their webhook URLs (read-only) |
 
 Every module looks objects up by name, changes only what differs from the
 options you set, and supports check mode. Objects inside a project name it
@@ -48,6 +52,11 @@ unchanged, including fields it doesn't manage (such as 2.19's
 `executor_image`). `task_params` is merged key by key, and a key the
 template's app doesn't know fails instead of being ignored. The built-in
 `All` view can be moved or hidden, but not deleted.
+
+`schedule` finds commit pollers too, although Semaphore's project schedule
+list leaves them out, and refuses `active: false` on a poller because
+Semaphore would keep running it. `integration` makes sure the integration
+has a webhook URL and returns it.
 
 Deleting (`state: absent`) fails with a list of what still uses the object,
 instead of Semaphore's own, misleading answer. `ansible-doc ramanavelineni.semaphoreui.<module>`
