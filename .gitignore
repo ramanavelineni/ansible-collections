@@ -9,7 +9,7 @@ __pycache__/
 *.tar.gz
 
 # antsibull-changelog plugin cache
-changelogs/.plugin-cache.yaml
+**/changelogs/.plugin-cache.yaml
 
 # Local environments
 .venv/
