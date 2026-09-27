@@ -34,7 +34,7 @@ make sanity COLLECTION=harbor   # target another collection
 containers.
 
 Unit tests run the modules against responses recorded from real servers,
-stored under `tests/unit/plugins/fixtures/<major.minor>.json` in each
+stored under `tests/unit/plugins/fixtures/<major.minor>/<area>.json` in each
 collection. To re-record them (for a new tested version, or a new module),
 start a throwaway server of that version and run the recorder; see the
 docstring in `tools/record_semaphoreui_fixtures.py`.

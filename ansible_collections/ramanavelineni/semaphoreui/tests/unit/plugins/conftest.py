@@ -3,8 +3,8 @@
 
 """Test harness: runs modules against a fake Semaphore built from recorded responses.
 
-fixtures/<major.minor>.json holds real responses recorded from throwaway
-servers by tools/record_semaphoreui_fixtures.py. Tests route requests to
+fixtures/<major.minor>/<area>.json hold real responses recorded from
+throwaway servers by tools/record_semaphoreui_fixtures.py. Tests route requests to
 those responses and assert on the requests the module sent.
 """
 
@@ -20,7 +20,8 @@ import pytest
 from ansible.module_utils import basic
 
 FIXTURES_DIR = os.path.join(os.path.dirname(__file__), 'fixtures')
-VERSIONS = sorted(f[:-len('.json')] for f in os.listdir(FIXTURES_DIR) if f.endswith('.json'))
+# One directory per Semaphore major.minor, one file per recorded area.
+VERSIONS = sorted(d for d in os.listdir(FIXTURES_DIR) if os.path.isdir(os.path.join(FIXTURES_DIR, d)))
 PATCH_TARGET = 'ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore.open_url'
 
 CONNECTION = dict(url='https://semaphore.example.com', username='admin', password='s3cret-pw')
@@ -47,8 +48,19 @@ def patch_module_args(args=None):
 
 
 def load_fixtures(version):
-    with open(os.path.join(FIXTURES_DIR, '%s.json' % version)) as f:
-        return json.load(f)['responses']
+    """All recorded responses of one version, merged across area files."""
+    responses = {}
+    directory = os.path.join(FIXTURES_DIR, version)
+    for name in sorted(os.listdir(directory)):
+        if not name.endswith('.json'):
+            continue
+        with open(os.path.join(directory, name)) as f:
+            area = json.load(f)['responses']
+        clash = sorted(set(area) & set(responses))
+        if clash:
+            raise AssertionError('fixtures/%s/%s repeats response names %s' % (version, name, ', '.join(clash)))
+        responses.update(area)
+    return responses
 
 
 class FakeResponse(object):
