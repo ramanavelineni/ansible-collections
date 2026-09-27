@@ -124,9 +124,85 @@ def record_core(srv, out):
     out['project_delete_missing'] = srv.call('DELETE', '/projects/%d' % pid)
 
 
+# Stands in for the secrets Harbor generates for new robot accounts: they are
+# live credentials, so they are never written.
+RECORDED_SECRET = 'RecordedSecret0'
+
+
+def without_secret(result):
+    """The response with any generated robot secret replaced by RECORDED_SECRET."""
+    body = result.get('body')
+    if isinstance(body, dict) and body.get('secret'):
+        result = dict(result, body=dict(body, secret=RECORDED_SECRET))
+    return result
+
+
+def record_robot(srv, out):
+    """System and project robot accounts, in project fixtures-robot."""
+    project_name = 'fixtures-robot'
+    for robot in srv.call('GET', '/robots?q=name%3D~fixtures-robot&page=1&page_size=100')['body'] or []:
+        expect(srv.call('DELETE', '/robots/%d' % robot['id']), 200, 'delete leftover robot')
+    for p in srv.call('GET', '/projects?name=%s' % project_name)['body'] or []:
+        if p['name'] == project_name:
+            for robot in srv.call('GET', '/robots?q=Level%%3Dproject%%2CProjectID%%3D%d' % p['project_id'])['body'] or []:
+                expect(srv.call('DELETE', '/robots/%d' % robot['id']), 200, 'delete leftover project robot')
+            expect(srv.call('DELETE', '/projects/%d' % p['project_id']), 200, 'delete leftover project')
+
+    config = expect(srv.call('GET', '/configurations'), 200, 'configurations')
+    # Only the setting the modules read; the rest of the configuration is
+    # not the robot area's business.
+    out['robot_configurations'] = dict(config, body=dict(robot_name_prefix=config['body']['robot_name_prefix']))
+    out['robot_configurations_forbidden'] = srv.call('GET', '/configurations', password='wrong')
+    project = expect(srv.call('POST', '/projects', {'project_name': project_name, 'metadata': {'public': 'false'}}),
+                     201, 'create project')
+    pid = project_id_of(project)
+    out['robot_projects_by_name'] = expect(srv.call('GET', '/projects?name=%s&page=1&page_size=100' % project_name),
+                                           200, 'projects by name')
+    q_system = 'q=Level%3Dsystem%2Cname%3Dfixtures-robot-sys&page=1&page_size=100'
+    out['robot_list_system_empty'] = expect(srv.call('GET', '/robots?' + q_system), 200, 'robots')
+    perms = [{'kind': 'project', 'namespace': '*', 'access': [{'resource': 'repository', 'action': 'pull'}]}]
+    created = expect(srv.call('POST', '/robots', {
+        'name': 'fixtures-robot-sys', 'description': 'pulls', 'level': 'system', 'duration': -1, 'disable': False,
+        'permissions': perms}), 201, 'create robot')
+    out['robot_create'] = without_secret(created)
+    rid = created['body']['id']
+    out['robot_create_conflict'] = srv.call('POST', '/robots', {
+        'name': 'fixtures-robot-sys', 'level': 'system', 'duration': -1, 'permissions': perms})
+    out['robot_create_bad_name'] = srv.call('POST', '/robots', {
+        'name': 'Fixtures-Robot', 'level': 'system', 'duration': -1, 'permissions': perms})
+    out['robot_get'] = expect(srv.call('GET', '/robots/%d' % rid), 200, 'robot')
+    out['robot_list_system'] = expect(srv.call('GET', '/robots?' + q_system), 200, 'robots')
+    out['robot_list_system_all'] = expect(srv.call('GET', '/robots?q=Level%3Dsystem&page=1&page_size=100'), 200, 'robots')
+    current = out['robot_get']['body']
+    out['robot_update'] = expect(srv.call('PUT', '/robots/%d' % rid, dict(
+        current, description='pulls everything', permissions=[
+            {'kind': 'project', 'namespace': project_name,
+             'access': [{'resource': 'repository', 'action': 'pull'}, {'resource': 'repository', 'action': 'push'}]}])),
+        200, 'update robot')
+    out['robot_get_updated'] = expect(srv.call('GET', '/robots/%d' % rid), 200, 'robot')
+    out['robot_update_bad_name'] = srv.call('PUT', '/robots/%d' % rid, dict(current, name='fixtures-robot-sys'))
+    out['robot_secret_set'] = expect(srv.call('PATCH', '/robots/%d' % rid, {'secret': 'NotARealSecret1'}),
+                                     200, 'set secret')
+    out['robot_secret_weak'] = srv.call('PATCH', '/robots/%d' % rid, {'secret': 'weak'})
+
+    project_perms = [{'kind': 'project', 'namespace': project_name,
+                      'access': [{'resource': 'repository', 'action': 'pull'}]}]
+    pcreated = expect(srv.call('POST', '/robots', {
+        'name': 'ci', 'level': 'project', 'duration': 30, 'permissions': project_perms}), 201, 'create project robot')
+    out['robot_create_project'] = without_secret(pcreated)
+    out['robot_get_project'] = expect(srv.call('GET', '/robots/%d' % pcreated['body']['id']), 200, 'project robot')
+    out['robot_list_project'] = expect(srv.call('GET', '/robots?q=Level%%3Dproject%%2CProjectID%%3D%d&page=1&page_size=100' % pid),
+                                       200, 'project robots')
+    out['robot_delete'] = expect(srv.call('DELETE', '/robots/%d' % pcreated['body']['id']), 200, 'delete project robot')
+    expect(srv.call('DELETE', '/robots/%d' % rid), 200, 'delete robot')
+    out['robot_get_deleted'] = srv.call('GET', '/robots/%d' % rid)
+    expect(srv.call('DELETE', '/projects/%d' % pid), 200, 'delete project')
+
+
 # Area name -> recorder. Each writes fixtures/<major.minor>/<area>.json.
 AREAS = {
     'core': record_core,
+    'robot': record_robot,
 }
 
 

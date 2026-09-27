@@ -1,0 +1,360 @@
+{
+  "recorded_from": "v2.14.4-79a297f7",
+  "responses": {
+    "robot_configurations": {
+      "body": {
+        "robot_name_prefix": {
+          "editable": true,
+          "value": "robot$"
+        }
+      },
+      "headers": {},
+      "status": 200
+    },
+    "robot_configurations_forbidden": {
+      "body": {
+        "errors": [
+          {
+            "code": "UNAUTHORIZED",
+            "message": "unauthorized"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 401
+    },
+    "robot_create": {
+      "body": {
+        "creation_time": "2026-09-27T20:06:33.660Z",
+        "expires_at": -1,
+        "id": 8,
+        "name": "robot$fixtures-robot-sys",
+        "secret": "RecordedSecret0"
+      },
+      "headers": {
+        "location": "/api/v2.0/robots/8"
+      },
+      "status": 201
+    },
+    "robot_create_bad_name": {
+      "body": {
+        "errors": [
+          {
+            "code": "BAD_REQUEST",
+            "message": "robot name is not in lower case or contains illegal characters"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 400
+    },
+    "robot_create_conflict": {
+      "body": {
+        "errors": [
+          {
+            "code": "CONFLICT",
+            "message": "robot account 0:fixtures-robot-sys already exists"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 409
+    },
+    "robot_create_project": {
+      "body": {
+        "creation_time": "2026-09-27T20:06:33.849Z",
+        "expires_at": 1793131593,
+        "id": 10,
+        "name": "robot$fixtures-robot+ci",
+        "secret": "RecordedSecret0"
+      },
+      "headers": {
+        "location": "/api/v2.0/robots/10"
+      },
+      "status": 201
+    },
+    "robot_delete": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "robot_get": {
+      "body": {
+        "creation_time": "2026-09-27T20:06:33.660Z",
+        "creator_ref": 1,
+        "creator_type": "local",
+        "description": "pulls",
+        "disable": false,
+        "duration": -1,
+        "editable": true,
+        "expires_at": -1,
+        "id": 8,
+        "level": "system",
+        "name": "robot$fixtures-robot-sys",
+        "permissions": [
+          {
+            "access": [
+              {
+                "action": "pull",
+                "resource": "repository"
+              }
+            ],
+            "kind": "project",
+            "namespace": "*"
+          }
+        ],
+        "update_time": "2026-09-27T20:06:33.660Z"
+      },
+      "headers": {},
+      "status": 200
+    },
+    "robot_get_deleted": {
+      "body": {
+        "errors": [
+          {
+            "code": "NOT_FOUND",
+            "message": "robot 8 not found"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 404
+    },
+    "robot_get_project": {
+      "body": {
+        "creation_time": "2026-09-27T20:06:33.849Z",
+        "creator_ref": 1,
+        "creator_type": "local",
+        "disable": false,
+        "duration": 30,
+        "editable": true,
+        "expires_at": 1793131593,
+        "id": 10,
+        "level": "project",
+        "name": "robot$fixtures-robot+ci",
+        "permissions": [
+          {
+            "access": [
+              {
+                "action": "pull",
+                "resource": "repository"
+              }
+            ],
+            "kind": "project",
+            "namespace": "fixtures-robot"
+          }
+        ],
+        "update_time": "2026-09-27T20:06:33.849Z"
+      },
+      "headers": {},
+      "status": 200
+    },
+    "robot_get_updated": {
+      "body": {
+        "creation_time": "2026-09-27T20:06:33.660Z",
+        "creator_ref": 1,
+        "creator_type": "local",
+        "description": "pulls everything",
+        "disable": false,
+        "duration": -1,
+        "editable": true,
+        "expires_at": -1,
+        "id": 8,
+        "level": "system",
+        "name": "robot$fixtures-robot-sys",
+        "permissions": [
+          {
+            "access": [
+              {
+                "action": "pull",
+                "resource": "repository"
+              },
+              {
+                "action": "push",
+                "resource": "repository"
+              }
+            ],
+            "kind": "project",
+            "namespace": "fixtures-robot"
+          }
+        ],
+        "update_time": "2026-09-27T20:06:33.744Z"
+      },
+      "headers": {},
+      "status": 200
+    },
+    "robot_list_project": {
+      "body": [
+        {
+          "creation_time": "2026-09-27T20:06:33.849Z",
+          "creator_ref": 1,
+          "creator_type": "local",
+          "disable": false,
+          "duration": 30,
+          "editable": true,
+          "expires_at": 1793131593,
+          "id": 10,
+          "level": "project",
+          "name": "robot$fixtures-robot+ci",
+          "permissions": [
+            {
+              "access": [
+                {
+                  "action": "pull",
+                  "resource": "repository"
+                }
+              ],
+              "kind": "project",
+              "namespace": "fixtures-robot"
+            }
+          ],
+          "update_time": "2026-09-27T20:06:33.849Z"
+        }
+      ],
+      "headers": {
+        "x-total-count": "1"
+      },
+      "status": 200
+    },
+    "robot_list_system": {
+      "body": [
+        {
+          "creation_time": "2026-09-27T20:06:33.660Z",
+          "creator_ref": 1,
+          "creator_type": "local",
+          "description": "pulls",
+          "disable": false,
+          "duration": -1,
+          "editable": true,
+          "expires_at": -1,
+          "id": 8,
+          "level": "system",
+          "name": "robot$fixtures-robot-sys",
+          "permissions": [
+            {
+              "access": [
+                {
+                  "action": "pull",
+                  "resource": "repository"
+                }
+              ],
+              "kind": "project",
+              "namespace": "*"
+            }
+          ],
+          "update_time": "2026-09-27T20:06:33.660Z"
+        }
+      ],
+      "headers": {
+        "x-total-count": "1"
+      },
+      "status": 200
+    },
+    "robot_list_system_all": {
+      "body": [
+        {
+          "creation_time": "2026-09-27T20:06:33.660Z",
+          "creator_ref": 1,
+          "creator_type": "local",
+          "description": "pulls",
+          "disable": false,
+          "duration": -1,
+          "editable": true,
+          "expires_at": -1,
+          "id": 8,
+          "level": "system",
+          "name": "robot$fixtures-robot-sys",
+          "permissions": [
+            {
+              "access": [
+                {
+                  "action": "pull",
+                  "resource": "repository"
+                }
+              ],
+              "kind": "project",
+              "namespace": "*"
+            }
+          ],
+          "update_time": "2026-09-27T20:06:33.660Z"
+        }
+      ],
+      "headers": {
+        "x-total-count": "1"
+      },
+      "status": 200
+    },
+    "robot_list_system_empty": {
+      "body": [],
+      "headers": {
+        "x-total-count": "0"
+      },
+      "status": 200
+    },
+    "robot_projects_by_name": {
+      "body": [
+        {
+          "creation_time": "2026-09-27T20:06:33.596Z",
+          "current_user_role_id": 1,
+          "current_user_role_ids": [
+            1
+          ],
+          "cve_allowlist": {
+            "creation_time": "0001-01-01T00:00:00.000Z",
+            "id": 14,
+            "items": [],
+            "project_id": 16,
+            "update_time": "0001-01-01T00:00:00.000Z"
+          },
+          "metadata": {
+            "public": "false"
+          },
+          "name": "fixtures-robot",
+          "owner_id": 1,
+          "owner_name": "admin",
+          "project_id": 16,
+          "repo_count": 0,
+          "update_time": "2026-09-27T20:06:33.596Z"
+        }
+      ],
+      "headers": {
+        "x-total-count": "1"
+      },
+      "status": 200
+    },
+    "robot_secret_set": {
+      "body": {},
+      "headers": {},
+      "status": 200
+    },
+    "robot_secret_weak": {
+      "body": {
+        "errors": [
+          {
+            "code": "BAD_REQUEST",
+            "message": "the secret must be 8-128, inclusively, characters long with at least 1 uppercase letter, 1 lowercase letter and 1 number"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 400
+    },
+    "robot_update": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "robot_update_bad_name": {
+      "body": {
+        "errors": [
+          {
+            "code": "BAD_REQUEST",
+            "message": "cannot update the level or name of robot"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 400
+    }
+  }
+}

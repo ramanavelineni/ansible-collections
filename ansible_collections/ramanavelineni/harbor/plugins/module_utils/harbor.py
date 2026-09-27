@@ -284,3 +284,55 @@ def project_view(project, quota, registries):
         quota_gb=storage_to_gb(((quota or {}).get('hard') or {}).get('storage')),
         repo_count=project.get('repo_count', 0),
     )
+
+
+# -- robot accounts ------------------------------------------------------------
+
+DEFAULT_ROBOT_PREFIX = 'robot$'
+
+
+def robot_prefix(client):
+    """The robot name prefix Harbor puts in front of every robot account's name.
+
+    Only a system administrator can read the configuration; anyone else gets
+    Harbor's factory default.
+    """
+    try:
+        config = client.get('/configurations') or {}
+    except HarborError:
+        return DEFAULT_ROBOT_PREFIX
+    value = (config.get('robot_name_prefix') or {}).get('value')
+    return value if value else DEFAULT_ROBOT_PREFIX
+
+
+def canonical_permissions(permissions):
+    """Robot permissions in a stable, comparable form (Harbor returns them in any order)."""
+    merged = {}
+    for perm in permissions or []:
+        key = (perm.get('kind') or 'project', perm.get('namespace') or '')
+        access = merged.setdefault(key, set())
+        for item in perm.get('access') or []:
+            access.add((item.get('resource'), item.get('action')))
+    return [dict(kind=kind, namespace=namespace,
+                 access=[dict(resource=r, action=a) for r, a in sorted(access)])
+            for (kind, namespace), access in sorted(merged.items())]
+
+
+def robot_short_name(full_name, project, prefix):
+    """A robot account's name without the prefix and, for a project robot, the <project>+ part."""
+    name = full_name or ''
+    if project is not None and ('%s+' % project) in name:
+        return name.rsplit('%s+' % project, 1)[1]
+    return name[len(prefix):] if prefix and name.startswith(prefix) else name
+
+
+def robot_account_view(robot, project, name=None, prefix=DEFAULT_ROBOT_PREFIX):
+    """A robot account as the robot account modules return it (never a secret)."""
+    return dict(
+        id=robot.get('id'),
+        name=name if name is not None else robot_short_name(robot.get('name'), project, prefix),
+        full_name=robot.get('name'), level=robot.get('level'), project=project,
+        description=robot.get('description') or '', duration=robot.get('duration'),
+        expires_at=robot.get('expires_at'), disable=bool(robot.get('disable', False)),
+        permissions=canonical_permissions(robot.get('permissions')),
+    )

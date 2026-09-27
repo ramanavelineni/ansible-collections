@@ -14,6 +14,8 @@ what you declare.
 | `info` | server version and whether it is tested (read-only) |
 | `project` | projects: visibility, metadata, proxy-cache registry, storage quota (`state: absent` needs `confirm_delete: true`) |
 | `project_info` | lists projects (read-only) |
+| `robot_account` | system and project robot accounts: permissions (compared in any order), duration, description, secret |
+| `robot_account_info` | lists system or project robot accounts, never secrets (read-only) |
 
 Every module looks objects up by name, changes only what differs from the
 options you set, and supports check mode. `ansible-doc ramanavelineni.harbor.<module>`
