@@ -68,6 +68,54 @@ def test_no_change_filters_in_any_order(server, run_module):
     assert server.calls('PUT') == []
 
 
+def stored_tag_decoration(server, decoration):
+    """The recorded rule list with its tag filter's decoration replaced (None: left out).
+
+    Hand-made: every recorded tag filter excludes. The audit reports that the
+    UI stores a matching one as `matches`.
+    """
+    listing = server.response('registry_replication_list')
+    for item in listing['body'][0]['filters']:
+        if item['type'] == 'tag':
+            item.pop('decoration', None)
+            if decoration:
+                item['decoration'] = decoration
+    return listing
+
+
+@pytest.mark.parametrize('stored', ['matches', None])
+@pytest.mark.parametrize('declared', ['matches', None])
+def test_no_decoration_and_matches_are_the_same_filter(server, run_module, stored, declared):
+    routes(server, stored_tag_decoration(server, stored))
+    tag = dict(type='tag', value='v*')
+    if declared:
+        tag['decoration'] = declared
+    result = run_module(replication.main, dict(PULL, filters=[dict(type='name', value='library/**'), tag]))
+    assert result['changed'] is False
+    assert server.calls('PUT') == []
+    assert result['replication']['filters'] == [dict(type='name', value='library/**', decoration=''),
+                                                dict(type='tag', value='v*', decoration='matches')]
+
+
+def test_excludes_still_differs_from_no_decoration(server, run_module):
+    routes(server, stored_tag_decoration(server, None))
+    server.route('PUT', '/replication/policies/%d' % rule_id(server), 'registry_replication_update')
+    result = run_module(replication.main, PULL)
+    assert result['changed'] is True
+    assert dict(type='tag', value='v*', decoration='excludes') in server.calls('PUT')[0]['body']['filters']
+
+
+def test_filter_without_decoration_is_sent_as_matches(server, run_module):
+    routes(server, 'registry_replication_list_before')
+    server.route('POST', '/replication/policies', 'registry_replication_create')
+    server.route('GET', '/replication/policies/%d' % rule_id(server), 'registry_replication_get')
+    run_module(replication.main, dict(PULL, filters=[dict(type='name', value='library/**'), dict(type='tag', value='v*'),
+                                                     dict(type='label', value=['stable'])]))
+    assert server.calls('POST', '/replication/policies')[0]['body']['filters'] == [
+        dict(type='name', value='library/**'), dict(type='tag', value='v*', decoration='matches'),
+        dict(type='label', value=['stable'], decoration='matches')]
+
+
 def test_update_sends_whole_rule(server, run_module):
     routes(server)
     server.route('PUT', '/replication/policies/%d' % rule_id(server), 'registry_replication_update')
@@ -157,6 +205,8 @@ def test_validate_cron(cron, ok):
 @pytest.mark.parametrize('item, error', [
     (dict(type='name', value='a/**'), None),
     (dict(type='label', value='one'), None),
+    (dict(type='tag', value='v*'), None),
+    (dict(type='tag', value='v*', decoration=''), None),
     (dict(type='label', value=['b', 'a'], decoration='excludes'), None),
     (dict(type='resource', value='artifact'), None),
     (dict(type='resource', value='chart'), 'resource filter value'),
@@ -166,7 +216,10 @@ def test_validate_cron(cron, ok):
 ])
 def test_normalize_filter(item, error):
     if error is None:
-        assert normalize_filter(item)['type'] == item['type']
+        normalized = normalize_filter(item)
+        assert normalized['type'] == item['type']
+        default = 'matches' if item['type'] in ('tag', 'label') else ''
+        assert normalized['decoration'] == (item.get('decoration') or default)
     else:
         with pytest.raises(ValueError, match=error):
             normalize_filter(item)

@@ -3,6 +3,8 @@
 
 import json
 
+import pytest
+
 from ansible_collections.ramanavelineni.harbor.plugins.modules import registry, registry_info
 
 SELF = dict(name='rr-fixtures-self', type='harbor', endpoint_url='http://proxy:8080/', insecure=True)
@@ -167,3 +169,62 @@ def test_rejected_secret_with_quotes_is_not_reported(server, run_module):
     assert result['failed'] is True
     assert 'Zebra7' not in json.dumps(result)
     assert result['request_details']['request']['access_secret'] == '********'
+
+
+def test_access_key_alone_gets_a_credential_type(server, run_module):
+    # rr-fixtures-self is stored without a credential.
+    server.route('GET', '/registries', 'registry_list')
+    server.route('PUT', '/registries/%d' % rid(server), 'registry_update')
+    result = run_module(registry.main, dict(name='rr-fixtures-self', access_key='bot'))
+    assert result['changed'] is True and result['secret_updated'] is False
+    assert server.calls('PUT')[0]['body'] == dict(access_key='bot', credential_type='basic')
+    assert result['registry']['credential_type'] == 'basic'
+
+
+def test_secret_alone_gets_a_credential_type(server, run_module):
+    server.route('GET', '/registries', 'registry_list')
+    server.route('PUT', '/registries/%d' % rid(server), 'registry_update')
+    result = run_module(registry.main, dict(name='rr-fixtures-self', access_secret='t0p-secret'))
+    assert server.calls('PUT')[0]['body'] == dict(access_secret='t0p-secret', credential_type='basic')
+    assert result['registry']['credential_type'] == 'basic'
+
+
+def test_declared_credential_type_is_sent_with_the_key(server, run_module):
+    server.route('GET', '/registries', 'registry_list')
+    server.route('PUT', '/registries/%d' % rid(server), 'registry_update')
+    run_module(registry.main, dict(name='rr-fixtures-self', access_key='bot', credential_type='oauth'))
+    assert server.calls('PUT')[0]['body'] == dict(access_key='bot', credential_type='oauth')
+
+
+def test_stored_credential_type_is_left_alone(server, run_module):
+    # rr-fixtures-auth is stored with type basic.
+    server.route('GET', '/registries', 'registry_list')
+    server.route('PUT', '/registries/%d' % aid(server), 'registry_update')
+    run_module(registry.main, dict(name='rr-fixtures-auth', access_key='other'))
+    assert server.calls('PUT')[0]['body'] == dict(access_key='other')
+
+
+def test_unchanged_registry_gets_no_credential_type(server, run_module):
+    server.route('GET', '/registries', 'registry_list')
+    result = run_module(registry.main, dict(name='rr-fixtures-self', access_key=''))
+    assert result['changed'] is False
+    assert server.calls('PUT') == []
+
+
+def test_credential_type_is_checked_before_any_request(server, run_module):
+    result = run_module(registry.main, dict(SELF, credential_type='Basic'))
+    assert result['failed'] is True
+    assert result['msg'] == 'value of credential_type must be one of: basic, oauth, got: Basic'
+    assert server.requests == []
+
+
+@pytest.mark.parametrize('extra, sent', [(dict(), False), (dict(access_key='admin', access_secret='t0p-secret'), True)])
+def test_check_mode_create_reports_what_a_real_run_does(server, run_module, extra, sent):
+    server.route('GET', '/registries', 'registry_list_before')
+    server.route('POST', '/registries', 'registry_create')
+    server.route('GET', '/registries/%d' % rid(server), 'registry_get_with_credential' if sent else 'registry_get')
+    real = run_module(registry.main, dict(SELF, **extra))
+    check = run_module(registry.main, dict(SELF, **extra), check_mode=True)
+    assert real['secret_updated'] is sent
+    assert check['secret_updated'] is sent
+    assert check['changed'] is real['changed'] is True

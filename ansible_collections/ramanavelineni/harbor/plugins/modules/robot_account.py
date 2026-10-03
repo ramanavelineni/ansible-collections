@@ -179,7 +179,8 @@ secret:
   returned: when a robot account was created without O(secret) (not in check mode)
   type: str
 secret_updated:
-  description: Whether the module set the robot account's secret.
+  description:
+    - Whether the module set the robot account's secret, or would set it in check mode.
   returned: always
   type: bool
 '''
@@ -267,6 +268,7 @@ def ensure(module, client):
     if not NAME_RE.match(params['name']):
         raise ValueError('Robot account name %r must be lower-case letters and digits, with ".", "_" or "-" '
                          'between them.' % params['name'])
+    # The argument spec refuses a missing project; an empty one gets here.
     if params['level'] == 'project' and not params['project']:
         raise ValueError('level: project needs project.')
     if params['level'] == 'system' and params['project']:
@@ -325,6 +327,10 @@ def ensure(module, client):
             else:
                 result['secret'] = created.get('secret')
             after = robot_account_view(client.get('/robots/%d' % robot_id), params['project'], params['name'])
+        else:
+            # What the real run reports: a declared secret is set right after
+            # the create. Without one Harbor generates it, which can't be shown.
+            result['secret_updated'] = params['secret'] is not None
         result.update(changed=True, robot_account=after, diff=dict(before={}, after=after))
         return result
 
@@ -375,7 +381,8 @@ def main():
         secret=dict(type='str', no_log=True),
         update_secret=dict(type='str', default='always', choices=['always', 'on_create'], no_log=False),
     )
-    module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True)
+    module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True,
+                           required_if=[('level', 'project', ('project',))])
     run_module(module, lambda client: ensure(module, client))
 
 

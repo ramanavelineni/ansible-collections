@@ -9,6 +9,8 @@ REGISTRY_TYPES = ('ali-acr', 'aws-ecr', 'azure-acr', 'docker-hub', 'docker-regis
 
 FILTER_TYPES = ('name', 'tag', 'label', 'resource')
 DECORATIONS = ('matches', 'excludes')
+# The filter types that take a decoration. Without one they match.
+DECORATED = ('tag', 'label')
 RESOURCE_VALUES = ('image', 'artifact')
 
 
@@ -43,6 +45,17 @@ def validate_cron(cron):
         raise ValueError('Harbor does not allow * in the minutes field of a replication schedule; got %r.' % cron)
 
 
+def filter_decoration(ftype, decoration):
+    """A filter's decoration as it is compared and shown.
+
+    A tag or label filter without one matches, and the Harbor UI stores that
+    as `matches`. Both spellings are the same filter, so both become `matches`.
+    """
+    if ftype in DECORATED:
+        return decoration or 'matches'
+    return decoration or ''
+
+
 def normalize_filter(item):
     """A replication filter in a comparable shape, after checking it."""
     ftype = item.get('type')
@@ -62,11 +75,11 @@ def normalize_filter(item):
         if ftype == 'resource' and value not in RESOURCE_VALUES:
             raise ValueError('A resource filter value must be one of %s, not %r.' % (', '.join(RESOURCE_VALUES), value))
     if decoration:
-        if ftype not in ('tag', 'label'):
+        if ftype not in DECORATED:
             raise ValueError('Only tag and label filters take a decoration (matches or excludes).')
         if decoration not in DECORATIONS:
             raise ValueError('Filter decoration must be matches or excludes, not %r.' % decoration)
-    return dict(type=ftype, value=value, decoration=decoration)
+    return dict(type=ftype, value=value, decoration=filter_decoration(ftype, decoration))
 
 
 def filters_key(filters):
@@ -85,7 +98,7 @@ def replication_view(policy):
     trigger = policy.get('trigger') or {}
     settings = trigger.get('trigger_settings') or {}
     filters = [dict(type=f.get('type'), value=sorted(f.get('value')) if isinstance(f.get('value'), list) else f.get('value'),
-                    decoration=f.get('decoration') or '')
+                    decoration=filter_decoration(f.get('type'), f.get('decoration')))
                for f in policy.get('filters') or []]
     return dict(
         id=policy.get('id'), name=policy.get('name'), description=policy.get('description') or '',

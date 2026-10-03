@@ -81,6 +81,23 @@ def test_create_check_mode(server, run_module):
     assert server.calls('POST') == []
 
 
+def test_check_mode_create_reports_what_a_real_run_does(server, run_module):
+    args = dict(name='fixtures-robot-sys', permissions=PULL_ALL)
+    server.route('GET', '/robots', 'robot_list_system_empty')
+    server.route('POST', '/robots', 'robot_create')
+    server.route('PATCH', '/robots/%d' % rid(server), 'robot_secret_set')
+    server.route('GET', '/robots/%d' % rid(server), 'robot_get')
+    for extra, sent in ((dict(), False), (dict(secret=SECRET), True)):
+        real = run_module(robot_account.main, dict(args, **extra))
+        check = run_module(robot_account.main, dict(args, **extra), check_mode=True)
+        assert real['secret_updated'] is sent
+        assert check['secret_updated'] is sent
+        # The secret Harbor would generate can't be predicted.
+        assert 'secret' not in check
+    assert len(server.calls('POST')) == 2
+    assert len(server.calls('PATCH')) == 1
+
+
 def test_create_needs_permissions(server, run_module):
     server.route('GET', '/robots', 'robot_list_system_empty')
     result = run_module(robot_account.main, dict(name='fixtures-robot-sys'))
@@ -188,7 +205,16 @@ def test_project_robot_other_project_refused(server, run_module):
 def test_project_robot_needs_project(server, run_module):
     result = run_module(robot_account.main, dict(name='ci', level='project', permissions=PULL_ALL))
     assert result['failed'] is True
+    assert result['msg'] == 'level is project but all of the following are missing: project'
+    # Refused by the argument spec, so not even the login check is sent.
+    assert server.requests == []
+
+
+def test_project_robot_refuses_an_empty_project(server, run_module):
+    result = run_module(robot_account.main, dict(name='ci', level='project', project='', permissions=PULL_ALL))
+    assert result['failed'] is True
     assert 'needs project' in result['msg']
+    assert server.calls('POST') == []
 
 
 def test_info_system_short_names(server, run_module):
