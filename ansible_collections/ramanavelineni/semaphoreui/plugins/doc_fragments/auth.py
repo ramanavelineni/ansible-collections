@@ -10,6 +10,10 @@ options:
     description:
       - Base URL of the Semaphore UI server, for example C(https://semaphore.example.com).
       - A trailing C(/api) is accepted and ignored, so an API URL works too.
+      - Must start with C(http://) or C(https://). Anything else fails before a request is sent.
+      - Redirects are not followed, because the credentials would go wherever the redirect points. A server
+        that answers with one (C(http://) redirected to C(https://), for example) makes the task fail with
+        the redirect's target in the message. Set O(url) to that address.
       - If not set, the value of the E(SEMAPHORE_URL) environment variable is used.
     type: str
     required: true
@@ -49,7 +53,7 @@ options:
     type: path
   timeout:
     description:
-      - Seconds to wait for each HTTP response.
+      - Seconds to wait for each HTTP response. Must be 1 or more.
     type: int
     default: 30
   retries:
@@ -59,11 +63,12 @@ options:
       - Reads, updates and the login are retried. Creates, deletes and other requests that act at once
         (setting a password, asking for a runner token) are never retried, because the server may already
         have acted.
+      - V(0) turns retries off. A negative value is an error.
     type: int
     default: 3
   retry_delay:
     description:
-      - Seconds to wait between retries.
+      - Seconds to wait between retries. Must be 0 or more.
     type: int
     default: 2
 notes:
