@@ -37,9 +37,18 @@ options:
     description:
       - Only return inventories with this name.
     type: str
+seealso:
+  - module: ramanavelineni.semaphoreui.inventory
+    description: Creates, changes and deletes inventories.
+  - module: ramanavelineni.semaphoreui.project
+    description: Manages the project.
 '''
 
 EXAMPLES = r'''
+# The connection options (url and api_token, or username and password) are left out here. Set them once
+# with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
+# collection's README shows both under "Connecting".
+
 - name: List the homelab project's inventories
   ramanavelineni.semaphoreui.inventory_info:
     project: homelab
@@ -53,6 +62,40 @@ inventories:
   returned: always
   type: list
   elements: dict
+  contains:
+    id:
+      description: Inventory id.
+      type: int
+    name:
+      description: Name of the inventory.
+      type: str
+    type:
+      description: Inventory type, as Semaphore reports it (V(file), V(static), V(static-yaml), or a workspace type).
+      type: str
+    inventory:
+      description: Path of the inventory file, or the inventory content for the static types.
+      type: str
+    repository:
+      description: Name of the repository a file inventory is read from. Null when there is none.
+      type: str
+    repository_id:
+      description: Id of that repository. Null when there is none.
+      type: int
+    ssh_key:
+      description: Name of the key Ansible connects to hosts with. Null when there is none.
+      type: str
+    ssh_key_id:
+      description: Id of that key. Null when there is none.
+      type: int
+    become_key:
+      description: Name of the key with the password for privilege escalation. Null when there is none.
+      type: str
+    become_key_id:
+      description: Id of that key. Null when there is none.
+      type: int
+    project_id:
+      description: Id of the project.
+      type: int
   sample:
     - id: 1
       name: homelab

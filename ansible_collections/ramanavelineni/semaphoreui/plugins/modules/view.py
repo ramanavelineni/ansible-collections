@@ -67,9 +67,20 @@ options:
 notes:
   - Which templates a view shows is set on each template (the template module's C(view) option),
     not here.
+seealso:
+  - module: ramanavelineni.semaphoreui.view_info
+    description: Reads views without changing them.
+  - module: ramanavelineni.semaphoreui.template
+    description: Manages the templates, which name their view.
+  - module: ramanavelineni.semaphoreui.project
+    description: Manages the project.
 '''
 
 EXAMPLES = r'''
+# The connection options (url and api_token, or username and password) are left out here. Set them once
+# with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
+# collection's README shows both under "Connecting".
+
 - name: Tabs for the homelab project
   ramanavelineni.semaphoreui.view:
     project: homelab
@@ -93,6 +104,31 @@ view:
     - Empty after a deletion.
   returned: always
   type: dict
+  contains:
+    id:
+      description: View id.
+      type: int
+    name:
+      description: Title of the view.
+      type: str
+    position:
+      description: Place of the tab, from the left.
+      type: int
+    hidden:
+      description: Whether the tab is hidden.
+      type: bool
+    sort_column:
+      description: Column the view's templates are sorted by. Empty when not set.
+      type: str
+    sort_reverse:
+      description: Whether the sort order is reversed.
+      type: bool
+    type:
+      description: V(all) for the built-in view that lists every template, otherwise empty.
+      type: str
+    project_id:
+      description: Id of the project.
+      type: int
   sample:
     id: 2
     name: k8s

@@ -25,9 +25,16 @@ options:
     description:
       - Only return the user with this login name.
     type: str
+seealso:
+  - module: ramanavelineni.semaphoreui.user
+    description: Creates, changes and deletes users.
 '''
 
 EXAMPLES = r'''
+# The connection options (url and api_token, or username and password) are left out here. Set them once
+# with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
+# collection's README shows both under "Connecting".
+
 - name: List every user
   ramanavelineni.semaphoreui.user_info:
   register: result
@@ -44,6 +51,28 @@ users:
   returned: always
   type: list
   elements: dict
+  contains:
+    id:
+      description: User id.
+      type: int
+    username:
+      description: Login name.
+      type: str
+    name:
+      description: Display name.
+      type: str
+    email:
+      description: Email address.
+      type: str
+    admin:
+      description: Whether the user is a Semaphore administrator.
+      type: bool
+    alert:
+      description: Whether the user receives alert emails.
+      type: bool
+    external:
+      description: Whether the user signs in through an external provider and has no local password.
+      type: bool
   sample:
     - id: 3
       username: ops

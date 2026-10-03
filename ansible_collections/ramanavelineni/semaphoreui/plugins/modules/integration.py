@@ -145,9 +145,22 @@ options:
         type: str
         choices: [environment, task]
         default: environment
+seealso:
+  - module: ramanavelineni.semaphoreui.integration_info
+    description: Reads integrations without changing them.
+  - module: ramanavelineni.semaphoreui.template
+    description: Manages the template an integration starts.
+  - module: ramanavelineni.semaphoreui.key_store
+    description: Manages the key that holds an integration's secret.
+  - module: ramanavelineni.semaphoreui.project
+    description: Manages the project.
 '''
 
 EXAMPLES = r'''
+# The connection options (url and api_token, or username and password) are left out here. Set them once
+# with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
+# collection's README shows both under "Connecting".
+
 - name: Run harbor_config when GitHub reports a push to main
   ramanavelineni.semaphoreui.integration:
     project: homelab
@@ -177,6 +190,77 @@ integration:
     - Empty after a deletion.
   returned: always
   type: dict
+  contains:
+    id:
+      description: Integration id.
+      type: int
+    name:
+      description: Name of the integration.
+      type: str
+    template:
+      description: Name of the template the integration starts.
+      type: str
+    auth_method:
+      description: How requests are authenticated. V(none) when they are not.
+      type: str
+    auth_key:
+      description: Name of the key that holds the secret. Null when there is none.
+      type: str
+    auth_header:
+      description: Name of the request header with the signature or token. Empty when not set.
+      type: str
+    searchable:
+      description: Whether requests to the project's shared webhook URL are checked against this integration too.
+      type: bool
+    matchers:
+      description: Conditions a request must meet to start the task, sorted by name.
+      type: list
+      elements: dict
+      contains:
+        name:
+          description: Name of the matcher.
+          type: str
+        match_type:
+          description: Whether a V(body) field or a V(header) is matched.
+          type: str
+        method:
+          description: How the value is compared (V(equals), V(unequals) or V(contains)).
+          type: str
+        body_data_type:
+          description: How the body is read (V(json) or V(string)). Empty for a header.
+          type: str
+        key:
+          description: JSON path or header name that is read.
+          type: str
+        value:
+          description: Value it is compared with.
+          type: str
+    extract_values:
+      description: Values taken from the request and passed to the task, sorted by name.
+      type: list
+      elements: dict
+      contains:
+        name:
+          description: Name of the extracted value.
+          type: str
+        value_source:
+          description: Whether the value is taken from the V(body) or a V(header).
+          type: str
+        body_data_type:
+          description: How the body is read (V(json) or V(string)). Empty for a header.
+          type: str
+        key:
+          description: JSON path or header name that is read.
+          type: str
+        variable:
+          description: Name the value is passed to the task as.
+          type: str
+        variable_type:
+          description: Whether it is passed as an V(environment) variable or a V(task) (extra) variable.
+          type: str
+    project_id:
+      description: Id of the project.
+      type: int
   sample:
     id: 1
     name: gh-push
@@ -195,7 +279,10 @@ integration:
     extract_values: []
     project_id: 1
 webhook_urls:
-  description: The integration's webhook URLs. Empty in check mode for a new integration.
+  description:
+    - The integration's webhook URLs. Empty in check mode for a new integration.
+    - With C(auth_method) V(none), anyone who knows a URL can start the task. Set C(no_log) on the task to
+      keep the URLs out of the output.
   returned: always
   type: list
   elements: str

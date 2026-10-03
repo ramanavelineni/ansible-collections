@@ -222,6 +222,13 @@ ansible-galaxy collection install -r requirements.yml
 
 **3. Run it** with `--check --diff` first to see what would change.
 
+The modules call the server's API from the host a task runs on, so nothing is
+installed on the Semaphore or Harbor server. That host is usually the
+controller: `hosts: localhost`, as above, or `delegate_to: localhost` in a
+play for other hosts. The connection options can also come from environment
+variables (`SEMAPHORE_*`, `HARBOR_*`) on that host; each collection's README
+lists them under "Connecting".
+
 ## Modules
 
 <details>

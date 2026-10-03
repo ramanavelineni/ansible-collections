@@ -59,6 +59,9 @@ notes:
     and a view named C(All) in it.
   - Semaphore lists at most 200 projects. When the list is that long the module fails instead of
     risking a duplicate.
+seealso:
+  - module: ramanavelineni.semaphoreui.project_info
+    description: Reads projects without changing them.
 '''
 
 EXAMPLES = r'''

@@ -40,9 +40,18 @@ options:
 notes:
   - Semaphore's template list leaves out each template's vaults, so every matching template is also
     read on its own.
+seealso:
+  - module: ramanavelineni.semaphoreui.template
+    description: Creates, changes and deletes templates.
+  - module: ramanavelineni.semaphoreui.project
+    description: Manages the project.
 '''
 
 EXAMPLES = r'''
+# The connection options (url and api_token, or username and password) are left out here. Set them once
+# with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
+# collection's README shows both under "Connecting".
+
 - name: List the homelab project's templates
   ramanavelineni.semaphoreui.template_info:
     project: homelab
@@ -61,6 +70,114 @@ templates:
   returned: always
   type: list
   elements: dict
+  contains:
+    id:
+      description: Template id.
+      type: int
+    name:
+      description: Name of the template.
+      type: str
+    app:
+      description: The tool the template runs.
+      type: str
+    playbook:
+      description: Path of the playbook or script in the repository.
+      type: str
+    description:
+      description: Free-text description.
+      type: str
+    repository:
+      description: Name of the repository the template runs from.
+      type: str
+    inventory:
+      description: Name of the inventory. Null when there is none.
+      type: str
+    variable_groups:
+      description: Names of the variable groups the template uses, in order.
+      type: list
+      elements: str
+    view:
+      description: Title of the view (tab) the template appears in. Null when it is in none.
+      type: str
+    git_branch:
+      description: Branch to run from instead of the repository's. Empty when not set.
+      type: str
+    arguments:
+      description: Extra command-line arguments.
+      type: list
+      elements: str
+    type:
+      description: V(task), V(build) or V(deploy).
+      type: str
+    start_version:
+      description: First version number of a V(build) template. Empty for the other types.
+      type: str
+    build_template:
+      description: Name of the V(build) template a V(deploy) template deploys. Null for the other types.
+      type: str
+    runner_tag:
+      description: Tag a runner needs to run the template. Empty when not set.
+      type: str
+    task_params:
+      description: App-specific settings.
+      type: dict
+    vaults:
+      description: Ansible Vault passwords passed to the playbook, sorted by name.
+      type: list
+      elements: dict
+      contains:
+        name:
+          description: Vault id.
+          type: str
+        type:
+          description: V(password) or V(script).
+          type: str
+        key:
+          description: Name of the key that holds the vault password. Null for V(script).
+          type: str
+        script:
+          description: Path of the vault client script. Empty for V(password).
+          type: str
+    survey_vars:
+      description:
+        - Variables the user is asked for when starting a task.
+        - A variable of type V(enum) also has C(values), its choices, each with a C(name) and a C(value).
+      type: list
+      elements: dict
+      contains:
+        name:
+          description: Variable name.
+          type: str
+        title:
+          description: Label shown to the user.
+          type: str
+        type:
+          description: V(string), V(int), V(enum) or V(text).
+          type: str
+        required:
+          description: Whether a value must be given.
+          type: bool
+        description:
+          description: Help text.
+          type: str
+        default_value:
+          description: Value filled in by default.
+          type: str
+    autorun:
+      description: Whether a V(deploy) template runs after each successful build.
+      type: bool
+    allow_override_args_in_task:
+      description: Whether users may change the arguments when they start a task.
+      type: bool
+    allow_override_branch_in_task:
+      description: Whether users may choose the branch when they start a task.
+      type: bool
+    allow_parallel_tasks:
+      description: Whether more than one task of the template may run at the same time.
+      type: bool
+    suppress_success_alerts:
+      description: Whether alerts are sent only for failed tasks.
+      type: bool
   sample:
     - id: 3
       name: harbor_config

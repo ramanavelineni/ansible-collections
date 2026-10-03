@@ -112,7 +112,7 @@ options:
     description:
       - Name of the V(build) template whose builds a V(deploy) template deploys. Required for V(deploy).
       - Fails for any other O(type), where Semaphore does not store it. An empty string is accepted
-        for every type.
+        for every type, and removes the build template from a template that has one.
     type: str
   autorun:
     description:
@@ -223,9 +223,28 @@ options:
 notes:
   - Fields this module does not manage (for example 2.19's C(executor_image) and C(jwt_params))
     are sent back unchanged on every update.
+seealso:
+  - module: ramanavelineni.semaphoreui.template_info
+    description: Reads templates without changing them.
+  - module: ramanavelineni.semaphoreui.repository
+    description: Manages the repository a template runs from.
+  - module: ramanavelineni.semaphoreui.inventory
+    description: Manages the inventory a template uses.
+  - module: ramanavelineni.semaphoreui.variable_group
+    description: Manages the variable groups a template uses.
+  - module: ramanavelineni.semaphoreui.view
+    description: Manages the view (tab) a template appears in.
+  - module: ramanavelineni.semaphoreui.key_store
+    description: Manages the keys that hold vault passwords.
+  - module: ramanavelineni.semaphoreui.project
+    description: Manages the project.
 '''
 
 EXAMPLES = r'''
+# The connection options (url and api_token, or username and password) are left out here. Set them once
+# with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
+# collection's README shows both under "Connecting".
+
 - name: Ansible template with a vault password
   ramanavelineni.semaphoreui.template:
     project: homelab
@@ -259,6 +278,114 @@ template:
     - Empty after a deletion.
   returned: always
   type: dict
+  contains:
+    id:
+      description: Template id.
+      type: int
+    name:
+      description: Name of the template.
+      type: str
+    app:
+      description: The tool the template runs.
+      type: str
+    playbook:
+      description: Path of the playbook or script in the repository.
+      type: str
+    description:
+      description: Free-text description.
+      type: str
+    repository:
+      description: Name of the repository the template runs from.
+      type: str
+    inventory:
+      description: Name of the inventory. Null when there is none.
+      type: str
+    variable_groups:
+      description: Names of the variable groups the template uses, in order.
+      type: list
+      elements: str
+    view:
+      description: Title of the view (tab) the template appears in. Null when it is in none.
+      type: str
+    git_branch:
+      description: Branch to run from instead of the repository's. Empty when not set.
+      type: str
+    arguments:
+      description: Extra command-line arguments.
+      type: list
+      elements: str
+    type:
+      description: V(task), V(build) or V(deploy).
+      type: str
+    start_version:
+      description: First version number of a V(build) template. Empty for the other types.
+      type: str
+    build_template:
+      description: Name of the V(build) template a V(deploy) template deploys. Null for the other types.
+      type: str
+    runner_tag:
+      description: Tag a runner needs to run the template. Empty when not set.
+      type: str
+    task_params:
+      description: App-specific settings.
+      type: dict
+    vaults:
+      description: Ansible Vault passwords passed to the playbook, sorted by name.
+      type: list
+      elements: dict
+      contains:
+        name:
+          description: Vault id.
+          type: str
+        type:
+          description: V(password) or V(script).
+          type: str
+        key:
+          description: Name of the key that holds the vault password. Null for V(script).
+          type: str
+        script:
+          description: Path of the vault client script. Empty for V(password).
+          type: str
+    survey_vars:
+      description:
+        - Variables the user is asked for when starting a task.
+        - A variable of type V(enum) also has C(values), its choices, each with a C(name) and a C(value).
+      type: list
+      elements: dict
+      contains:
+        name:
+          description: Variable name.
+          type: str
+        title:
+          description: Label shown to the user.
+          type: str
+        type:
+          description: V(string), V(int), V(enum) or V(text).
+          type: str
+        required:
+          description: Whether a value must be given.
+          type: bool
+        description:
+          description: Help text.
+          type: str
+        default_value:
+          description: Value filled in by default.
+          type: str
+    autorun:
+      description: Whether a V(deploy) template runs after each successful build.
+      type: bool
+    allow_override_args_in_task:
+      description: Whether users may change the arguments when they start a task.
+      type: bool
+    allow_override_branch_in_task:
+      description: Whether users may choose the branch when they start a task.
+      type: bool
+    allow_parallel_tasks:
+      description: Whether more than one task of the template may run at the same time.
+      type: bool
+    suppress_success_alerts:
+      description: Whether alerts are sent only for failed tasks.
+      type: bool
   sample:
     id: 3
     name: harbor_config

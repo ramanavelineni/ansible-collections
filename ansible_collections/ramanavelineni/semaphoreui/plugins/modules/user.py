@@ -78,9 +78,16 @@ notes:
     alone with a warning.
   - Semaphore 2.18 cannot delete a user who has ever logged in (it answers HTTP 500); the module
     fails with an explanation. Semaphore 2.19 deletes such users.
+seealso:
+  - module: ramanavelineni.semaphoreui.user_info
+    description: Reads users without changing them.
 '''
 
 EXAMPLES = r'''
+# The connection options (url and api_token, or username and password) are left out here. Set them once
+# with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
+# collection's README shows both under "Connecting".
+
 - name: Operator account
   ramanavelineni.semaphoreui.user:
     url: https://semaphore.example.com
@@ -106,6 +113,28 @@ user:
     - Empty after a deletion.
   returned: always
   type: dict
+  contains:
+    id:
+      description: User id.
+      type: int
+    username:
+      description: Login name.
+      type: str
+    name:
+      description: Display name.
+      type: str
+    email:
+      description: Email address.
+      type: str
+    admin:
+      description: Whether the user is a Semaphore administrator.
+      type: bool
+    alert:
+      description: Whether the user receives alert emails.
+      type: bool
+    external:
+      description: Whether the user signs in through an external provider and has no local password.
+      type: bool
   sample:
     id: 3
     username: ops
@@ -118,6 +147,7 @@ password_updated:
   description: Whether the module sent the user's password.
   returned: always
   type: bool
+  sample: true
 '''
 
 from ansible.module_utils.basic import AnsibleModule

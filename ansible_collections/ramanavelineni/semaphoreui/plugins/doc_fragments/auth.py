@@ -100,4 +100,7 @@ options:
 notes:
   - Supports Semaphore UI 2.18 and 2.19. On another version the module warns and continues.
   - Either O(api_token) or O(username) and O(password) must be given.
+  - The module calls the Semaphore API from the host the task runs on. That is usually the controller, so run
+    the play against C(localhost) or delegate the task to it. O(ca_path), O(client_cert) and O(client_key) name
+    files on that host.
 '''

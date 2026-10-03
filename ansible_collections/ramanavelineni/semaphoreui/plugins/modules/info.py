@@ -51,9 +51,14 @@ tested:
   type: bool
   sample: true
 info:
-  description: The full C(/api/info) response.
+  description:
+    - The full C(/api/info) response, as the server sends it. The fields depend on the server's version.
   returned: always
   type: dict
+  sample:
+    version: v2.19.12
+    boltdb_used: false
+    auth_methods: {}
 apps:
   description:
     - The apps the server knows, highest priority first, as returned by C(/api/apps).
@@ -61,6 +66,19 @@ apps:
   returned: always
   type: list
   elements: dict
+  contains:
+    id:
+      description: Id of the app, which the template module takes as its C(app).
+      type: str
+    active:
+      description: Whether the app can be used.
+      type: bool
+    title:
+      description: Display name. Empty for the apps Semaphore ships with.
+      type: str
+    priority:
+      description: The app's place in the list; higher comes first.
+      type: int
   sample:
     - id: ansible
       active: true

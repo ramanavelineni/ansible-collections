@@ -89,9 +89,22 @@ options:
       - Semaphore ignores V(false) for a commit poller (it keeps running), so the module fails
         instead of storing it. Use O(state=absent) to stop a poller.
     type: bool
+seealso:
+  - module: ramanavelineni.semaphoreui.schedule_info
+    description: Reads schedules without changing them.
+  - module: ramanavelineni.semaphoreui.template
+    description: Manages the template a schedule starts.
+  - module: ramanavelineni.semaphoreui.repository
+    description: Manages the repository a commit poller watches.
+  - module: ramanavelineni.semaphoreui.project
+    description: Manages the project.
 '''
 
 EXAMPLES = r'''
+# The connection options (url and api_token, or username and password) are left out here. Set them once
+# with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
+# collection's README shows both under "Connecting".
+
 - name: Nightly run
   ramanavelineni.semaphoreui.schedule:
     project: homelab
@@ -123,6 +136,37 @@ schedule:
     - Empty after a deletion.
   returned: always
   type: dict
+  contains:
+    id:
+      description: Schedule id.
+      type: int
+    name:
+      description: Name of the schedule.
+      type: str
+    template:
+      description: Name of the template the schedule starts.
+      type: str
+    kind:
+      description: V(cron) for a cron schedule, V(poller) for a commit poller, V(run_at) for a single run.
+      type: str
+    cron:
+      description: Cron expression. Empty when the schedule has none.
+      type: str
+    repository:
+      description: Name of the repository a commit poller watches. Null for the other kinds.
+      type: str
+    run_at:
+      description: Time of a single run, in UTC (C(2026-10-01T03:00:00Z)). Null for the other kinds.
+      type: str
+    delete_after_run:
+      description: Whether a run-at schedule is deleted once it has run.
+      type: bool
+    active:
+      description: Whether the schedule runs.
+      type: bool
+    project_id:
+      description: Id of the project.
+      type: int
   sample:
     id: 3
     name: reconcile-on-push

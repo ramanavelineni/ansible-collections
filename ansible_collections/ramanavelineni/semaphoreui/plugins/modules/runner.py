@@ -91,9 +91,18 @@ notes:
     not shown in the output.
   - Semaphore's update replaces every field of a runner, so the module always sends the whole
     runner with the changes applied.
+seealso:
+  - module: ramanavelineni.semaphoreui.runner_info
+    description: Reads runners without changing them.
+  - module: ramanavelineni.semaphoreui.project
+    description: Manages the project.
 '''
 
 EXAMPLES = r'''
+# The connection options (url and api_token, or username and password) are left out here. Set them once
+# with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
+# collection's README shows both under "Connecting".
+
 - name: Global runner, with its registration token
   ramanavelineni.semaphoreui.runner:
     name: lxc-runner-1
@@ -124,6 +133,38 @@ runner:
     - Empty after a deletion.
   returned: always
   type: dict
+  contains:
+    id:
+      description: Runner id.
+      type: int
+    name:
+      description: Name of the runner.
+      type: str
+    project:
+      description: Name of the project the runner belongs to. Null for a global runner.
+      type: str
+    max_parallel_tasks:
+      description: How many tasks the runner runs at once, V(0) for no limit.
+      type: int
+    active:
+      description: Whether the runner takes tasks.
+      type: bool
+    tags:
+      description: The runner's tags, sorted.
+      type: list
+      elements: str
+    webhook:
+      description: URL Semaphore calls when the runner is needed. Empty when not set.
+      type: str
+    is_default:
+      description: Whether the runner also takes tasks of templates that require no runner tag.
+      type: bool
+    registered:
+      description: Whether a runner process has registered with its token.
+      type: bool
+    status:
+      description: Status as Semaphore 2.19 and newer report it, for example V(offline). Empty on 2.18.
+      type: str
   sample:
     id: 1
     name: lxc-runner-1

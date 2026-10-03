@@ -27,6 +27,9 @@ options:
 notes:
   - Semaphore lists at most 200 projects. When the list is that long the module warns that some
     may be missing.
+seealso:
+  - module: ramanavelineni.semaphoreui.project
+    description: Creates, changes and deletes projects.
 '''
 
 EXAMPLES = r'''
@@ -50,6 +53,25 @@ projects:
   returned: always
   type: list
   elements: dict
+  contains:
+    id:
+      description: Project id.
+      type: int
+    name:
+      description: Project name.
+      type: str
+    alert:
+      description: Whether alerts are on.
+      type: bool
+    alert_chat:
+      description: Chat id for alerts, empty when not set.
+      type: str
+    max_parallel_tasks:
+      description: Task limit, V(0) for none.
+      type: int
+    type:
+      description: Project type as Semaphore reports it.
+      type: str
   sample:
     - id: 1
       name: homelab

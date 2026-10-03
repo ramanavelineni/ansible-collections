@@ -56,6 +56,9 @@ options:
       - For V(file), the path of the inventory file. With O(repository) it is relative to that
         repository; without, it is a path on the Semaphore server.
       - For V(static) and V(static-yaml), the inventory content itself.
+      - This is not a secret option. Static content appears in the task's result and in the diff, so a
+        password in it (C(ansible_password), for example) does too. Keep passwords in the Key Store
+        (O(ssh_key), O(become_key)), or set C(no_log) on the task.
       - Required to create the inventory.
     type: str
   repository:
@@ -78,9 +81,22 @@ notes:
     directory, which includes any absolute path, although it accepts such a path on create. The
     module fails with an explanation when that happens; move the file below Semaphore's working
     directory, or delete the inventory and create it again.
+seealso:
+  - module: ramanavelineni.semaphoreui.inventory_info
+    description: Reads inventories without changing them.
+  - module: ramanavelineni.semaphoreui.repository
+    description: Manages the repository a file inventory is read from.
+  - module: ramanavelineni.semaphoreui.key_store
+    description: Manages the keys an inventory uses.
+  - module: ramanavelineni.semaphoreui.project
+    description: Manages the project.
 '''
 
 EXAMPLES = r'''
+# The connection options (url and api_token, or username and password) are left out here. Set them once
+# with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
+# collection's README shows both under "Connecting".
+
 - name: Inventory file from a repository
   ramanavelineni.semaphoreui.inventory:
     project: homelab
@@ -110,6 +126,40 @@ inventory:
     - Empty after a deletion.
   returned: always
   type: dict
+  contains:
+    id:
+      description: Inventory id.
+      type: int
+    name:
+      description: Name of the inventory.
+      type: str
+    type:
+      description: Inventory type, as Semaphore reports it (V(file), V(static), V(static-yaml), or a workspace type).
+      type: str
+    inventory:
+      description: Path of the inventory file, or the inventory content for the static types.
+      type: str
+    repository:
+      description: Name of the repository a file inventory is read from. Null when there is none.
+      type: str
+    repository_id:
+      description: Id of that repository. Null when there is none.
+      type: int
+    ssh_key:
+      description: Name of the key Ansible connects to hosts with. Null when there is none.
+      type: str
+    ssh_key_id:
+      description: Id of that key. Null when there is none.
+      type: int
+    become_key:
+      description: Name of the key with the password for privilege escalation. Null when there is none.
+      type: str
+    become_key_id:
+      description: Id of that key. Null when there is none.
+      type: int
+    project_id:
+      description: Id of the project.
+      type: int
   sample:
     id: 1
     name: homelab

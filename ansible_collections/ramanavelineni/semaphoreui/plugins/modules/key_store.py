@@ -110,9 +110,20 @@ notes:
   - Semaphore creates a key named C(None) of type V(none) in every new project.
   - The O(ssh.login) and O(login_password.login) values travel with the secret and are not
     returned by the API, so they are only compared and sent together with the secret.
+seealso:
+  - module: ramanavelineni.semaphoreui.key_store_info
+    description: Reads keys without changing them.
+  - module: ramanavelineni.semaphoreui.repository
+    description: Manages the repositories that use a key.
+  - module: ramanavelineni.semaphoreui.project
+    description: Manages the project.
 '''
 
 EXAMPLES = r'''
+# The connection options (url and api_token, or username and password) are left out here. Set them once
+# with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
+# collection's README shows both under "Connecting".
+
 - name: Deploy key for Git over SSH
   ramanavelineni.semaphoreui.key_store:
     project: homelab
@@ -172,6 +183,7 @@ secret_updated:
   description: Whether the module sent the key's secret.
   returned: always
   type: bool
+  sample: true
 repositories:
   description: Names of the project's repositories that use this key.
   returned: always
