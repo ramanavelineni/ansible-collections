@@ -175,6 +175,13 @@ changed, since Semaphore can't change it in place.
   back unchanged on every update.
 - `task_params` is merged key by key, and a key the template's app doesn't
   know fails instead of being silently ignored.
+- `app` also takes the id of an app an administrator registered on the
+  server. The module checks it against the server's app list (in check mode
+  it only warns), and sends that app's `task_params` without checking the
+  keys.
+- `start_version` belongs to a `build` template and `build_template` to a
+  `deploy` template. Setting either on another type fails: Semaphore would
+  not store it.
 - A Terraform/OpenTofu template created without an inventory gets a
   workspace inventory named `default` from Semaphore, and keeps it through
   later updates.

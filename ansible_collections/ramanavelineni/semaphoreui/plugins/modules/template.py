@@ -44,9 +44,12 @@ options:
     description:
       - The tool the template runs. It has to be registered on the Semaphore server
         (see the M(ramanavelineni.semaphoreui.info) module's C(apps)).
+      - V(ansible), V(terraform), V(tofu), V(terragrunt), V(bash), V(powershell), V(python) and
+        V(pulumi) are the apps Semaphore ships with. Any other value is the id of an app an
+        administrator registered on the server. The module looks it up in the server's app list
+        and fails when it is not there; in check mode it warns instead.
       - Defaults to V(ansible) for a new template.
     type: str
-    choices: [ansible, terraform, tofu, terragrunt, bash, powershell, python, pulumi]
   playbook:
     description:
       - Path of the playbook or script in the repository. Required to create a template, except
@@ -95,10 +98,13 @@ options:
   start_version:
     description:
       - First version number of a V(build) template.
+      - Fails for any other O(type), where Semaphore does not store it.
     type: str
   build_template:
     description:
       - Name of the V(build) template whose builds a V(deploy) template deploys. Required for V(deploy).
+      - Fails for any other O(type), where Semaphore does not store it. An empty string is accepted
+        for every type.
     type: str
   autorun:
     description:
@@ -133,7 +139,9 @@ options:
         C(allow_override_skip_galaxy_install).
       - For V(terraform), V(tofu) and V(terragrunt) the keys are C(allow_destroy),
         C(allow_auto_approve), C(auto_approve), C(override_backend) and C(backend_filename).
-      - Other apps take no keys. An unknown key fails, rather than being silently ignored.
+      - The other apps Semaphore ships with take no keys. An unknown key fails, rather than being
+        silently ignored.
+      - For an app registered on the server the keys are not checked; they are sent as given.
     type: dict
   vaults:
     description:
@@ -264,6 +272,7 @@ import json
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
+    SemaphoreError,
     find_by_name,
     refuse_delete_if_used,
     resolve_project,
@@ -287,6 +296,11 @@ TERRAFORM_PARAMS = ('allow_destroy', 'allow_auto_approve', 'auto_approve', 'over
 TASK_PARAMS = dict(ansible=ANSIBLE_PARAMS, terraform=TERRAFORM_PARAMS, tofu=TERRAFORM_PARAMS,
                    terragrunt=TERRAFORM_PARAMS)
 TERRAFORM_APPS = ('terraform', 'tofu', 'terragrunt')
+# The apps Semaphore ships with. Anything else is an app an administrator
+# registered on the server: the module can't know its task_params.
+BUILTIN_APPS = ('ansible', 'terraform', 'tofu', 'terragrunt', 'bash', 'powershell', 'python', 'pulumi')
+# The only template type that stores each of these options.
+TYPE_OPTIONS = (('start_version', 'build'), ('build_template', 'deploy'))
 ALL_FIELDS = frozenset(('repository', 'inventory', 'view', 'build_template', 'variable_groups', 'vaults',
                         'survey_vars', 'arguments'))
 # References an empty string removes.
@@ -310,12 +324,43 @@ def survey_to_api(var, stored=None):
     return out
 
 
-def validate(params, app, server_version):
-    allowed = TASK_PARAMS.get(app, ())
-    unknown = sorted(set(params['task_params'] or {}) - set(allowed))
-    if unknown:
-        raise ValueError('task_params %s are not valid for app %s (valid: %s).'
-                         % (', '.join(unknown), app, ', '.join(allowed) or 'none'))
+def check_app_registered(module, client, app):
+    """Fail for an app the server doesn't know; warn instead in check mode.
+
+    Only called for an app that isn't one Semaphore ships with. A server that
+    has no /apps can't be asked, so the app is taken as given there.
+    """
+    try:
+        apps = client.get('/apps')
+    except SemaphoreError as e:
+        if e.status != 404:
+            raise
+        return
+    if not isinstance(apps, list):
+        return
+    registered = [a.get('id') for a in apps if isinstance(a, dict) and a.get('id')]
+    if app in registered:
+        return
+    msg = ('App %r is not registered on the Semaphore server (registered: %s).'
+           % (app, ', '.join(registered) or 'none'))
+    if not module.check_mode:
+        raise ValueError(msg)
+    module.warn(msg + ' Continuing because this is check mode.')
+
+
+def validate(params, app, server_version, tpl_type):
+    if app in BUILTIN_APPS:
+        allowed = TASK_PARAMS.get(app, ())
+        unknown = sorted(set(params['task_params'] or {}) - set(allowed))
+        if unknown:
+            raise ValueError('task_params %s are not valid for app %s (valid: %s).'
+                             % (', '.join(unknown), app, ', '.join(allowed) or 'none'))
+    # Semaphore stores these for one type only. Sent with another type they
+    # would be dropped, and the task would report a change on every run.
+    for option, only in TYPE_OPTIONS:
+        if params[option] and tpl_type != only:
+            raise ValueError('%s is only valid for a template of type %s, and this one is of type %s. '
+                             'Remove %s or set type to %s.' % (option, only, tpl_type, option, only))
     for vault in params['vaults'] or []:
         if vault['type'] == 'password' and not vault['key']:
             raise ValueError('Vault %r of type password needs key.' % vault['name'])
@@ -456,8 +501,13 @@ def ensure(module, client):
 
     # The list leaves out vaults; the single read has everything.
     current_tpl = client.get('%s/templates/%d' % (base, found['id'])) if found else {}
-    app = params['app'] or (current_tpl.get('app') if found else None) or 'ansible'
-    validate(params, app, client.info().get('version', ''))
+    stored_app = current_tpl.get('app') if found else None
+    app = params['app'] or stored_app or 'ansible'
+    # The type the template ends up with: an unset option keeps the stored one.
+    tpl_type = params['type'] or (template_view(current_tpl, lookups)['type'] if found else None) or 'task'
+    validate(params, app, client.info().get('version', ''), tpl_type)
+    if app not in BUILTIN_APPS and app != stored_app:
+        check_app_registered(module, client, app)
     desired = desired_view(params)
 
     if not found:
@@ -495,6 +545,11 @@ def ensure(module, client):
     after['task_params'] = dict(before['task_params'], **(params['task_params'] or {}))
     if after['type'] == 'deploy' and not after['build_template']:
         raise ValueError('A deploy template needs build_template.')
+    # The update drops what the new type doesn't store; say so in the result.
+    if after['type'] != 'build':
+        after['start_version'] = ''
+    if after['type'] != 'deploy':
+        after['build_template'] = None
     body = build_body(current_tpl, after, lookups, params, project_id, set(changed))
     if not module.check_mode:
         # The update rewrites every column, the vault list and the variable
@@ -510,8 +565,7 @@ def main():
         project=dict(type='str', required=True),
         name=dict(type='str', required=True),
         state=dict(type='str', default='present', choices=['present', 'absent']),
-        app=dict(type='str', choices=['ansible', 'terraform', 'tofu', 'terragrunt', 'bash', 'powershell',
-                                      'python', 'pulumi']),
+        app=dict(type='str'),
         playbook=dict(type='str'),
         repository=dict(type='str'),
         inventory=dict(type='str'),
