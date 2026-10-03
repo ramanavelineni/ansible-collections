@@ -1,0 +1,8 @@
+---
+minor_changes:
+  - >-
+    key_store, schedule, team_member - the rules between options that the argument spec can express are now
+    part of it: ``type`` and ``role`` are required with ``state=present``, and ``cron`` and ``run_at``
+    exclude each other. A task that breaks one fails during argument validation, before the module logs in,
+    with Ansible's own wording (``state is present but all of the following are missing: type``,
+    ``parameters are mutually exclusive: cron|run_at``) instead of the module's.

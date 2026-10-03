@@ -200,3 +200,11 @@ def test_unknown_project(server, run_module):
     result = run_module(key_store.main, dict(project='homelab', name='deploy', type='none'))
     assert result['failed'] is True
     assert "Project 'homelab' does not exist" in result['msg']
+
+
+def test_type_required_when_present(server, project, run_module):
+    result = run_module(key_store.main, dict(project='homelab', name='deploy'))
+    assert result['failed'] is True
+    assert result['msg'] == 'state is present but all of the following are missing: type'
+    # The argument spec refuses it, so not even the login is sent.
+    assert server.requests == []

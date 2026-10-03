@@ -111,8 +111,6 @@ def find_user(client, username):
 
 def ensure(module, client):
     params = module.params
-    if params['state'] == 'present' and params['role'] is None:
-        raise ValueError('role is required when state is present.')
     client.warn_if_untested()
 
     project_id = resolve_project(client, params['project'], missing_ok=params['state'] == 'absent')
@@ -170,7 +168,8 @@ def main():
         role=dict(type='str', choices=['owner', 'manager', 'task_runner', 'guest']),
         state=dict(type='str', default='present', choices=['present', 'absent']),
     )
-    module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True, **semaphore_module_kwargs())
+    module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True,
+                           **semaphore_module_kwargs(required_if=[('state', 'present', ('role',))]))
     run_module(module, lambda client: ensure(module, client), placeholder=dict(member={}))
 
 
