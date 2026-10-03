@@ -244,7 +244,8 @@ def test_quota_on_a_project_without_quota_fails(server, run_module):
 FORBIDDEN = dict(status=403, body=dict(errors=[dict(code='FORBIDDEN', message='forbidden')]), headers={})
 
 
-def as_non_admin(server, listing='projects_with_created', denied=FORBIDDEN):
+def as_non_admin(server, listing='projects_with_created', denied=None):
+    denied = denied or FORBIDDEN
     server.route('GET', '/projects', listing)
     server.route('GET', '/registries', denied)
     server.route('GET', '/quotas', denied)
