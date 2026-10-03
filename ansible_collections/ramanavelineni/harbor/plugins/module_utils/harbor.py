@@ -8,7 +8,9 @@ import json
 import re
 import socket
 import time
+import traceback
 
+from http.client import HTTPException
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 
@@ -198,7 +200,9 @@ class HarborClient(object):
                     time.sleep(self.retry_delay)
                     continue
                 raise HarborError(method, url, status=e.code, response=raw.strip(), request=sent)
-            except (URLError, socket.timeout, ConnectionError, OSError) as e:
+            except (URLError, socket.timeout, ConnectionError, OSError, HTTPException) as e:
+                # HTTPException: the answer was cut short or isn't HTTP at all
+                # (IncompleteRead, BadStatusLine). Neither is an OSError.
                 if attempt < attempts:
                     time.sleep(self.retry_delay)
                     continue
@@ -304,6 +308,12 @@ def run_module(module, handler):
         fail_from_error(module, e)
     except ValueError as e:
         module.fail_json(msg=to_text(e))
+    except Exception as e:
+        # Anything else is a bug here or an answer in a form the module doesn't
+        # expect. The message names the exception; the traceback goes into
+        # `exception`, which Ansible shows only with -vvv.
+        module.fail_json(msg='Unexpected %s: %s. Harbor may have answered in a form this module does not '
+                             'expect.' % (type(e).__name__, to_text(e)), exception=traceback.format_exc())
     module.exit_json(**result)
 
 

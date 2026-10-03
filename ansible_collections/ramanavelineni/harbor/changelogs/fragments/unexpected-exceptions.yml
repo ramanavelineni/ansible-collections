@@ -1,0 +1,9 @@
+---
+bugfixes:
+  - >-
+    all modules - an answer the module does not expect, such as a create answered with an empty body or without a
+    ``Location`` header, now fails the task with a message that starts with ``Unexpected`` and names the error,
+    instead of a Python traceback. The traceback is still shown with ``-vvv``.
+  - >-
+    all modules - an answer that is cut short or is not HTTP at all is now reported, and for reads retried, like any
+    other connection failure, instead of ending in a Python traceback.
