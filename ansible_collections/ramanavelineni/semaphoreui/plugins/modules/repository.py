@@ -122,6 +122,7 @@ from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semapho
     diff_fields,
     find_by_name,
     refuse_delete_if_used,
+    repository_view,
     resolve_project,
     run_module,
     semaphore_argument_spec,
@@ -133,18 +134,6 @@ def is_local_path(url):
     # The same rule Semaphore uses for a local repository: an absolute path
     # needs no branch. (Windows drive paths are left to the server to judge.)
     return url.startswith('/')
-
-
-def normalize(repo, key_names):
-    return dict(
-        id=repo.get('id'),
-        name=repo.get('name'),
-        git_url=repo.get('git_url') or '',
-        git_branch=repo.get('git_branch') or '',
-        ssh_key_id=repo.get('ssh_key_id'),
-        ssh_key=key_names.get(repo.get('ssh_key_id')),
-        project_id=repo.get('project_id'),
-    )
 
 
 def ensure(module, client):
@@ -161,7 +150,7 @@ def ensure(module, client):
     if params['state'] == 'absent':
         if not current:
             return dict(changed=False, repository={}, diff=dict(before={}, after={}))
-        before = normalize(current, {})
+        before = repository_view(current, {})
         refuse_delete_if_used(client, '%s/repositories/%d' % (base, current['id']), 'repository', params['name'])
         if not module.check_mode:
             client.delete('%s/repositories/%d' % (base, current['id']))
@@ -184,13 +173,13 @@ def ensure(module, client):
             raise ValueError('Creating repository %r needs %s.' % (params['name'], ', '.join(missing)))
         body = dict(project_id=project_id, name=params['name'], git_url=params['git_url'],
                     git_branch=params['git_branch'] or '', ssh_key_id=ssh_key_id)
-        after = normalize(body, key_names)
+        after = repository_view(body, key_names)
         after.pop('id')
         if not module.check_mode:
-            after = normalize(client.post(base + '/repositories', body), key_names)
+            after = repository_view(client.post(base + '/repositories', body), key_names)
         return dict(changed=True, repository=after, diff=dict(before={}, after=after))
 
-    before = normalize(current, key_names)
+    before = repository_view(current, key_names)
     desired = dict(git_url=params['git_url'], git_branch=params['git_branch'], ssh_key_id=ssh_key_id)
     changed = diff_fields(desired, before)
     if not changed:

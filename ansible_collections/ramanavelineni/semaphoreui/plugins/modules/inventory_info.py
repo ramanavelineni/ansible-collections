@@ -40,8 +40,8 @@ EXAMPLES = r'''
 
 RETURN = r'''
 inventories:
-  description: Matching inventories as the API returns them, sorted by name, plus the names of the
-    repository (C(repository)) and keys (C(ssh_key), C(become_key)) they refer to.
+  description: Matching inventories, sorted by name, in the form the M(ramanavelineni.semaphoreui.inventory) module
+    returns, with the names of the repository (C(repository)) and keys (C(ssh_key), C(become_key)) they refer to.
   returned: always
   type: list
   elements: dict
@@ -61,6 +61,7 @@ inventories:
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
+    inventory_view,
     resolve_project,
     run_module,
     semaphore_argument_spec,
@@ -71,14 +72,13 @@ from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semapho
 def list_inventories(module, client):
     client.warn_if_untested()
     base = '/project/%d' % resolve_project(client, module.params['project'])
-    keys = dict((k['id'], k['name']) for k in client.list(base + '/keys'))
-    repos = dict((r['id'], r['name']) for r in client.list(base + '/repositories'))
+    names = dict((endpoint, dict((o['id'], o['name']) for o in client.list('%s/%s' % (base, endpoint))))
+                 for endpoint in ('keys', 'repositories'))
     out = []
     for inv in client.list(base + '/inventory'):
         if module.params['name'] is not None and inv.get('name') != module.params['name']:
             continue
-        out.append(dict(inv, repository=repos.get(inv.get('repository_id')),
-                        ssh_key=keys.get(inv.get('ssh_key_id')), become_key=keys.get(inv.get('become_key_id'))))
+        out.append(inventory_view(inv, names))
     return dict(changed=False, inventories=sorted(out, key=lambda i: (i.get('name') or '', i.get('id') or 0)))
 
 

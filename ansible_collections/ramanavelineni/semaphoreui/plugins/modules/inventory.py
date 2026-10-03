@@ -118,30 +118,16 @@ inventory:
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
+    INVENTORY_REFERENCES,
     diff_fields,
     find_by_name,
+    inventory_view,
     refuse_delete_if_used,
     resolve_project,
     run_module,
     semaphore_argument_spec,
     semaphore_module_kwargs,
 )
-
-# option -> (id field, what it names, list endpoint)
-REFERENCES = dict(
-    repository=('repository_id', 'repository', 'repositories'),
-    ssh_key=('ssh_key_id', 'key', 'keys'),
-    become_key=('become_key_id', 'key', 'keys'),
-)
-
-
-def normalize(inv, names):
-    out = dict(id=inv.get('id'), name=inv.get('name'), type=inv.get('type'),
-               inventory=inv.get('inventory') or '', project_id=inv.get('project_id'))
-    for option, (field, dummy, endpoint) in REFERENCES.items():
-        out[field] = inv.get(field)
-        out[option] = names[endpoint].get(inv.get(field))
-    return out
 
 
 def ensure(module, client):
@@ -167,7 +153,7 @@ def ensure(module, client):
     names = dict((endpoint, dict((o['id'], o['name']) for o in items)) for endpoint, items in lists.items())
 
     desired = dict(type=params['type'], inventory=params['inventory'])
-    for option, (field, what, endpoint) in REFERENCES.items():
+    for option, (field, what, endpoint) in INVENTORY_REFERENCES.items():
         value = params[option]
         if value is None:
             desired[field] = None
@@ -184,17 +170,17 @@ def ensure(module, client):
         if missing:
             raise ValueError('Creating inventory %r needs %s.' % (params['name'], ', '.join(missing)))
         body = dict(project_id=project_id, name=params['name'], type=params['type'], inventory=params['inventory'])
-        for option, (field, dummy, dummy2) in REFERENCES.items():
+        for option, (field, dummy, dummy2) in INVENTORY_REFERENCES.items():
             body[field] = desired[field] or None
-        after = normalize(body, names)
+        after = inventory_view(body, names)
         after.pop('id')
         if not module.check_mode:
-            after = normalize(client.post(base + '/inventory', body), names)
+            after = inventory_view(client.post(base + '/inventory', body), names)
         return dict(changed=True, inventory=after, diff=dict(before={}, after=after))
 
-    before = normalize(current, names)
+    before = inventory_view(current, names)
     comparable = dict(before)
-    for option, (field, dummy, dummy2) in REFERENCES.items():
+    for option, (field, dummy, dummy2) in INVENTORY_REFERENCES.items():
         comparable[field] = before[field] or 0
     changed = diff_fields(desired, comparable)
     if not changed:
@@ -204,7 +190,7 @@ def ensure(module, client):
     body.update(id=current['id'], project_id=project_id, name=params['name'])
     for key in changed:
         body[key] = desired[key] if key in ('type', 'inventory') else (desired[key] or None)
-    after = normalize(body, names)
+    after = inventory_view(body, names)
 
     if body.get('type') == 'file' and (body.get('inventory') or '').startswith('/'):
         raise ValueError(

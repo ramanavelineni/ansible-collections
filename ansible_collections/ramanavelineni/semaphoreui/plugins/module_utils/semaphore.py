@@ -350,6 +350,58 @@ def run_module(module, handler):
     module.exit_json(**result)
 
 
+# -- views: objects as the modules and their _info modules return them --------
+
+
+def project_view(project):
+    """The API omits false/zero/null fields; fill them in so values compare."""
+    return dict(
+        id=project.get('id'),
+        name=project.get('name'),
+        alert=bool(project.get('alert', False)),
+        alert_chat=project.get('alert_chat') or '',
+        max_parallel_tasks=int(project.get('max_parallel_tasks') or 0),
+        type=project.get('type') or '',
+    )
+
+
+def user_view(user):
+    return dict(
+        id=user.get('id'), username=user.get('username'), name=user.get('name') or '',
+        email=user.get('email') or '', admin=bool(user.get('admin', False)),
+        alert=bool(user.get('alert', False)), external=bool(user.get('external', False)),
+    )
+
+
+def repository_view(repo, key_names):
+    return dict(
+        id=repo.get('id'),
+        name=repo.get('name'),
+        git_url=repo.get('git_url') or '',
+        git_branch=repo.get('git_branch') or '',
+        ssh_key_id=repo.get('ssh_key_id'),
+        ssh_key=key_names.get(repo.get('ssh_key_id')),
+        project_id=repo.get('project_id'),
+    )
+
+
+# option -> (id field, what it names, list endpoint)
+INVENTORY_REFERENCES = dict(
+    repository=('repository_id', 'repository', 'repositories'),
+    ssh_key=('ssh_key_id', 'key', 'keys'),
+    become_key=('become_key_id', 'key', 'keys'),
+)
+
+
+def inventory_view(inv, names):
+    out = dict(id=inv.get('id'), name=inv.get('name'), type=inv.get('type'),
+               inventory=inv.get('inventory') or '', project_id=inv.get('project_id'))
+    for option, (field, dummy, endpoint) in INVENTORY_REFERENCES.items():
+        out[field] = inv.get(field)
+        out[option] = names[endpoint].get(inv.get(field))
+    return out
+
+
 def _parse_json_field(text, what, name):
     if not text:
         return {}

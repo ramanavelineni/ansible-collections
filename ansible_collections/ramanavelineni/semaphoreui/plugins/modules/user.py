@@ -129,17 +129,10 @@ from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semapho
     semaphore_argument_spec,
     semaphore_module_kwargs,
     server_minor,
+    user_view,
 )
 
 MANAGED = ('name', 'email', 'admin', 'alert')
-
-
-def normalize(user):
-    return dict(
-        id=user.get('id'), username=user.get('username'), name=user.get('name') or '',
-        email=user.get('email') or '', admin=bool(user.get('admin', False)),
-        alert=bool(user.get('alert', False)), external=bool(user.get('external', False)),
-    )
 
 
 def validate(params):
@@ -162,7 +155,7 @@ def ensure(module, client):
         if taken:
             raise ValueError('Email %r already belongs to user %r; each user needs its own email.'
                              % (params['email'], taken[0]))
-    before = normalize(current) if current else {}
+    before = user_view(current) if current else {}
     result = dict(changed=False, user=before, password_updated=False)
     is_me = bool(current) and current.get('id') == me.get('id')
 
@@ -199,10 +192,10 @@ def ensure(module, client):
                     admin=bool(params['admin']), alert=bool(params['alert']), external=bool(params['external']))
         if not params['external']:
             body['password'] = params['user_password']
-        after = normalize(body)
+        after = user_view(body)
         after.pop('id')
         if not module.check_mode:
-            after = normalize(client.post('/users', body))
+            after = user_view(client.post('/users', body))
         result.update(changed=True, user=after, password_updated=not params['external'],
                       diff=dict(before={}, after=after))
         return result

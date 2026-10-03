@@ -46,14 +46,15 @@ EXAMPLES = r'''
 
 RETURN = r'''
 projects:
-  description: Matching projects, as the API returns them, sorted by name.
+  description: Matching projects, sorted by name, in the form the M(ramanavelineni.semaphoreui.project) module returns.
   returned: always
   type: list
   elements: dict
   sample:
     - id: 1
       name: homelab
-      created: "2026-09-27T10:00:00Z"
+      alert: false
+      alert_chat: ""
       max_parallel_tasks: 0
       type: ""
 '''
@@ -61,6 +62,7 @@ projects:
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
     LIST_CAP,
+    project_view,
     run_module,
     semaphore_argument_spec,
     semaphore_module_kwargs,
@@ -75,6 +77,7 @@ def list_projects(module, client):
     name = module.params['name']
     if name is not None:
         projects = [p for p in projects if p.get('name') == name]
+    projects = [project_view(p) for p in projects]
     return dict(changed=False, projects=sorted(projects, key=lambda p: (p.get('name') or '', p.get('id') or 0)))
 
 

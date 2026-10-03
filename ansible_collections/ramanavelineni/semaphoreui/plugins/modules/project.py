@@ -119,6 +119,7 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
     diff_fields,
     find_by_name,
+    project_view,
     run_module,
     semaphore_argument_spec,
     semaphore_module_kwargs,
@@ -127,24 +128,12 @@ from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semapho
 MANAGED = ('alert', 'alert_chat', 'max_parallel_tasks')
 
 
-def normalize(project):
-    """The API omits false/zero/null fields; fill them in so values compare."""
-    return dict(
-        id=project.get('id'),
-        name=project.get('name'),
-        alert=bool(project.get('alert', False)),
-        alert_chat=project.get('alert_chat') or '',
-        max_parallel_tasks=int(project.get('max_parallel_tasks') or 0),
-        type=project.get('type') or '',
-    )
-
-
 def ensure(module, client):
     params = module.params
     client.warn_if_untested()
 
     current = find_by_name(client.list('/projects', capped=True), params['name'], 'project')
-    before = normalize(current) if current else {}
+    before = project_view(current) if current else {}
 
     if params['state'] == 'absent':
         if not current:
@@ -160,13 +149,13 @@ def ensure(module, client):
     desired = dict((k, params[k]) for k in MANAGED)
 
     if not current:
-        after = normalize(dict(name=params['name'], **dict((k, v) for k, v in desired.items() if v is not None)))
+        after = project_view(dict(name=params['name'], **dict((k, v) for k, v in desired.items() if v is not None)))
         after.pop('id')
         if not module.check_mode:
             body = dict(name=params['name'], alert=after['alert'], max_parallel_tasks=after['max_parallel_tasks'])
             if after['alert_chat']:
                 body['alert_chat'] = after['alert_chat']
-            after = normalize(client.post('/projects', body))
+            after = project_view(client.post('/projects', body))
         return dict(changed=True, project=after, diff=dict(before={}, after=after))
 
     changed = diff_fields(desired, before)

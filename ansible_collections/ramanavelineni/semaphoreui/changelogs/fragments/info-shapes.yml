@@ -1,0 +1,10 @@
+---
+bugfixes:
+  - >-
+    inventory_info, project_info, repository_info, user_info - return each object in the same form as the
+    matching module, with every field filled in. ``project_info`` left out ``alert``, ``alert_chat`` and
+    ``max_parallel_tasks`` when they had their default value.
+breaking_changes:
+  - >-
+    inventory_info, project_info, repository_info - fields of the raw API answer that the matching module
+    does not return (such as a project's ``created``) are no longer returned.
