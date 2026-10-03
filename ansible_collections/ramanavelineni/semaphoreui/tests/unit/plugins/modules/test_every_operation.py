@@ -624,20 +624,7 @@ def test_check_mode_sends_no_write(server, run_module, module, key, operation, s
     assert [r['path'] for r in server.requests if r['method'] != 'GET'] == ['/auth/login', '/auth/logout']
 
 
-def with_known_gaps(operations):
-    """The operations table, with the ones check mode is known to predict wrongly marked."""
-    out = []
-    for operation in operations:
-        marks = []
-        if (module_name(operation[0]), operation[2]) == ('template', 'create'):
-            marks.append(pytest.mark.xfail(strict=True, reason=(
-                'template: a create in check mode returns name: null in template and diff.after, where a real run '
-                'returns the name. The predicted view is built without the name option.')))
-        out.append(pytest.param(*operation, marks=marks))
-    return out
-
-
-@pytest.mark.parametrize('module, key, operation, setup, shown', with_known_gaps(OPERATIONS), ids=OPERATION_IDS)
+@pytest.mark.parametrize('module, key, operation, setup, shown', OPERATIONS, ids=OPERATION_IDS)
 def test_check_mode_reports_what_a_real_run_reports(server, run_module, module, key, operation, setup, shown):
     real, checked = real_then_checked(server, run_module, module, setup)
     assigned = SERVER_ASSIGNED.get((module_name(module), operation))

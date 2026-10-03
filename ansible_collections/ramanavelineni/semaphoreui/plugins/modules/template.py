@@ -652,6 +652,7 @@ def ensure(module, client):
         after = dict(template_view(dict(app='ansible', type=''), lookups), vaults=[], survey_vars=[],
                      variable_groups=[], arguments=[], task_params={})
         after.pop('id')
+        after['name'] = params['name']
         after.update((k, None if v == CLEAR else v) for k, v in desired.items() if v is not None)
         after['app'] = app
         after['type'] = params['type'] or 'task'
