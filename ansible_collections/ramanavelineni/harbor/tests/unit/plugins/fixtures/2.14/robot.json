@@ -25,14 +25,14 @@
     },
     "robot_create": {
       "body": {
-        "creation_time": "2026-09-27T20:06:33.660Z",
+        "creation_time": "2026-10-03T22:30:39.183Z",
         "expires_at": -1,
-        "id": 8,
+        "id": 11,
         "name": "robot$fixtures-robot-sys",
         "secret": "RecordedSecret0"
       },
       "headers": {
-        "location": "/api/v2.0/robots/8"
+        "location": "/api/v2.0/robots/11"
       },
       "status": 201
     },
@@ -62,14 +62,14 @@
     },
     "robot_create_project": {
       "body": {
-        "creation_time": "2026-09-27T20:06:33.849Z",
-        "expires_at": 1793131593,
-        "id": 10,
+        "creation_time": "2026-10-03T22:30:39.390Z",
+        "expires_at": 1793658639,
+        "id": 13,
         "name": "robot$fixtures-robot+ci",
         "secret": "RecordedSecret0"
       },
       "headers": {
-        "location": "/api/v2.0/robots/10"
+        "location": "/api/v2.0/robots/13"
       },
       "status": 201
     },
@@ -80,7 +80,7 @@
     },
     "robot_get": {
       "body": {
-        "creation_time": "2026-09-27T20:06:33.660Z",
+        "creation_time": "2026-10-03T22:30:39.183Z",
         "creator_ref": 1,
         "creator_type": "local",
         "description": "pulls",
@@ -88,7 +88,7 @@
         "duration": -1,
         "editable": true,
         "expires_at": -1,
-        "id": 8,
+        "id": 11,
         "level": "system",
         "name": "robot$fixtures-robot-sys",
         "permissions": [
@@ -103,7 +103,7 @@
             "namespace": "*"
           }
         ],
-        "update_time": "2026-09-27T20:06:33.660Z"
+        "update_time": "2026-10-03T22:30:39.183Z"
       },
       "headers": {},
       "status": 200
@@ -113,7 +113,7 @@
         "errors": [
           {
             "code": "NOT_FOUND",
-            "message": "robot 8 not found"
+            "message": "robot 11 not found"
           }
         ]
       },
@@ -122,14 +122,14 @@
     },
     "robot_get_project": {
       "body": {
-        "creation_time": "2026-09-27T20:06:33.849Z",
+        "creation_time": "2026-10-03T22:30:39.390Z",
         "creator_ref": 1,
         "creator_type": "local",
         "disable": false,
         "duration": 30,
         "editable": true,
-        "expires_at": 1793131593,
-        "id": 10,
+        "expires_at": 1793658639,
+        "id": 13,
         "level": "project",
         "name": "robot$fixtures-robot+ci",
         "permissions": [
@@ -144,14 +144,14 @@
             "namespace": "fixtures-robot"
           }
         ],
-        "update_time": "2026-09-27T20:06:33.849Z"
+        "update_time": "2026-10-03T22:30:39.390Z"
       },
       "headers": {},
       "status": 200
     },
     "robot_get_updated": {
       "body": {
-        "creation_time": "2026-09-27T20:06:33.660Z",
+        "creation_time": "2026-10-03T22:30:39.183Z",
         "creator_ref": 1,
         "creator_type": "local",
         "description": "pulls everything",
@@ -159,7 +159,7 @@
         "duration": -1,
         "editable": true,
         "expires_at": -1,
-        "id": 8,
+        "id": 11,
         "level": "system",
         "name": "robot$fixtures-robot-sys",
         "permissions": [
@@ -178,7 +178,7 @@
             "namespace": "fixtures-robot"
           }
         ],
-        "update_time": "2026-09-27T20:06:33.744Z"
+        "update_time": "2026-10-03T22:30:39.279Z"
       },
       "headers": {},
       "status": 200
@@ -186,14 +186,14 @@
     "robot_list_project": {
       "body": [
         {
-          "creation_time": "2026-09-27T20:06:33.849Z",
+          "creation_time": "2026-10-03T22:30:39.390Z",
           "creator_ref": 1,
           "creator_type": "local",
           "disable": false,
           "duration": 30,
           "editable": true,
-          "expires_at": 1793131593,
-          "id": 10,
+          "expires_at": 1793658639,
+          "id": 13,
           "level": "project",
           "name": "robot$fixtures-robot+ci",
           "permissions": [
@@ -208,7 +208,7 @@
               "namespace": "fixtures-robot"
             }
           ],
-          "update_time": "2026-09-27T20:06:33.849Z"
+          "update_time": "2026-10-03T22:30:39.390Z"
         }
       ],
       "headers": {
@@ -219,7 +219,7 @@
     "robot_list_system": {
       "body": [
         {
-          "creation_time": "2026-09-27T20:06:33.660Z",
+          "creation_time": "2026-10-03T22:30:39.183Z",
           "creator_ref": 1,
           "creator_type": "local",
           "description": "pulls",
@@ -227,7 +227,7 @@
           "duration": -1,
           "editable": true,
           "expires_at": -1,
-          "id": 8,
+          "id": 11,
           "level": "system",
           "name": "robot$fixtures-robot-sys",
           "permissions": [
@@ -242,7 +242,7 @@
               "namespace": "*"
             }
           ],
-          "update_time": "2026-09-27T20:06:33.660Z"
+          "update_time": "2026-10-03T22:30:39.183Z"
         }
       ],
       "headers": {
@@ -253,7 +253,7 @@
     "robot_list_system_all": {
       "body": [
         {
-          "creation_time": "2026-09-27T20:06:33.660Z",
+          "creation_time": "2026-10-03T22:30:39.183Z",
           "creator_ref": 1,
           "creator_type": "local",
           "description": "pulls",
@@ -261,7 +261,7 @@
           "duration": -1,
           "editable": true,
           "expires_at": -1,
-          "id": 8,
+          "id": 11,
           "level": "system",
           "name": "robot$fixtures-robot-sys",
           "permissions": [
@@ -276,7 +276,7 @@
               "namespace": "*"
             }
           ],
-          "update_time": "2026-09-27T20:06:33.660Z"
+          "update_time": "2026-10-03T22:30:39.183Z"
         }
       ],
       "headers": {
@@ -294,16 +294,16 @@
     "robot_projects_by_name": {
       "body": [
         {
-          "creation_time": "2026-09-27T20:06:33.596Z",
+          "creation_time": "2026-10-03T22:30:39.109Z",
           "current_user_role_id": 1,
           "current_user_role_ids": [
             1
           ],
           "cve_allowlist": {
             "creation_time": "0001-01-01T00:00:00.000Z",
-            "id": 14,
+            "id": 22,
             "items": [],
-            "project_id": 16,
+            "project_id": 25,
             "update_time": "0001-01-01T00:00:00.000Z"
           },
           "metadata": {
@@ -312,9 +312,9 @@
           "name": "fixtures-robot",
           "owner_id": 1,
           "owner_name": "admin",
-          "project_id": 16,
+          "project_id": 25,
           "repo_count": 0,
-          "update_time": "2026-09-27T20:06:33.596Z"
+          "update_time": "2026-10-03T22:30:39.109Z"
         }
       ],
       "headers": {

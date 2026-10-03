@@ -4,7 +4,7 @@
     "tag_immutability_create": {
       "body": null,
       "headers": {
-        "location": "/api/v2.0/projects/31/immutabletagrules/26"
+        "location": "/api/v2.0/projects/39/immutabletagrules/30"
       },
       "status": 201
     },
@@ -30,7 +30,7 @@
         "errors": [
           {
             "code": "NOT_FOUND",
-            "message": "immutable rule 26 not found"
+            "message": "immutable rule 30 not found"
           }
         ]
       },
@@ -42,7 +42,7 @@
         {
           "action": "immutable",
           "disabled": true,
-          "id": 26,
+          "id": 30,
           "scope_selectors": {
             "repository": [
               {
@@ -78,7 +78,7 @@
       "body": [
         {
           "action": "immutable",
-          "id": 26,
+          "id": 30,
           "scope_selectors": {
             "repository": [
               {
@@ -111,22 +111,22 @@
     "tag_project_create": {
       "body": null,
       "headers": {
-        "location": "/api/v2.0/projects/31"
+        "location": "/api/v2.0/projects/39"
       },
       "status": 201
     },
     "tag_project_get": {
       "body": {
-        "creation_time": "2026-09-27T20:19:58.231Z",
+        "creation_time": "2026-10-03T22:29:34.244Z",
         "current_user_role_id": 1,
         "current_user_role_ids": [
           1
         ],
         "cve_allowlist": {
           "creation_time": "0001-01-01T00:00:00.000Z",
-          "id": 29,
+          "id": 35,
           "items": [],
-          "project_id": 31,
+          "project_id": 39,
           "update_time": "0001-01-01T00:00:00.000Z"
         },
         "metadata": {
@@ -135,25 +135,25 @@
         "name": "fixtures-tag-policy",
         "owner_id": 1,
         "owner_name": "admin",
-        "project_id": 31,
+        "project_id": 39,
         "repo_count": 0,
-        "update_time": "2026-09-27T20:19:58.231Z"
+        "update_time": "2026-10-03T22:29:34.244Z"
       },
       "headers": {},
       "status": 200
     },
     "tag_project_get_after_retention_delete": {
       "body": {
-        "creation_time": "2026-09-27T20:19:58.231Z",
+        "creation_time": "2026-10-03T22:29:34.244Z",
         "current_user_role_id": 1,
         "current_user_role_ids": [
           1
         ],
         "cve_allowlist": {
           "creation_time": "0001-01-01T00:00:00.000Z",
-          "id": 29,
+          "id": 35,
           "items": [],
-          "project_id": 31,
+          "project_id": 39,
           "update_time": "0001-01-01T00:00:00.000Z"
         },
         "metadata": {
@@ -162,37 +162,37 @@
         "name": "fixtures-tag-policy",
         "owner_id": 1,
         "owner_name": "admin",
-        "project_id": 31,
+        "project_id": 39,
         "repo_count": 0,
-        "update_time": "2026-09-27T20:19:58.231Z"
+        "update_time": "2026-10-03T22:29:34.244Z"
       },
       "headers": {},
       "status": 200
     },
     "tag_project_get_with_retention": {
       "body": {
-        "creation_time": "2026-09-27T20:19:58.231Z",
+        "creation_time": "2026-10-03T22:29:34.244Z",
         "current_user_role_id": 1,
         "current_user_role_ids": [
           1
         ],
         "cve_allowlist": {
           "creation_time": "0001-01-01T00:00:00.000Z",
-          "id": 29,
+          "id": 35,
           "items": [],
-          "project_id": 31,
+          "project_id": 39,
           "update_time": "0001-01-01T00:00:00.000Z"
         },
         "metadata": {
           "public": "false",
-          "retention_id": "12"
+          "retention_id": "16"
         },
         "name": "fixtures-tag-policy",
         "owner_id": 1,
         "owner_name": "admin",
-        "project_id": 31,
+        "project_id": 39,
         "repo_count": 0,
-        "update_time": "2026-09-27T20:19:58.231Z"
+        "update_time": "2026-10-03T22:29:34.244Z"
       },
       "headers": {},
       "status": 200
@@ -200,16 +200,16 @@
     "tag_projects_list": {
       "body": [
         {
-          "creation_time": "2026-09-27T20:19:58.231Z",
+          "creation_time": "2026-10-03T22:29:34.244Z",
           "current_user_role_id": 1,
           "current_user_role_ids": [
             1
           ],
           "cve_allowlist": {
             "creation_time": "0001-01-01T00:00:00.000Z",
-            "id": 29,
+            "id": 35,
             "items": [],
-            "project_id": 31,
+            "project_id": 39,
             "update_time": "0001-01-01T00:00:00.000Z"
           },
           "metadata": {
@@ -218,9 +218,9 @@
           "name": "fixtures-tag-policy",
           "owner_id": 1,
           "owner_name": "admin",
-          "project_id": 31,
+          "project_id": 39,
           "repo_count": 0,
-          "update_time": "2026-09-27T20:19:58.231Z"
+          "update_time": "2026-10-03T22:29:34.244Z"
         },
         {
           "creation_time": "2026-09-27T19:48:48.455Z",
@@ -254,7 +254,7 @@
     "tag_retention_create": {
       "body": null,
       "headers": {
-        "location": "/api/v2.0/retentions/12"
+        "location": "/api/v2.0/retentions/16"
       },
       "status": 201
     },
@@ -263,7 +263,7 @@
         "errors": [
           {
             "code": "BAD_REQUEST",
-            "message": "bad request: project 31 already has retention policy 12"
+            "message": "bad request: project 39 already has retention policy 16"
           }
         ]
       },
@@ -278,7 +278,7 @@
     "tag_retention_get": {
       "body": {
         "algorithm": "or",
-        "id": 12,
+        "id": 16,
         "rules": [
           {
             "action": "retain",
@@ -307,7 +307,7 @@
         ],
         "scope": {
           "level": "project",
-          "ref": 31
+          "ref": 39
         },
         "trigger": {
           "kind": "Schedule",
@@ -322,7 +322,7 @@
     "tag_retention_get_updated": {
       "body": {
         "algorithm": "or",
-        "id": 12,
+        "id": 16,
         "rules": [
           {
             "action": "retain",
@@ -397,13 +397,13 @@
         ],
         "scope": {
           "level": "project",
-          "ref": 31
+          "ref": 39
         },
         "trigger": {
           "kind": "Schedule",
           "settings": {
             "cron": "0 0 3 * * *",
-            "next_scheduled_time": "2026-09-28T03:00:00.000Z"
+            "next_scheduled_time": "2026-10-04T03:00:00.000Z"
           }
         }
       },

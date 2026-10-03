@@ -4,7 +4,7 @@
     "registry_create": {
       "body": null,
       "headers": {
-        "location": "/api/v2.0/registries/13"
+        "location": "/api/v2.0/registries/17"
       },
       "status": 201
     },
@@ -42,7 +42,7 @@
         "errors": [
           {
             "code": "PRECONDITION",
-            "message": "the registry 13 is referenced by replication policies, cannot delete it"
+            "message": "the registry 17 is referenced by replication policies, cannot delete it"
           }
         ]
       },
@@ -51,14 +51,14 @@
     },
     "registry_get": {
       "body": {
-        "creation_time": "2026-09-27T20:10:18.751Z",
+        "creation_time": "2026-10-03T22:30:31.733Z",
         "credential": {},
-        "id": 13,
+        "id": 17,
         "insecure": true,
         "name": "rr-fixtures-self",
         "status": "healthy",
         "type": "harbor",
-        "update_time": "2026-09-27T20:10:18.751Z",
+        "update_time": "2026-10-03T22:30:31.733Z",
         "url": "http://proxy:8080"
       },
       "headers": {},
@@ -66,15 +66,15 @@
     },
     "registry_get_updated": {
       "body": {
-        "creation_time": "2026-09-27T20:10:18.751Z",
+        "creation_time": "2026-10-03T22:30:31.733Z",
         "credential": {},
         "description": "updated",
-        "id": 13,
+        "id": 17,
         "insecure": true,
         "name": "rr-fixtures-self",
         "status": "healthy",
         "type": "harbor",
-        "update_time": "2026-09-27T20:10:18.983Z",
+        "update_time": "2026-10-03T22:30:32.100Z",
         "url": "http://proxy:8080"
       },
       "headers": {},
@@ -82,18 +82,18 @@
     },
     "registry_get_with_credential": {
       "body": {
-        "creation_time": "2026-09-27T20:10:18.921Z",
+        "creation_time": "2026-10-03T22:30:32.034Z",
         "credential": {
           "access_key": "admin",
           "access_secret": "*****",
           "type": "basic"
         },
-        "id": 15,
+        "id": 19,
         "insecure": true,
         "name": "rr-fixtures-auth",
         "status": "healthy",
         "type": "harbor",
-        "update_time": "2026-09-27T20:10:18.921Z",
+        "update_time": "2026-10-03T22:30:32.034Z",
         "url": "http://proxy:8080"
       },
       "headers": {},
@@ -102,29 +102,29 @@
     "registry_list": {
       "body": [
         {
-          "creation_time": "2026-09-27T20:10:18.751Z",
+          "creation_time": "2026-10-03T22:30:31.733Z",
           "credential": {},
-          "id": 13,
+          "id": 17,
           "insecure": true,
           "name": "rr-fixtures-self",
           "status": "healthy",
           "type": "harbor",
-          "update_time": "2026-09-27T20:10:18.751Z",
+          "update_time": "2026-10-03T22:30:31.733Z",
           "url": "http://proxy:8080"
         },
         {
-          "creation_time": "2026-09-27T20:10:18.921Z",
+          "creation_time": "2026-10-03T22:30:32.034Z",
           "credential": {
             "access_key": "admin",
             "access_secret": "*****",
             "type": "basic"
           },
-          "id": 15,
+          "id": 19,
           "insecure": true,
           "name": "rr-fixtures-auth",
           "status": "healthy",
           "type": "harbor",
-          "update_time": "2026-09-27T20:10:18.921Z",
+          "update_time": "2026-10-03T22:30:32.034Z",
           "url": "http://proxy:8080"
         }
       ],
@@ -143,30 +143,30 @@
     "registry_list_updated": {
       "body": [
         {
-          "creation_time": "2026-09-27T20:10:18.921Z",
+          "creation_time": "2026-10-03T22:30:32.034Z",
           "credential": {
             "access_key": "admin",
             "access_secret": "*****",
             "type": "basic"
           },
-          "id": 15,
+          "id": 19,
           "insecure": true,
           "name": "rr-fixtures-auth",
           "status": "healthy",
           "type": "harbor",
-          "update_time": "2026-09-27T20:10:18.921Z",
+          "update_time": "2026-10-03T22:30:32.034Z",
           "url": "http://proxy:8080"
         },
         {
-          "creation_time": "2026-09-27T20:10:18.751Z",
+          "creation_time": "2026-10-03T22:30:31.733Z",
           "credential": {},
           "description": "updated",
-          "id": 13,
+          "id": 17,
           "insecure": true,
           "name": "rr-fixtures-self",
           "status": "healthy",
           "type": "harbor",
-          "update_time": "2026-09-27T20:10:18.983Z",
+          "update_time": "2026-10-03T22:30:32.100Z",
           "url": "http://proxy:8080"
         }
       ],
@@ -175,10 +175,28 @@
       },
       "status": 200
     },
+    "registry_replication_adapters": {
+      "body": [
+        "ali-acr",
+        "aws-ecr",
+        "azure-acr",
+        "docker-hub",
+        "docker-registry",
+        "github-ghcr",
+        "google-gcr",
+        "harbor",
+        "huawei-SWR",
+        "jfrog-artifactory",
+        "tencent-tcr",
+        "volcengine-cr"
+      ],
+      "headers": {},
+      "status": 200
+    },
     "registry_replication_create": {
       "body": null,
       "headers": {
-        "location": "/api/v2.0/replication/policies/7"
+        "location": "/api/v2.0/replication/policies/9"
       },
       "status": 201
     },
@@ -202,7 +220,7 @@
     "registry_replication_get": {
       "body": {
         "copy_by_chunk": false,
-        "creation_time": "2026-09-27T20:10:22.087Z",
+        "creation_time": "2026-10-03T22:30:35.260Z",
         "dest_namespace": "library",
         "dest_namespace_replace_count": -1,
         "dest_registry": {
@@ -230,27 +248,27 @@
             "value": "v*"
           }
         ],
-        "id": 7,
+        "id": 9,
         "name": "rr-fixtures-pull",
         "override": true,
         "single_active_replication": false,
         "speed": 0,
         "src_registry": {
-          "creation_time": "2026-09-27T20:10:18.751Z",
+          "creation_time": "2026-10-03T22:30:31.733Z",
           "credential": {},
           "description": "updated",
-          "id": 13,
+          "id": 17,
           "insecure": true,
           "name": "rr-fixtures-self",
           "status": "healthy",
           "type": "harbor",
-          "update_time": "2026-09-27T20:10:18.983Z",
+          "update_time": "2026-10-03T22:30:32.100Z",
           "url": "http://proxy:8080"
         },
         "trigger": {
           "type": "manual"
         },
-        "update_time": "2026-09-27T20:10:22.087Z"
+        "update_time": "2026-10-03T22:30:35.260Z"
       },
       "headers": {},
       "status": 200
@@ -258,7 +276,7 @@
     "registry_replication_get_updated": {
       "body": {
         "copy_by_chunk": false,
-        "creation_time": "2026-09-27T20:10:22.087Z",
+        "creation_time": "2026-10-03T22:30:35.260Z",
         "dest_namespace": "library",
         "dest_namespace_replace_count": -1,
         "dest_registry": {
@@ -286,21 +304,21 @@
             "value": "v*"
           }
         ],
-        "id": 7,
+        "id": 9,
         "name": "rr-fixtures-pull",
         "override": true,
         "single_active_replication": false,
         "speed": 256,
         "src_registry": {
-          "creation_time": "2026-09-27T20:10:18.751Z",
+          "creation_time": "2026-10-03T22:30:31.733Z",
           "credential": {},
           "description": "updated",
-          "id": 13,
+          "id": 17,
           "insecure": true,
           "name": "rr-fixtures-self",
           "status": "healthy",
           "type": "harbor",
-          "update_time": "2026-09-27T20:10:18.983Z",
+          "update_time": "2026-10-03T22:30:32.100Z",
           "url": "http://proxy:8080"
         },
         "trigger": {
@@ -309,7 +327,7 @@
           },
           "type": "scheduled"
         },
-        "update_time": "2026-09-27T20:10:22.135Z"
+        "update_time": "2026-10-03T22:30:35.308Z"
       },
       "headers": {},
       "status": 200
@@ -318,7 +336,7 @@
       "body": [
         {
           "copy_by_chunk": false,
-          "creation_time": "2026-09-27T20:10:22.087Z",
+          "creation_time": "2026-10-03T22:30:35.260Z",
           "dest_namespace": "library",
           "dest_namespace_replace_count": -1,
           "dest_registry": {
@@ -346,27 +364,27 @@
               "value": "v*"
             }
           ],
-          "id": 7,
+          "id": 9,
           "name": "rr-fixtures-pull",
           "override": true,
           "single_active_replication": false,
           "speed": 0,
           "src_registry": {
-            "creation_time": "2026-09-27T20:10:18.751Z",
+            "creation_time": "2026-10-03T22:30:31.733Z",
             "credential": {},
             "description": "updated",
-            "id": 13,
+            "id": 17,
             "insecure": true,
             "name": "rr-fixtures-self",
             "status": "healthy",
             "type": "harbor",
-            "update_time": "2026-09-27T20:10:18.983Z",
+            "update_time": "2026-10-03T22:30:32.100Z",
             "url": "http://proxy:8080"
           },
           "trigger": {
             "type": "manual"
           },
-          "update_time": "2026-09-27T20:10:22.087Z"
+          "update_time": "2026-10-03T22:30:35.260Z"
         }
       ],
       "headers": {
@@ -385,7 +403,7 @@
       "body": [
         {
           "copy_by_chunk": false,
-          "creation_time": "2026-09-27T20:10:22.087Z",
+          "creation_time": "2026-10-03T22:30:35.260Z",
           "dest_namespace": "library",
           "dest_namespace_replace_count": -1,
           "dest_registry": {
@@ -413,21 +431,21 @@
               "value": "v*"
             }
           ],
-          "id": 7,
+          "id": 9,
           "name": "rr-fixtures-pull",
           "override": true,
           "single_active_replication": false,
           "speed": 256,
           "src_registry": {
-            "creation_time": "2026-09-27T20:10:18.751Z",
+            "creation_time": "2026-10-03T22:30:31.733Z",
             "credential": {},
             "description": "updated",
-            "id": 13,
+            "id": 17,
             "insecure": true,
             "name": "rr-fixtures-self",
             "status": "healthy",
             "type": "harbor",
-            "update_time": "2026-09-27T20:10:18.983Z",
+            "update_time": "2026-10-03T22:30:32.100Z",
             "url": "http://proxy:8080"
           },
           "trigger": {
@@ -436,7 +454,7 @@
             },
             "type": "scheduled"
           },
-          "update_time": "2026-09-27T20:10:22.135Z"
+          "update_time": "2026-10-03T22:30:35.308Z"
         }
       ],
       "headers": {
