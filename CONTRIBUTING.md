@@ -113,5 +113,9 @@ The rules:
 Maintainers only. Each collection is versioned on its own
 ([semantic versioning](https://semver.org/)). A release pull request sets the
 version in `galaxy.yml` and runs `make changelog COLLECTION=<collection>`.
-Once it is merged, pushing the tag `<collection>-v<version>` on `main` makes
-the release workflow build the tarball and publish the GitHub Release.
+Once it is merged, pushing the tag `<collection>-v<version>` on `main` starts
+the release workflow. It checks the tag against `galaxy.yml` and
+`CHANGELOG.md`, runs that collection's changelog lint, sanity and unit tests at
+the tagged commit, and only when they pass builds the tarball and publishes the
+GitHub Release. When a test fails, nothing is published: fix it on `main`, move
+the tag to the fixed commit and push the tag again.

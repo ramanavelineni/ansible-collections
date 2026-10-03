@@ -2,11 +2,16 @@
 name: Release
 
 # Pushing a tag <collection>-v<version> (semaphoreui-v0.1.0, harbor-v0.2.0)
-# builds that collection and publishes a GitHub Release with the tarball and
-# the version's changelog. The tag must match the version in galaxy.yml, and
-# CHANGELOG.md must already have that version (make changelog COLLECTION=...).
-# The tag must be on main. GitHub marks the newest release as "Latest"; with
-# two collections that is whichever was released last.
+# tests that collection at the tagged commit, builds it and publishes a GitHub
+# Release with the tarball and the version's changelog. Three jobs, in order:
+#   1. "Check <tag>": the tag must be on main and match the version in
+#      galaxy.yml, and CHANGELOG.md must already have that version
+#      (make changelog COLLECTION=...).
+#   2. "Test": the CI workflow for that collection: changelog lint, sanity and
+#      unit tests on every supported ansible-core version.
+#   3. "Publish <tag>": only when all of that passed.
+# GitHub marks the newest release as "Latest"; with two collections that is
+# whichever was released last.
 
 on:
   push:
@@ -15,12 +20,16 @@ on:
       - "harbor-v*"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  release:
-    name: Release ${{ github.ref_name }}
+  meta:
+    name: Check ${{ github.ref_name }}
     runs-on: ubuntu-latest
+    outputs:
+      collection: ${{ steps.meta.outputs.collection }}
+      version: ${{ steps.meta.outputs.version }}
+      dir: ${{ steps.meta.outputs.dir }}
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -33,12 +42,7 @@ jobs:
             exit 1
           }
 
-      - uses: actions/setup-python@v7.0.0
-        with:
-          python-version: "3.13"
-
-      - run: pip install "ansible-core>=2.18,<2.22"
-
+      # The only place the tag is taken apart; the other jobs use the outputs.
       - name: Check the tag against galaxy.yml and CHANGELOG.md
         id: meta
         env:
@@ -65,13 +69,35 @@ jobs:
             echo "dir=${dir}"
           } >> "${GITHUB_OUTPUT}"
 
+  test:
+    name: Test
+    needs: meta
+    uses: ./.github/workflows/ci.yml
+    with:
+      collection: ${{ needs.meta.outputs.collection }}
+
+  release:
+    name: Publish ${{ github.ref_name }}
+    needs: [meta, test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+
+      - run: pip install "ansible-core>=2.18,<2.22"
+
       - name: Build the collection
-        run: ansible-galaxy collection build "${{ steps.meta.outputs.dir }}" --output-path dist
+        run: ansible-galaxy collection build "${{ needs.meta.outputs.dir }}" --output-path dist
 
       - name: Release notes from CHANGELOG.md
         env:
-          DIR: ${{ steps.meta.outputs.dir }}
-          VERSION: ${{ steps.meta.outputs.version }}
+          DIR: ${{ needs.meta.outputs.dir }}
+          VERSION: ${{ needs.meta.outputs.version }}
         run: |
           python3 - <<'PY'
           import os, re
@@ -91,5 +117,5 @@ jobs:
         run: >-
           gh release create "${TAG}" dist/*.tar.gz
           --verify-tag
-          --title "ramanavelineni.${{ steps.meta.outputs.collection }} ${{ steps.meta.outputs.version }}"
+          --title "ramanavelineni.${{ needs.meta.outputs.collection }} ${{ needs.meta.outputs.version }}"
           --notes-file notes.md
