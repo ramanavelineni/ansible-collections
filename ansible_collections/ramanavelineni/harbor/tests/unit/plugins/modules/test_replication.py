@@ -24,6 +24,22 @@ def routes(server, rules='registry_replication_list'):
     server.route('GET', '/registries', 'registry_list')
 
 
+def stored(server, fixture='registry_replication_get_updated', **fields):
+    """A recorded single-rule answer, for the read after an update.
+
+    With `fields`, hand-edited: those fields are written into the recorded body,
+    because no update with that outcome was recorded.
+    """
+    answer = server.response(fixture)
+    answer['body'].update(fields)
+    return answer
+
+
+def updating(server, answer='registry_replication_get_updated'):
+    server.route('PUT', '/replication/policies/%d' % rule_id(server), 'registry_replication_update')
+    server.route('GET', '/replication/policies/%d' % rule_id(server), answer)
+
+
 def test_create(server, run_module):
     routes(server, 'registry_replication_list_before')
     server.route('POST', '/replication/policies', 'registry_replication_create')
@@ -99,7 +115,7 @@ def test_no_decoration_and_matches_are_the_same_filter(server, run_module, store
 
 def test_excludes_still_differs_from_no_decoration(server, run_module):
     routes(server, stored_tag_decoration(server, None))
-    server.route('PUT', '/replication/policies/%d' % rule_id(server), 'registry_replication_update')
+    updating(server, 'registry_replication_get')
     result = run_module(replication.main, PULL)
     assert result['changed'] is True
     assert dict(type='tag', value='v*', decoration='excludes') in server.calls('PUT')[0]['body']['filters']
@@ -118,9 +134,11 @@ def test_filter_without_decoration_is_sent_as_matches(server, run_module):
 
 def test_update_sends_whole_rule(server, run_module):
     routes(server)
-    server.route('PUT', '/replication/policies/%d' % rule_id(server), 'registry_replication_update')
+    updating(server)
     result = run_module(replication.main, dict(name='rr-fixtures-pull', speed=256))
     assert result['changed'] is True
+    assert result['replication']['speed'] == 256
+    assert not result.get('warnings')
     body = server.calls('PUT')[0]['body']
     assert body['speed'] == 256
     assert body['src_registry'] == dict(id=reg_id(server))
@@ -131,9 +149,11 @@ def test_update_sends_whole_rule(server, run_module):
 
 def test_scheduled_trigger(server, run_module):
     routes(server)
-    server.route('PUT', '/replication/policies/%d' % rule_id(server), 'registry_replication_update')
+    updating(server)
     result = run_module(replication.main, dict(name='rr-fixtures-pull', trigger=dict(type='scheduled', cron='0 0 3 * * *')))
     assert result['changed'] is True
+    assert result['replication']['trigger'] == dict(type='scheduled', cron='0 0 3 * * *')
+    assert not result.get('warnings')
     assert server.calls('PUT')[0]['body']['trigger'] == dict(type='scheduled', trigger_settings=dict(cron='0 0 3 * * *'))
 
 
@@ -162,7 +182,10 @@ def test_event_based_with_single_active_refused(server, run_module):
 
 def test_switch_direction(server, run_module):
     routes(server)
-    server.route('PUT', '/replication/policies/%d' % rule_id(server), 'registry_replication_update')
+    # Hand-edited answer: the recorded rule with its two registries swapped.
+    rule = server.fixtures['registry_replication_get']['body']
+    updating(server, stored(server, 'registry_replication_get', src_registry=rule['dest_registry'],
+                            dest_registry=rule['src_registry']))
     result = run_module(replication.main, dict(name='rr-fixtures-pull', dest_registry='rr-fixtures-self'))
     assert result['changed'] is True
     body = server.calls('PUT')[0]['body']
@@ -223,3 +246,35 @@ def test_normalize_filter(item, error):
     else:
         with pytest.raises(ValueError, match=error):
             normalize_filter(item)
+
+
+# -- the result of an update is read back --------------------------------------
+
+def test_update_result_is_what_harbor_stored(server, run_module):
+    # Hand-edited answer: the recorded rule after the update, with a speed Harbor
+    # would have had to change on store. No such update was recorded.
+    routes(server)
+    updating(server, stored(server, speed=128))
+    result = run_module(replication.main, dict(name='rr-fixtures-pull', speed=256))
+    assert result['changed'] is True
+    assert server.calls('PUT')[0]['body']['speed'] == 256
+    assert result['replication']['speed'] == 128
+    assert result['diff']['after'] == result['replication']
+    assert len(result['warnings']) == 1
+    assert 'speed' in str(result['warnings'])
+    # One request more than before: the read after the write.
+    path = '/replication/policies/%d' % rule_id(server)
+    assert [(r['method'], r['path']) for r in server.requests[-2:]] == [('PUT', path), ('GET', path)]
+
+
+def test_update_check_mode_predicts_the_real_result(server, run_module):
+    # The recorded rule after the update also carries the scheduled trigger of
+    # a later recorded step, so both are declared here.
+    routes(server)
+    updating(server)
+    args = dict(name='rr-fixtures-pull', speed=256, trigger=dict(type='scheduled', cron='0 0 3 * * *'))
+    real = run_module(replication.main, args)
+    check = run_module(replication.main, args, check_mode=True)
+    assert not real.get('warnings')
+    assert check['replication'] == real['replication']
+    assert check['diff'] == real['diff']

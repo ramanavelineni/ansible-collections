@@ -27,6 +27,28 @@ def ok(status=200):
     return dict(status=status, body=None, headers={})
 
 
+def stored(server, fixture='webhook_get_updated', target=None, **fields):
+    """A recorded single-webhook answer, for the read after an update.
+
+    With `fields` or `target`, hand-edited: they are written into the recorded
+    body (`target` into its one endpoint; a None value removes the key),
+    because no update with that outcome was recorded.
+    """
+    answer = server.response(fixture)
+    answer['body'].update(fields)
+    for key, value in (target or {}).items():
+        if value is None:
+            answer['body']['targets'][0].pop(key, None)
+        else:
+            answer['body']['targets'][0][key] = value
+    return answer
+
+
+def updating(server, project, answer='webhook_get_updated'):
+    server.route('PUT', '%s/%d' % (project, wid(server)), ok())
+    server.route('GET', '%s/%d' % (project, wid(server)), answer)
+
+
 def test_create(server, project, run_module):
     server.route('GET', project, 'webhook_list_empty')
     server.route('POST', project, 'webhook_create')
@@ -66,19 +88,22 @@ def test_no_change(server, project, run_module):
 
 def test_auth_header_change_is_detected(server, project, run_module):
     server.route('GET', project, 'webhook_list_one')
-    server.route('PUT', '%s/%d' % (project, wid(server)), ok())
+    updating(server, project, stored(server, 'webhook_get', target=dict(auth_header='Bearer rotated')))
     result = run_module(webhook.main, dict(HOOK, auth_header='Bearer rotated'))
     assert result['changed'] is True
+    assert result['webhook']['auth_header_set'] is True
+    assert not result.get('warnings')
     assert server.calls('PUT')[0]['body']['targets'][0]['auth_header'] == 'Bearer rotated'
     assert 'rotated' not in json.dumps(result)
 
 
 def test_update_sends_whole_policy(server, project, run_module):
     server.route('GET', project, 'webhook_list_one')
-    server.route('PUT', '%s/%d' % (project, wid(server)), ok())
+    updating(server, project)
     result = run_module(webhook.main, dict(project='fixtures-webhook', name='ci-notify', enabled=False))
     assert result['changed'] is True
     assert result['diff']['before']['enabled'] is True and result['diff']['after']['enabled'] is False
+    assert not result.get('warnings')
     body = server.calls('PUT')[0]['body']
     current = server.fixtures['webhook_get']['body']
     assert body['enabled'] is False
@@ -98,18 +123,21 @@ def test_update_check_mode(server, project, run_module):
 
 def test_empty_auth_header_removes_it(server, project, run_module):
     server.route('GET', project, 'webhook_list_one')
-    server.route('PUT', '%s/%d' % (project, wid(server)), ok())
+    updating(server, project, stored(server, 'webhook_get', target=dict(auth_header=None)))
     result = run_module(webhook.main, dict(project='fixtures-webhook', name='ci-notify', auth_header=''))
     assert result['changed'] is True
+    assert not result.get('warnings')
     assert 'auth_header' not in server.calls('PUT')[0]['body']['targets'][0]
     assert result['webhook']['auth_header_set'] is False
 
 
 def test_switch_to_slack_drops_payload_format(server, project, run_module):
     server.route('GET', project, 'webhook_list_one')
-    server.route('PUT', '%s/%d' % (project, wid(server)), ok())
+    updating(server, project, stored(server, 'webhook_get', target=dict(type='slack', payload_format=None)))
     result = run_module(webhook.main, dict(project='fixtures-webhook', name='ci-notify', notify_type='slack'))
     assert result['changed'] is True
+    assert result['webhook']['notify_type'] == 'slack'
+    assert not result.get('warnings')
     assert 'payload_format' not in server.calls('PUT')[0]['body']['targets'][0]
 
 
@@ -130,9 +158,12 @@ def test_several_endpoints_refused(server, project, run_module):
 
 def test_several_endpoints_kept_when_targets_untouched(server, project, run_module):
     server.route('GET', project, 'webhook_list_two_targets')
-    server.route('PUT', '%s/%d' % (project, wid(server)), ok())
+    # Hand-edited answer: the recorded two-endpoint webhook, disabled.
+    after = dict(status=200, headers={}, body=dict(server.response('webhook_list_two_targets')['body'][0], enabled=False))
+    updating(server, project, after)
     result = run_module(webhook.main, dict(project='fixtures-webhook', name='ci-notify', enabled=False))
     assert result['changed'] is True
+    assert not result.get('warnings')
     assert len(server.calls('PUT')[0]['body']['targets']) == 2
 
 
@@ -259,3 +290,52 @@ def test_delete_does_not_check_events(server, project, run_module):
     server.route('GET', project, 'webhook_list_empty')
     result = run_module(webhook.main, dict(HOOK, event_types=['NOPE'], state='absent'))
     assert result['changed'] is False
+
+
+# -- the result of an update is read back --------------------------------------
+
+def test_update_result_is_what_harbor_stored(server, project, run_module):
+    # Hand-edited answer: the recorded webhook after the update, with a
+    # description Harbor would have had to change on store.
+    server.route('GET', project, 'webhook_list_one')
+    updating(server, project, stored(server, description='cut'))
+    result = run_module(webhook.main, dict(project='fixtures-webhook', name='ci-notify', enabled=False,
+                                           description='a long description'))
+    assert result['changed'] is True
+    assert result['webhook']['description'] == 'cut'
+    assert result['webhook']['enabled'] is False
+    assert result['diff']['after'] == result['webhook']
+    assert len(result['warnings']) == 1
+    assert 'description' in str(result['warnings']) and 'enabled' not in str(result['warnings'])
+    # One request more than before: the read after the write.
+    path = '%s/%d' % (project, wid(server))
+    assert [(r['method'], r['path']) for r in server.requests[-2:]] == [('PUT', path), ('GET', path)]
+
+
+def test_update_never_returns_the_auth_header(server, project, run_module):
+    # Harbor returns the header in clear when the webhook is read.
+    server.route('GET', project, 'webhook_list_one')
+    updating(server, project, stored(server, 'webhook_get', target=dict(auth_header='Bearer "rotated"')))
+    result = run_module(webhook.main, dict(HOOK, auth_header='Bearer "rotated"'))
+    assert result['changed'] is True
+    assert result['webhook']['auth_header_set'] is True
+    assert 'rotated' not in json.dumps(result) and 'not-a-real-token' not in json.dumps(result)
+
+
+def test_auth_header_that_was_not_stored_is_named_not_shown(server, project, run_module):
+    # The read after the write still shows the old header (the recorded webhook).
+    server.route('GET', project, 'webhook_list_one')
+    updating(server, project, 'webhook_get')
+    result = run_module(webhook.main, dict(HOOK, auth_header='Bearer rotated'))
+    assert 'auth_header' in str(result['warnings'])
+    assert 'rotated' not in json.dumps(result) and 'not-a-real-token' not in json.dumps(result)
+
+
+def test_update_check_mode_predicts_the_real_result(server, project, run_module):
+    server.route('GET', project, 'webhook_list_one')
+    updating(server, project)
+    args = dict(project='fixtures-webhook', name='ci-notify', enabled=False)
+    real = run_module(webhook.main, args)
+    check = run_module(webhook.main, args, check_mode=True)
+    assert check['webhook'] == real['webhook']
+    assert check['diff'] == real['diff']

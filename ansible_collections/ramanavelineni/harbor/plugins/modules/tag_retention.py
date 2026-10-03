@@ -123,6 +123,8 @@ RETURN = r'''
 tag_retention:
   description:
     - The policy after the change, or as it would be in check mode.
+    - After a change it is read back from Harbor, so it shows what Harbor stored. If that differs from what
+      the task sent, the module warns, because the next run will then report a change again.
     - Empty after a deletion.
   returned: always
   type: dict
@@ -150,6 +152,7 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     retention_view,
     run_module,
     selectors_body,
+    warn_if_stored_differently,
 )
 
 MAX_RULES = 15
@@ -218,7 +221,18 @@ def ensure(module, client):
             client.put('/retentions/%s' % policy_id, body)
         else:
             dummy, headers = client.post('/retentions', body)
-            after['id'] = id_from_location(headers)
+            policy_id = id_from_location(headers)
+            if not policy_id:
+                # Harbor records the new policy's id in the project's metadata.
+                policy_id = (client.get('/projects/%d' % project_id).get('metadata') or {}).get('retention_id')
+            after['id'] = int(policy_id) if policy_id else None
+        if policy_id:
+            # Read it back: the result is what Harbor stored, which is what the
+            # next run compares with.
+            predicted = after
+            after = retention_view(client.get('/retentions/%s' % policy_id), params['project'])
+            warn_if_stored_differently(module, 'the retention policy of project %r' % params['project'],
+                                       [f for f in ('schedule', 'rules') if after[f] != predicted[f]])
     return dict(changed=True, tag_retention=after, diff=dict(before=before, after=after))
 
 

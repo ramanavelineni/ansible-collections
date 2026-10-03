@@ -427,6 +427,18 @@ def run_module(module, handler):
     module.exit_json(**result)
 
 
+def warn_if_stored_differently(module, what, fields):
+    """Warn that Harbor stored `fields` of `what` differently from what the task sent.
+
+    The modules read an object back after a write and return that. When a
+    field then differs from what was sent, the result shows Harbor's value,
+    and the next run finds the difference again; the warning says so.
+    """
+    if fields:
+        module.warn('Harbor stored %s differently from what this task sent (%s). The result shows what is stored; '
+                    'the next run will report a change again.' % (what, ', '.join(sorted(fields))))
+
+
 def storage_to_gb(storage):
     if storage is None:
         return None

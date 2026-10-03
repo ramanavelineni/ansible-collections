@@ -121,6 +121,8 @@ webhook:
   description:
     - The webhook after the change, or as it would be in check mode. The auth header itself is never
       returned; C(auth_header_set) says whether one is stored.
+    - After a change it is read back from Harbor, so it shows what Harbor stored. If that differs from what
+      the task sent, the module warns, because the next run will then report a change again.
     - Empty after a deletion.
   returned: always
   type: dict
@@ -146,6 +148,7 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     harbor_argument_spec,
     id_from_location,
     run_module,
+    warn_if_stored_differently,
     webhook_view as view,
 )
 
@@ -281,6 +284,16 @@ def ensure(module, client):
         # (enabled to false, description and auth header emptied), so the
         # current policy goes back with the changes applied.
         client.put('%s/%d' % (base, current['id']), body)
+        # Read it back: the result is what Harbor stored, which is what the
+        # next run compares with.
+        predicted = after
+        stored = client.get('%s/%d' % (base, current['id']))
+        after = view(stored, params['project'])
+        differing = [k for k in after if after[k] != predicted[k]]
+        if not differing and comparable(stored.get('targets') or []) != comparable(body['targets']):
+            # Only the auth header is compared outside the view. Its name, never its value.
+            differing = ['auth_header']
+        warn_if_stored_differently(module, 'webhook %r' % params['name'], differing)
     return dict(changed=True, webhook=after, diff=dict(before=before, after=after))
 
 

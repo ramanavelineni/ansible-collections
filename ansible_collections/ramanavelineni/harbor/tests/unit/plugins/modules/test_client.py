@@ -323,6 +323,7 @@ def test_updates_are_retried(server, run_module):
     existing(server)
     path = '/projects/%d' % pid(server)
     server.route('PUT', path, unavailable(), transport_error(), 'project_update')
+    server.route('GET', path, 'project_get_updated')
     result = run_module(project.main, dict(name='fixtures-core', public=True))
     assert result['changed'] is True
     puts = server.calls('PUT', path)
