@@ -16,7 +16,7 @@ along the way. Each quirk is handled inside a module and covered by a test.
 - [x] Scaffolding: repository, CI, Makefile, pre-commit, changelog setup
 - [x] `ramanavelineni.semaphoreui`: 25 modules
 - [x] `ramanavelineni.harbor`: 23 modules
-- [ ] First releases: `semaphoreui-v0.1.0` and `harbor-v0.1.0`, built and
+- [x] First releases: `semaphoreui-v0.1.0` and `harbor-v0.1.0`, built and
       published as GitHub Releases by a workflow on tag push
 - [ ] Switch the homelab `semaphore_config` role to the collection. The role
       keeps loading project files, validating, its version switch and its

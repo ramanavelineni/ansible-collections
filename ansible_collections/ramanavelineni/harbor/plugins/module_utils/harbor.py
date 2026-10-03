@@ -10,7 +10,7 @@ import socket
 import time
 
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote, urlencode
+from urllib.parse import urlencode
 
 from ansible.module_utils.basic import env_fallback
 from ansible.module_utils.common.text.converters import to_bytes, to_text
@@ -279,11 +279,6 @@ def id_from_location(headers):
     return int(tail) if tail.isdigit() else None
 
 
-def name_path(name):
-    """A path segment for a resource named `name` (URL-quoted)."""
-    return quote(name, safe='')
-
-
 def find_by_name(items, name, what, field='name'):
     """The single item whose `field` equals `name`, or None; two matches fail."""
     matches = [item for item in items if item.get(field) == name]
@@ -342,11 +337,14 @@ def robot_prefix(client):
     """The robot name prefix Harbor puts in front of every robot account's name.
 
     Only a system administrator can read the configuration; anyone else gets
-    Harbor's factory default.
+    Harbor's factory default. Any other failure is reported: guessing the
+    prefix would make robots unfindable on a server with its own.
     """
     try:
         config = client.get('/configurations') or {}
-    except HarborError:
+    except HarborError as e:
+        if e.status not in (401, 403):
+            raise
         return DEFAULT_ROBOT_PREFIX
     value = (config.get('robot_name_prefix') or {}).get('value')
     return value if value else DEFAULT_ROBOT_PREFIX

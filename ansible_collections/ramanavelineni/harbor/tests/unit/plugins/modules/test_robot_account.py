@@ -202,3 +202,12 @@ def test_robot_short_name():
     assert robot_short_name('robot$puller', None, 'robot$') == 'puller'
     assert robot_short_name('robot_puller', None, 'robot_') == 'puller'
     assert robot_short_name('robot$apps+ci', 'apps', 'robot$') == 'ci'
+
+
+def test_info_reports_a_failed_prefix_read(server, run_module):
+    # Only "may not read the configuration" falls back to the default prefix.
+    server.route('GET', '/robots', 'robot_list_system_all')
+    server.route('GET', '/configurations', dict(status=500, body=None, headers={}))
+    result = run_module(robot_account_info.main, dict(name='fixtures-robot-sys'))
+    assert result['failed'] is True
+    assert 'HTTP 500' in result['msg']

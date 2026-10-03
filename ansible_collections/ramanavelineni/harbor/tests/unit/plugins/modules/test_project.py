@@ -224,3 +224,12 @@ def test_project_info(server, run_module):
     core = [p for p in result['projects'] if p['name'] == 'fixtures-core'][0]
     assert core['public'] is True and core['metadata']['severity'] == 'high'
     assert run_module(project_info.main, dict(name='nope'))['projects'] == []
+
+
+def test_quota_on_a_project_without_quota_fails(server, run_module):
+    existing(server)
+    server.route('GET', '/quotas', dict(status=200, body=[], headers={}))
+    result = run_module(project.main, dict(name='fixtures-core', quota_gb=5))
+    assert result['failed'] is True
+    assert 'has no quota' in result['msg']
+    assert server.calls('PUT') == []

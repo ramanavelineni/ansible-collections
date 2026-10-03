@@ -5,6 +5,8 @@ name: Release
 # builds that collection and publishes a GitHub Release with the tarball and
 # the version's changelog. The tag must match the version in galaxy.yml, and
 # CHANGELOG.md must already have that version (make changelog COLLECTION=...).
+# The tag must be on main. No release is marked "Latest": the two collections
+# release separately, and the mark would only ever show one of them.
 
 on:
   push:
@@ -21,6 +23,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Check the tag is on main
+        run: |
+          git merge-base --is-ancestor "${GITHUB_SHA}" origin/main || {
+            echo "::error::${GITHUB_REF_NAME} points at ${GITHUB_SHA}, which is not on main"
+            exit 1
+          }
 
       - uses: actions/setup-python@v7.0.0
         with:
@@ -80,5 +91,6 @@ jobs:
         run: >-
           gh release create "${TAG}" dist/*.tar.gz
           --verify-tag
+          --latest=false
           --title "ramanavelineni.${{ steps.meta.outputs.collection }} ${{ steps.meta.outputs.version }}"
           --notes-file notes.md
