@@ -1,0 +1,13 @@
+---
+bugfixes:
+  - >-
+    variable_group - a stored ``json`` or ``env`` value that is not valid JSON no longer blocks the task
+    that replaces it, nor the deletion of the group. The diff shows the stored text as ``before``. A task
+    that leaves the broken field alone still fails, as an update would write it back.
+  - >-
+    inventory, integration, template, variable_group - with ``state=absent`` the diff's ``before`` is the
+    whole object, in the shape an update shows, instead of only ``id`` and ``name``. The other modules
+    already did this.
+  - >-
+    repository - with ``state=absent`` the diff's ``before`` has the name of the SSH key in ``ssh_key``
+    instead of ``null``.

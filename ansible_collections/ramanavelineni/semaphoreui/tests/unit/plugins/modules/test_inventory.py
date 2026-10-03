@@ -111,8 +111,12 @@ def test_delete(server, project, run_module):
     server.route('GET', project + '/inventory', 'inventories_one')
     server.route('GET', '%s/inventory/%d/refs' % (project, inv_id), 'inventory_refs_unused')
     server.route('DELETE', '%s/inventory/%d' % (project, inv_id), 'inventory_delete')
+    stored = run_module(inventory.main, dict(project='homelab', name='homelab'))['inventory']
     result = run_module(inventory.main, dict(project='homelab', name='homelab', state='absent'))
     assert result['changed'] is True
+    # The diff shows what is deleted, in the shape an update shows it.
+    assert result['diff'] == dict(before=stored, after={})
+    assert stored['type'] == 'file' and stored['repository'] == 'ansible' and stored['ssh_key'] == 'deploy'
 
 
 def test_delete_in_use(server, project, run_module):

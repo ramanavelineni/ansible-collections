@@ -123,8 +123,13 @@ def test_delete(server, project, run_module):
     path = existing(server, project)
     server.route('GET', path + '/refs', 'integration_refs_unused')
     server.route('DELETE', path, 'integration_delete')
+    stored = run_module(integration.main, dict(project='homelab', name='gh'))['integration']
     result = run_module(integration.main, dict(project='homelab', name='gh', state='absent'))
     assert result['changed'] is True
+    assert [c['path'] for c in server.calls('DELETE')] == [path]
+    # The diff shows what is deleted, in the shape an update shows it.
+    assert result['diff'] == dict(before=stored, after={})
+    assert stored['auth_key'] == 'deploy' and [m['name'] for m in stored['matchers']] == ['main']
 
 
 def test_integration_info(server, project, run_module):

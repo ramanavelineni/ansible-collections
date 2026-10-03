@@ -262,14 +262,8 @@ def ensure(module, client):
     key_names = dict((k['id'], k['name']) for k in keys)
     found = find_by_name(client.list(base + '/integrations'), params['name'], 'integration')
 
-    if params['state'] == 'absent':
-        if not found:
-            return dict(changed=False, integration={}, webhook_urls=[], diff=dict(before={}, after={}))
-        refuse_delete_if_used(client, '%s/integrations/%d' % (base, found['id']), 'integration', params['name'])
-        if not module.check_mode:
-            client.delete('%s/integrations/%d' % (base, found['id']))
-        return dict(changed=True, integration={}, webhook_urls=[],
-                    diff=dict(before=dict(id=found['id'], name=found['name']), after={}))
+    if params['state'] == 'absent' and not found:
+        return dict(changed=False, integration={}, webhook_urls=[], diff=dict(before={}, after={}))
 
     def ref(what, items, name):
         item = find_by_name(items, name, what)
@@ -287,6 +281,12 @@ def ensure(module, client):
     else:
         current, ipath, cur_matchers, cur_values = {}, None, [], []
     before = integration_view(current, tpl_names, key_names, cur_matchers, cur_values) if found else {}
+
+    if params['state'] == 'absent':
+        refuse_delete_if_used(client, ipath, 'integration', params['name'])
+        if not module.check_mode:
+            client.delete(ipath)
+        return dict(changed=True, integration={}, webhook_urls=[], diff=dict(before=before, after={}))
 
     body = dict(current) if found else dict(auth_method='', auth_header='', searchable=False)
     body.update(project_id=project_id, name=params['name'])
