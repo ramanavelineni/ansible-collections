@@ -81,12 +81,49 @@ The unit tests replay responses recorded from real servers, one file per
 area and server version, under `tests/unit/plugins/fixtures/`. When a module
 needs a response that isn't there, record it; don't write it by hand.
 
+### Starting a throwaway server
+
+One server per tested version, on a local port.
+
+Semaphore runs from its image; the command is also in the recorder's
+docstring:
+
+```sh
+podman run -d --name semfx -p 127.0.0.1:3019:3000 \
+    -e SEMAPHORE_DB_DIALECT=sqlite -e SEMAPHORE_ADMIN=admin \
+    -e SEMAPHORE_ADMIN_PASSWORD=<password> -e SEMAPHORE_ADMIN_NAME=Admin \
+    -e SEMAPHORE_ADMIN_EMAIL=admin@localhost \
+    docker.io/semaphoreui/semaphore:v2.19.12
+```
+
+Harbor needs its installer, which `tools/harbor_up.sh` drives:
+
+```sh
+HARBOR_PASSWORD=<password> tools/harbor_up.sh up v2.15.0 8015
+tools/harbor_up.sh down v2.15.0
+```
+
+**`tools/harbor_up.sh` has not been run yet.** It was written from Harbor's
+installation guide without a Harbor at hand, and the steps it is least sure
+of are marked `TODO(verify)` in the script. Whoever records Harbor fixtures
+next runs it step by step, fixes what is wrong, and takes the notice out of
+the script and out of this section. The registry area makes Harbor reach
+itself as `http://proxy:8080`, the name and port of the installer's nginx
+service inside its compose network; that is one of the things to verify.
+
+### Recording
+
 ```sh
 SEMAPHORE_PASSWORD=<password> tools/record_semaphoreui_fixtures.py http://127.0.0.1:3019 [AREA ...]
 HARBOR_PASSWORD=<password> tools/record_harbor_fixtures.py http://127.0.0.1:8015 [AREA ...]
 ```
 
-Each script's docstring says how to start a server and what an area must do.
+Without `AREA` every area is recorded. Each script's docstring says what an
+area must do. An area that fails takes its objects off the server again, and
+the next run first removes what a run that died left behind, so a recording
+can simply be started again. A recording replaces the area's file: ids and
+timestamps in it change, so run the unit tests afterwards and read the diff.
+
 The rules:
 
 - **Throwaway servers only.** The recorders create, change and delete
@@ -96,12 +133,38 @@ The rules:
 - **Own objects only.** An area creates what it needs under its own names,
   deletes it again, and filters every listing down to those objects with
   `keep()`.
+- **A sweep per area.** Each area has a function in `SWEEPS` that deletes the
+  area's objects, found by those names and by nothing else. It runs before
+  and after the area. A new area gets one, and `make tools-test` checks that
+  none is missing.
 - **No secrets.** A value the server generates (a robot secret, a runner
   token) is replaced by a placeholder before it is stored. The recorder
   refuses to write a file in which it finds the admin password, a generated
   secret or something shaped like a credential. Read the diff of a new
   recording anyway before committing it.
 - Record every supported server version, not only the newest.
+
+### Adding a server version
+
+1. Start a throwaway server of the new version (above) and run the recorder
+   against it. The files land in `tests/unit/plugins/fixtures/<major.minor>/`
+   of the collection, and the unit tests run once per directory found there.
+2. Add the version to `TESTED_VERSIONS` in the collection's
+   `plugins/module_utils/semaphore.py` or `harbor.py`. Until then the modules
+   warn that the version is untested.
+3. Run the unit tests. Where they fail, the new version answers differently:
+   handle it in the module, cover it with a test, and note the difference
+   under the collection's API quirks in [PLAN.md](PLAN.md). Some tests name a
+   version to branch on; search the tests for the older version numbers.
+4. Update the versions in the docs: the badges and the "Tested with" and
+   "Supported" tables in the root `README.md`, the badge and the "Needs"
+   line in the collection's `README.md`, and "Supported versions" in
+   `PLAN.md`.
+5. Add a changelog fragment (`minor_changes`) that names the new version.
+
+Dropping a version is the same list backwards, with the fixture directory
+removed. The `tests/sanity/ignore-*.txt` files don't come into it: they
+belong to ansible-core versions, not to server versions.
 
 ## Commits and pull requests
 

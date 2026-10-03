@@ -1,7 +1,8 @@
 # Copyright: ramanavelineni
 # Apache License 2.0 (see LICENSE or https://www.apache.org/licenses/LICENSE-2.0)
 
-"""Tests for what keeps the fixture recorders from publishing a real server's data.
+"""Tests for what keeps the fixture recorders from publishing a real server's data,
+and from leaving their objects behind on it.
 
 No server is needed. Run them with `make tools-test`.
 """
@@ -12,6 +13,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 TOOLS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, TOOLS)
@@ -173,6 +175,303 @@ class WriteFixture(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 common.write_fixture(dirty, 'v2.19.12', dict(x=dict(status=200, body=dict(note='pw-9f2c'))), ['pw-9f2c'])
             self.assertFalse(os.path.exists(dirty))
+
+
+class RunArea(unittest.TestCase):
+    def setUp(self):
+        self.steps = []
+
+    def sweep(self, srv):
+        self.steps.append('sweep')
+
+    def record(self, srv, out):
+        self.steps.append('record')
+        out['x'] = 1
+
+    def failing_record(self, srv, out):
+        self.steps.append('record')
+        sys.exit('recording failed')
+
+    def test_sweeps_before_and_after(self):
+        out = {}
+        common.run_area('core', self.record, self.sweep, None, out)
+        self.assertEqual(self.steps, ['sweep', 'record', 'sweep'])
+        self.assertEqual(out, dict(x=1))
+
+    def test_sweeps_after_a_failed_recording_and_reports_that_failure(self):
+        for error in (SystemExit('recording failed'), KeyError('id'), KeyboardInterrupt()):
+            self.steps = []
+
+            def record(srv, out, error=error):
+                self.steps.append('record')
+                raise error
+
+            with self.assertRaises(type(error)) as raised:
+                common.run_area('core', record, self.sweep, None, {})
+            self.assertIs(raised.exception, error)
+            self.assertEqual(self.steps, ['sweep', 'record', 'sweep'])
+
+    def test_a_sweep_that_fails_after_a_failed_recording_does_not_hide_it(self):
+        def sweep(srv):
+            self.steps.append('sweep')
+            if len(self.steps) > 1:
+                sys.exit('sweep failed')
+
+        with mock.patch('sys.stderr') as stderr:
+            with self.assertRaises(SystemExit) as raised:
+                common.run_area('core', self.failing_record, sweep, None, {})
+        self.assertEqual(str(raised.exception), 'recording failed')
+        self.assertEqual(self.steps, ['sweep', 'record', 'sweep'])
+        self.assertIn('sweep failed', ''.join(call.args[0] for call in stderr.write.call_args_list))
+
+    def test_a_failed_sweep_stops_the_area(self):
+        def sweep(srv):
+            sys.exit('leftovers that are not ours')
+
+        with self.assertRaises(SystemExit):
+            common.run_area('core', self.record, sweep, None, {})
+        self.assertEqual(self.steps, [])
+
+        def late(srv):
+            self.steps.append('sweep')
+            if self.steps.count('sweep') == 2:
+                sys.exit('could not clean up')
+
+        with self.assertRaises(SystemExit) as raised:
+            common.run_area('core', self.record, late, None, {})
+        self.assertEqual(str(raised.exception), 'could not clean up')
+
+    def test_every_area_has_a_sweep(self):
+        for recorder in (semaphore, harbor):
+            self.assertEqual(sorted(recorder.SWEEPS), sorted(recorder.AREAS))
+
+
+class FakeServer(object):
+    """Answers GETs from a dict of path -> body and accepts every write; keeps what was called."""
+
+    def __init__(self, gets, write_status):
+        self.gets = gets
+        self.write_status = write_status
+        self.calls = []
+
+    def call(self, method, path, body=None, **kwargs):
+        self.calls.append((method, path) if body is None else (method, path, body))
+        if method == 'GET':
+            return dict(status=200, body=self.gets.get(path, []), headers={})
+        return dict(status=self.write_status, body=None, headers={})
+
+    def writes(self):
+        return [call for call in self.calls if call[0] != 'GET']
+
+
+class SemaphoreSweeps(unittest.TestCase):
+    def server(self, **gets):
+        return FakeServer(dict(('/' + path.replace('__', '/'), body) for path, body in gets.items()), 204)
+
+    def test_runner_sweep_takes_only_its_own(self):
+        srv = self.server(runners=[dict(id=1, name='rn-fixture'), dict(id=2, name='build-01'), dict(id=3, name='rn-fixture-x')],
+                          projects=[dict(id=7, name='rn-fixtures'), dict(id=8, name='homelab'), dict(id=9, name='rn-fixtures-2')])
+        semaphore.sweep_runner(srv)
+        self.assertEqual(srv.writes(), [('DELETE', '/runners/1'), ('DELETE', '/runners/3'), ('DELETE', '/project/7')])
+
+    def test_user_sweep_takes_only_its_own(self):
+        srv = self.server(users=[dict(id=1, username='admin'), dict(id=2, username='us-fixture-4711'),
+                                 dict(id=3, username='us-fixture-ext-4711'), dict(id=4, username='us-ops')])
+        semaphore.sweep_user(srv)
+        self.assertEqual(srv.writes(), [('DELETE', '/users/2'), ('DELETE', '/users/3')])
+
+    def test_team_sweep_takes_only_its_own(self):
+        srv = self.server(projects=[dict(id=7, name='fixtures-team'), dict(id=8, name='fixtures-team-old')],
+                          users=[dict(id=1, username='tm-fixture-a'), dict(id=2, username='tm-fixture-c')])
+        semaphore.sweep_team(srv)
+        self.assertEqual(srv.writes(), [('DELETE', '/project/7'), ('DELETE', '/users/1')])
+
+    def test_core_sweep_removes_what_an_earlier_recording_left(self):
+        srv = self.server(projects=[dict(id=5, name='homelab')],
+                          project__5__keys=[dict(id=1, name='deploy')],
+                          project__5__repositories=[dict(id=2, name='ansible')],
+                          project__5__templates=[dict(id=3, name='site'), dict(id=4, name='surveyed')])
+        semaphore.sweep_core(srv)
+        self.assertEqual(srv.writes(), [('DELETE', '/project/5/templates/3'), ('DELETE', '/project/5/templates/4'),
+                                        ('DELETE', '/project/5/repositories/2'), ('DELETE', '/project/5/keys/1'),
+                                        ('DELETE', '/project/5')])
+
+    def test_core_sweep_refuses_a_homelab_that_is_someone_elses(self):
+        srv = self.server(projects=[dict(id=5, name='homelab')],
+                          project__5__keys=[dict(id=1, name='deploy'), dict(id=2, name='github-deploy-key')])
+        with self.assertRaises(SystemExit) as refused:
+            semaphore.sweep_core(srv)
+        self.assertIn('github-deploy-key', str(refused.exception))
+        self.assertEqual(srv.writes(), [])
+
+    def test_core_sweep_leaves_other_projects_alone(self):
+        srv = self.server(projects=[dict(id=5, name='payroll'), dict(id=6, name='homelab-2')])
+        semaphore.sweep_core(srv)
+        self.assertEqual(srv.calls, [('GET', '/projects')])
+
+    def test_a_refused_delete_stops_the_sweep(self):
+        srv = self.server(runners=[dict(id=1, name='rn-fixture')])
+        srv.write_status = 400
+        with self.assertRaises(SystemExit):
+            semaphore.sweep_runner(srv)
+
+
+class HarborSweeps(unittest.TestCase):
+    def test_registry_sweep_takes_only_its_own_rules_first(self):
+        srv = FakeServer({
+            '/replication/policies?page=1&page_size=100': [dict(id=1, name='rr-fixtures-pull'), dict(id=2, name='mirror-prod')],
+            '/registries?page=1&page_size=100': [dict(id=3, name='dockerhub'), dict(id=4, name='rr-fixtures-self'),
+                                                 dict(id=5, name='rr-fixtures-auth')]}, 200)
+        harbor.sweep_registry(srv)
+        self.assertEqual(srv.writes(), [('DELETE', '/replication/policies/1'), ('DELETE', '/registries/4'),
+                                        ('DELETE', '/registries/5')])
+
+    def test_core_sweep_goes_by_the_exact_project_name(self):
+        srv = FakeServer({
+            '/projects?name=fixtures-core-proxy&page=1&page_size=100': [dict(project_id=9, name='fixtures-core-proxy')],
+            '/projects?name=fixtures-core&page=1&page_size=100': [dict(project_id=9, name='fixtures-core-proxy'),
+                                                                 dict(project_id=8, name='fixtures-core'),
+                                                                 dict(project_id=7, name='my-fixtures-core')],
+            '/registries?page=1&page_size=100': [dict(id=3, name='fixtures-core-hub'), dict(id=4, name='hub')]}, 200)
+        harbor.sweep_core(srv)
+        self.assertEqual(srv.writes(), [('DELETE', '/projects/9'), ('DELETE', '/projects/8'), ('DELETE', '/registries/3')])
+
+    def test_tag_policy_sweep_takes_the_policy_and_the_rules_with_the_project(self):
+        srv = FakeServer({
+            '/projects?name=fixtures-tag-policy&page=1&page_size=100': [
+                dict(project_id=6, name='fixtures-tag-policy', metadata=dict(retention_id='12'))],
+            '/projects/6/immutabletagrules?page=1&page_size=100': [dict(id=26)]}, 200)
+        harbor.sweep_tag_policy(srv)
+        self.assertEqual(srv.writes(), [('DELETE', '/retentions/12'), ('DELETE', '/projects/6/immutabletagrules/26'),
+                                        ('DELETE', '/projects/6')])
+
+    def test_webhook_and_robot_sweeps_leave_a_server_without_leftovers_alone(self):
+        for sweep in (harbor.sweep_webhook, harbor.sweep_robot, harbor.sweep_tag_policy, harbor.sweep_core,
+                      harbor.sweep_registry):
+            srv = FakeServer({}, 200)
+            sweep(srv)
+            self.assertEqual(srv.writes(), [], sweep.__name__)
+
+    def system(self, banner, gc_cron, purge_cron):
+        def schedule(cron):
+            return dict(schedule=dict(type='Custom', cron=cron)) if cron else None
+        return FakeServer({
+            '/configurations': dict(banner_message=dict(value=banner), session_timeout=dict(value=45)),
+            '/system/gc/schedule': schedule(gc_cron),
+            '/system/purgeaudit/schedule': schedule(purge_cron)}, 200)
+
+    def test_system_sweep_takes_back_only_what_the_area_sets(self):
+        srv = self.system('fixtures-system', harbor.SYSTEM_GC_CRON, harbor.SYSTEM_PURGE_CRON)
+        harbor.sweep_system(srv)
+        self.assertEqual(srv.writes(), [
+            ('PUT', '/configurations', dict(banner_message='', session_timeout=60)),
+            ('PUT', '/system/gc/schedule', harbor.NO_GC_SCHEDULE),
+            ('PUT', '/system/purgeaudit/schedule', harbor.NO_PURGE_SCHEDULE)])
+
+    def test_system_sweep_leaves_a_sites_own_settings_and_schedules(self):
+        srv = self.system('Maintenance on Sunday', '0 0 2 * * *', None)
+        harbor.sweep_system(srv)
+        self.assertEqual(srv.writes(), [])
+
+
+class Response(object):
+    status = 200
+    headers = {}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def read(self):
+        return b'{}'
+
+
+class Timeout(unittest.TestCase):
+    def test_harbor_requests_have_a_timeout(self):
+        with mock.patch.object(harbor.urllib.request, 'urlopen', return_value=Response()) as urlopen:
+            harbor.Server('http://127.0.0.1:8015', 'admin', 'pw').call('GET', '/systeminfo')
+        self.assertEqual(urlopen.call_args.kwargs, dict(timeout=common.TIMEOUT))
+
+    def test_semaphore_requests_have_a_timeout(self):
+        srv = semaphore.Server('http://127.0.0.1:3019')
+        srv.opener = mock.Mock()
+        srv.opener.open.return_value = Response()
+        srv.call('GET', '/info')
+        self.assertEqual(srv.opener.open.call_args.kwargs, dict(timeout=common.TIMEOUT))
+
+    def test_the_timeout_is_a_number_of_seconds(self):
+        self.assertTrue(0 < common.TIMEOUT <= 120)
+
+
+class LockedServer(harbor.Server):
+    """A Harbor that answers the given statuses in turn, on a clock the test moves."""
+
+    def __init__(self, *statuses, **kwargs):
+        harbor.Server.__init__(self, 'http://127.0.0.1:8015', 'admin', 'right')
+        self.statuses = list(statuses)
+        self.body = kwargs.get('body', dict(harbor_version='v2.15.0'))
+        self.now = 100.0
+        self.sent = []
+        self.slept = []
+        self.clock = lambda: self.now
+        self.sleep = self.wait
+
+    def wait(self, seconds):
+        self.slept.append(seconds)
+        self.now += seconds
+
+    def send(self, method, path, body, password):
+        self.sent.append((method, path, password))
+        return dict(status=self.statuses.pop(0) if self.statuses else 200, body=self.body, headers={})
+
+
+class LoginLock(unittest.TestCase):
+    def test_a_wrong_password_request_is_sent_once_and_waited_out(self):
+        srv = LockedServer(401, 200)
+        self.assertEqual(srv.call('GET', '/configurations', password='wrong')['status'], 401)
+        self.assertEqual((srv.sent, srv.slept), ([('GET', '/configurations', 'wrong')], []))
+        srv.call('GET', '/projects')
+        self.assertEqual(srv.slept, [harbor.LOCK_WAIT])
+        self.assertEqual(srv.sent[1], ('GET', '/projects', 'right'))
+        srv.call('GET', '/projects')
+        self.assertEqual(srv.slept, [harbor.LOCK_WAIT])
+
+    def test_only_the_rest_of_the_lock_is_waited(self):
+        srv = LockedServer()
+        srv.call('GET', '/systeminfo', password='wrong')
+        srv.now += 1.5
+        srv.call('GET', '/projects')
+        self.assertEqual(srv.slept, [harbor.LOCK_WAIT - 1.5])
+
+    def test_a_401_for_the_right_password_is_sent_again(self):
+        srv = LockedServer(401, 401, 201)
+        self.assertEqual(srv.call('POST', '/projects', dict(project_name='x'))['status'], 201)
+        self.assertEqual(len(srv.sent), 3)
+        self.assertEqual(srv.slept, [harbor.LOCK_WAIT, harbor.LOCK_WAIT])
+
+    def test_a_401_that_stays_is_given_up_on(self):
+        srv = LockedServer(*[401] * 50)
+        self.assertEqual(srv.call('GET', '/projects')['status'], 401)
+        self.assertEqual(len(srv.sent), harbor.LOCK_TRIES)
+
+    def test_other_errors_are_not_sent_again(self):
+        srv = LockedServer(409)
+        self.assertEqual(srv.call('POST', '/projects', dict(project_name='x'))['status'], 409)
+        self.assertEqual((len(srv.sent), srv.slept), (1, []))
+
+    def test_an_anonymous_answer_is_not_taken_for_a_login(self):
+        srv = LockedServer(body=dict(auth_mode='db_auth'))
+        with self.assertRaises(SystemExit) as refused:
+            srv.require_login()
+        self.assertIn('harbor_version', str(refused.exception))
+        self.assertEqual(len(srv.sent), harbor.LOCK_TRIES)
+
+    def test_a_login_is_returned_as_recorded(self):
+        srv = LockedServer()
+        self.assertEqual(srv.require_login(), dict(status=200, body=dict(harbor_version='v2.15.0'), headers={}))
+        self.assertEqual(len(srv.sent), 1)
 
 
 if __name__ == '__main__':
