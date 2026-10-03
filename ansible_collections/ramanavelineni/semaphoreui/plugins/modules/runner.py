@@ -74,7 +74,7 @@ options:
       - B(If the runner is already registered, this resets it:) its credentials are cleared and it
         has to register again with the new token before it takes tasks.
       - In check mode no token is requested, and RV(runner) shows the runner as it would be
-        afterwards (RV(runner.registered=false)).
+        afterwards (C(registered) is V(false)).
     type: bool
     default: false
 notes:
