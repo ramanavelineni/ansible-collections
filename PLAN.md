@@ -23,9 +23,6 @@ along the way. Each quirk is handled inside a module and covered by a test.
       never-delete rule (it only passes `state: present`); its `uri` tasks and
       name→id maps go away.
 - [ ] Switch the homelab `harbor_config` role to the collection
-- [ ] Optional: publish to Ansible Galaxy from the release workflow (needs a
-      Galaxy API token; the `ramanavelineni` namespace is created on first
-      login with GitHub)
 
 ---
 
@@ -47,8 +44,8 @@ along the way. Each quirk is handled inside a module and covered by a test.
 | License hygiene | no GPL-licensed ansible-core code is imported, extended or copied; only its BSD-licensed `module_utils` and the Python standard library |
 | CI | `ansible-test` sanity and unit tests on every supported ansible-core version, for the collections a change touches. No live servers in CI |
 | Fixtures | API responses recorded from throwaway local servers of every supported version, one file per area |
-| Distribution | Git tags via `requirements.yml`; Galaxy optional later |
-| Workflow | feature branch and pull request for every change; squash-merge; no Co-Authored-By trailer; the owner pushes |
+| Distribution | Git tags via `requirements.yml`, with GitHub Releases for the tarballs. Not published to Ansible Galaxy |
+| Workflow | feature branch and pull request for every change; squash-merge; no Co-Authored-By trailer; the owner pushes. `main` takes changes only through a pull request whose "CI result" check passed |
 
 Apache-2.0 fits with ansible-core: the modules only import
 `ansible.module_utils.basic`, `ansible.module_utils.urls` and similar, which
