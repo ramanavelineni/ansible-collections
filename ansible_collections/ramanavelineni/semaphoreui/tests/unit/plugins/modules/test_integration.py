@@ -140,4 +140,6 @@ def test_integration_info(server, project, run_module):
     assert info['auth_method'] == 'token' and info['auth_key'] == 'deploy'
     assert [m['name'] for m in info['matchers']] == ['main']
     assert info['webhook_urls'] == [a['url'] for a in server.fixtures['integration_aliases_one']['body']]
-    assert path
+    # Matchers, values and aliases are read once each; the integration itself comes from the list.
+    assert [len(server.calls('GET', path + sub)) for sub in ('/matchers', '/values', '/aliases')] == [1, 1, 1]
+    assert server.calls('GET', path) == []
