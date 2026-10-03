@@ -21,9 +21,16 @@ attributes:
     support: full
   diff_mode:
     support: none
+seealso:
+  - module: ramanavelineni.harbor.configuration_info
+    description: Read Harbor's system configuration.
 '''
 
 EXAMPLES = r'''
+# The connection options (url, username, password) can be set once instead of on every task, with
+# module_defaults for the group/ramanavelineni.harbor.harbor action group, or with the HARBOR_URL,
+# HARBOR_USERNAME and HARBOR_PASSWORD environment variables.
+
 - name: Read server information
   ramanavelineni.harbor.info:
     url: https://harbor.example.com
@@ -52,6 +59,13 @@ info:
   description: The full C(/api/v2.0/systeminfo) response.
   returned: always
   type: dict
+  sample:
+    harbor_version: v2.15.2-a97e7b83
+    auth_mode: db_auth
+    project_creation_restriction: everyone
+    self_registration: false
+    has_ca_root: false
+    registry_url: harbor.example.com
 '''
 
 from ansible.module_utils.basic import AnsibleModule

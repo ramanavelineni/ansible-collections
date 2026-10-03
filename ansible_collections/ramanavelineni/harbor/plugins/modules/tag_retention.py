@@ -94,9 +94,20 @@ options:
 notes:
   - Harbor accepts rules with an unknown template or a missing number and stores them as they are,
     so the module checks them before sending anything.
+seealso:
+  - module: ramanavelineni.harbor.tag_retention_info
+    description: Read a project's tag retention policy.
+  - module: ramanavelineni.harbor.project
+    description: Create the project the policy belongs to.
+  - module: ramanavelineni.harbor.tag_immutability
+    description: Manage a project's tag immutability rules.
 '''
 
 EXAMPLES = r'''
+# The connection options (url, username, password) can be set once instead of on every task, with
+# module_defaults for the group/ramanavelineni.harbor.harbor action group, or with the HARBOR_URL,
+# HARBOR_USERNAME and HARBOR_PASSWORD environment variables.
+
 - name: Keep the 10 newest artifacts of every repository, pruned nightly
   ramanavelineni.harbor.tag_retention:
     url: https://harbor.example.com
@@ -141,6 +152,45 @@ tag_retention:
         tags_decoration: matches
         untagged: false
         disabled: false
+  contains:
+    id:
+      description: Harbor's id of the policy.
+      type: int
+    project:
+      description: Name of the project the policy belongs to.
+      type: str
+    schedule:
+      description: Six-field cron expression the policy runs on, empty without a schedule.
+      type: str
+    rules:
+      description: The retention rules, in order.
+      type: list
+      elements: dict
+      contains:
+        template:
+          description: What the rule keeps, as Harbor's rule template, for example V(latestPushedK).
+          type: str
+        value:
+          description: The count or number of days the template takes, V(null) for V(always).
+          type: int
+        repositories:
+          description: Doublestar pattern for the repositories the rule applies to.
+          type: str
+        repositories_decoration:
+          description: V(matches) or V(excludes).
+          type: str
+        tags:
+          description: Doublestar pattern for the tags the rule applies to.
+          type: str
+        tags_decoration:
+          description: V(matches) or V(excludes).
+          type: str
+        untagged:
+          description: Whether untagged artifacts count as matching the tag pattern too.
+          type: bool
+        disabled:
+          description: Whether the rule is switched off.
+          type: bool
 '''
 
 from ansible.module_utils.basic import AnsibleModule

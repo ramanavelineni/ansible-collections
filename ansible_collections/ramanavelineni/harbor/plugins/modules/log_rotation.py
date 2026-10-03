@@ -57,9 +57,16 @@ notes:
     O(schedule) in the same task).
   - If Harbor reports a schedule of a type other than the choices of O(schedule), the module fails
     when it would have to write that schedule back. Set O(schedule) to replace it.
+seealso:
+  - module: ramanavelineni.harbor.log_rotation_info
+    description: Read the audit log rotation schedule and recent purges.
 '''
 
 EXAMPLES = r'''
+# The connection options (url, username, password) are left out of these examples. Set them once with
+# module_defaults for the group/ramanavelineni.harbor.harbor action group, or with the HARBOR_URL,
+# HARBOR_USERNAME and HARBOR_PASSWORD environment variables.
+
 - name: Every day at 06:00, purge artifact events older than 30 days
   ramanavelineni.harbor.log_rotation:
     schedule: custom
@@ -73,6 +80,13 @@ log_rotation:
   description: The schedule after the change, or as it would be in check mode.
   returned: always
   type: dict
+  sample:
+    schedule: custom
+    cron: "0 0 6 * * *"
+    next_scheduled_time: "2026-09-28T06:00:00.000Z"
+    audit_retention_hour: 720
+    include_event_types: [create_artifact, delete_artifact, pull_artifact]
+    dry_run: false
   contains:
     schedule:
       description: V(none), V(hourly), V(daily), V(weekly) or V(custom).
@@ -93,13 +107,6 @@ log_rotation:
     dry_run:
       description: Whether the purge only logs.
       type: bool
-  sample:
-    schedule: custom
-    cron: "0 0 6 * * *"
-    next_scheduled_time: "2026-09-28T06:00:00.000Z"
-    audit_retention_hour: 720
-    include_event_types: [create_artifact, delete_artifact, pull_artifact]
-    dry_run: false
 '''
 
 from ansible.module_utils.basic import AnsibleModule

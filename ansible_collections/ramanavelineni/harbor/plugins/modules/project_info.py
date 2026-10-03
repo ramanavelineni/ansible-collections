@@ -26,9 +26,16 @@ options:
     description:
       - Only return projects with this name.
     type: str
+seealso:
+  - module: ramanavelineni.harbor.project
+    description: Manage projects.
 '''
 
 EXAMPLES = r'''
+# The connection options (url, username, password) can be set once instead of on every task, with
+# module_defaults for the group/ramanavelineni.harbor.harbor action group, or with the HARBOR_URL,
+# HARBOR_USERNAME and HARBOR_PASSWORD environment variables.
+
 - name: List every project
   ramanavelineni.harbor.project_info:
     url: https://harbor.example.com
@@ -53,6 +60,23 @@ projects:
       quota_gb: -1
       repo_count: 0
   contains:
+    project_id:
+      description: Harbor's id of the project.
+      type: int
+    name:
+      description: Name of the project.
+      type: str
+    public:
+      description: Whether the project can be pulled from without logging in.
+      type: bool
+    metadata:
+      description:
+        - The project's other metadata as Harbor stores it, with every value a string.
+        - C(public) is not repeated here.
+      type: dict
+    registry_id:
+      description: Id of the registry a proxy-cache project is bound to, V(null) for any other project.
+      type: int
     proxy_registry:
       description:
         - Name of the registry a proxy-cache project is bound to.
@@ -62,6 +86,9 @@ projects:
       description:
         - Storage quota in GiB, V(-1) for unlimited.
         - V(null) when the login user is not an administrator and may not read the quotas.
+      type: int
+    repo_count:
+      description: Number of repositories in the project.
       type: int
 '''
 

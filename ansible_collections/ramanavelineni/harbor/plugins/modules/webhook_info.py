@@ -29,9 +29,16 @@ options:
     description:
       - Only return webhooks with this name.
     type: str
+seealso:
+  - module: ramanavelineni.harbor.webhook
+    description: Manage a project's webhooks.
 '''
 
 EXAMPLES = r'''
+# The connection options (url, username, password) can be set once instead of on every task, with
+# module_defaults for the group/ramanavelineni.harbor.harbor action group, or with the HARBOR_URL,
+# HARBOR_USERNAME and HARBOR_PASSWORD environment variables.
+
 - name: List the webhooks of the apps project
   ramanavelineni.harbor.webhook_info:
     url: https://harbor.example.com
@@ -62,6 +69,47 @@ webhooks:
       skip_cert_verify: false
       payload_format: Default
       endpoints: 1
+  contains:
+    id:
+      description: Harbor's id of the webhook.
+      type: int
+    name:
+      description: Name of the webhook.
+      type: str
+    project:
+      description: Name of the project the webhook belongs to.
+      type: str
+    project_id:
+      description: Harbor's id of that project.
+      type: int
+    description:
+      description: Description, empty when there is none.
+      type: str
+    enabled:
+      description: Whether the webhook sends notifications.
+      type: bool
+    event_types:
+      description: The events that trigger a notification, sorted.
+      type: list
+      elements: str
+    notify_type:
+      description: V(http) or V(slack).
+      type: str
+    address:
+      description: The endpoint URL the notifications are sent to.
+      type: str
+    auth_header_set:
+      description: Whether an auth header is stored. The header itself is never returned.
+      type: bool
+    skip_cert_verify:
+      description: Whether notifications are sent without verifying the endpoint's TLS certificate.
+      type: bool
+    payload_format:
+      description: Format of the V(http) notification body, V(null) when Harbor reports none.
+      type: str
+    endpoints:
+      description: Number of endpoints the webhook has. The target fields above describe the first one.
+      type: int
 '''
 
 from ansible.module_utils.basic import AnsibleModule

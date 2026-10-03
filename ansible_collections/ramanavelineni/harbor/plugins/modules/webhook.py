@@ -92,9 +92,18 @@ notes:
     rather than guess when a webhook made through the API has several endpoints and a target option
     is set.
   - Harbor resets a webhook's creation time on every update.
+seealso:
+  - module: ramanavelineni.harbor.webhook_info
+    description: List a project's webhooks.
+  - module: ramanavelineni.harbor.project
+    description: Create the project the webhook belongs to.
 '''
 
 EXAMPLES = r'''
+# The connection options (url, username, password) can be set once instead of on every task, with
+# module_defaults for the group/ramanavelineni.harbor.harbor action group, or with the HARBOR_URL,
+# HARBOR_USERNAME and HARBOR_PASSWORD environment variables.
+
 - name: Tell CI about pushed and deleted artifacts
   ramanavelineni.harbor.webhook:
     url: https://harbor.example.com
@@ -139,6 +148,44 @@ webhook:
     auth_header_set: true
     skip_cert_verify: false
     payload_format: Default
+  contains:
+    id:
+      description: Harbor's id of the webhook.
+      type: int
+    name:
+      description: Name of the webhook.
+      type: str
+    project:
+      description: Name of the project the webhook belongs to.
+      type: str
+    project_id:
+      description: Harbor's id of that project.
+      type: int
+    description:
+      description: Description, empty when there is none.
+      type: str
+    enabled:
+      description: Whether the webhook sends notifications.
+      type: bool
+    event_types:
+      description: The events that trigger a notification, sorted.
+      type: list
+      elements: str
+    notify_type:
+      description: V(http) or V(slack).
+      type: str
+    address:
+      description: The endpoint URL the notifications are sent to.
+      type: str
+    auth_header_set:
+      description: Whether an auth header is stored. The header itself is never returned.
+      type: bool
+    skip_cert_verify:
+      description: Whether notifications are sent without verifying the endpoint's TLS certificate.
+      type: bool
+    payload_format:
+      description: Format of the V(http) notification body, V(null) when Harbor reports none.
+      type: str
 '''
 
 from ansible.module_utils.basic import AnsibleModule

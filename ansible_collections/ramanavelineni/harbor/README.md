@@ -130,6 +130,13 @@ environment variables:
 | `use_proxy` | `HARBOR_USE_PROXY` |
 | `warn_untested_version` | `HARBOR_WARN_UNTESTED_VERSION` |
 
+The modules call Harbor's API from the host the task runs on. That is usually
+the controller (`hosts: localhost`, as in the example, or `delegate_to:
+localhost`), but any host that can reach `url` works. File options such as
+`ca_path` and `client_cert` are read on that host. The examples in the module
+documentation mostly leave the connection options out; they expect the action
+group or the environment variables above.
+
 For a server that asks for a TLS client certificate (mutual TLS), `client_cert`
 is the PEM file with the certificate and `client_key` the one with its key;
 `client_key` isn't needed when the certificate file holds the key too. Both are
@@ -145,8 +152,10 @@ as an anonymous user instead, so every module checks the login first. Harbor
 also locks a user for 1.5 s after a failed login. A module that hits the lock
 waits and tries once more, and it checks the login again before it takes a
 project for missing, since Harbor leaves private projects out of an anonymous
-answer. Automation that shares one account with something else that might fail
-to log in is still better off with its own account.
+answer. If Harbor keeps answering anonymously, the task fails and says that
+Harbor stopped accepting the credentials, or that another client keeps failing
+to log in as the same user. Automation that shares one account with something
+else that might fail to log in is still better off with its own account.
 
 ## Good to know
 

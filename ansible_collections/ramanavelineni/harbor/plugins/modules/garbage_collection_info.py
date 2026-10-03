@@ -26,9 +26,16 @@ options:
       - Harbor returns at most 100 runs per request; more than that are read in several requests.
     type: int
     default: 10
+seealso:
+  - module: ramanavelineni.harbor.garbage_collection
+    description: Manage the garbage collection schedule.
 '''
 
 EXAMPLES = r'''
+# The connection options (url, username, password) are left out of these examples. Set them once with
+# module_defaults for the group/ramanavelineni.harbor.harbor action group, or with the HARBOR_URL,
+# HARBOR_USERNAME and HARBOR_PASSWORD environment variables.
+
 - name: Last garbage collection runs
   ramanavelineni.harbor.garbage_collection_info:
     runs: 3
@@ -47,6 +54,25 @@ garbage_collection:
     delete_untagged: true
     workers: 2
     delete_tag: false
+  contains:
+    schedule:
+      description: V(none), V(hourly), V(daily), V(weekly) or V(custom).
+      type: str
+    cron:
+      description: The cron expression, empty without a schedule.
+      type: str
+    next_scheduled_time:
+      description: When Harbor runs it next, as Harbor reports it.
+      type: str
+    delete_untagged:
+      description: Whether untagged artifacts are deleted too.
+      type: bool
+    workers:
+      description: Number of workers.
+      type: int
+    delete_tag:
+      description: Whether tags of deleted artifacts are deleted too (Harbor 2.15 and newer).
+      type: bool
 runs:
   description: The most recent runs, newest first.
   returned: always
@@ -59,6 +85,25 @@ runs:
       parameters: {delete_untagged: true, workers: 2}
       creation_time: "2026-09-27T04:00:00.000Z"
       update_time: "2026-09-27T04:00:12.000Z"
+  contains:
+    id:
+      description: Harbor's id of the run.
+      type: int
+    status:
+      description: Status of the run as Harbor reports it, for example V(Success).
+      type: str
+    trigger:
+      description: What started the run as Harbor reports it, for example V(SCHEDULE).
+      type: str
+    parameters:
+      description: The settings the garbage collection ran with, as Harbor recorded them.
+      type: dict
+    creation_time:
+      description: When the run was created.
+      type: str
+    update_time:
+      description: When the run was last updated.
+      type: str
 '''
 
 from ansible.module_utils.basic import AnsibleModule

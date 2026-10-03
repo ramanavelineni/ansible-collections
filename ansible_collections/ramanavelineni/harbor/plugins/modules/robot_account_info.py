@@ -29,9 +29,16 @@ options:
       - Only return the robot account with this name (without the robot name prefix and, for a
         project robot account, without the C(<project>+) part).
     type: str
+seealso:
+  - module: ramanavelineni.harbor.robot_account
+    description: Manage robot accounts.
 '''
 
 EXAMPLES = r'''
+# The connection options (url, username, password) are left out of these examples. Set them once with
+# module_defaults for the group/ramanavelineni.harbor.harbor action group, or with the HARBOR_URL,
+# HARBOR_USERNAME and HARBOR_PASSWORD environment variables.
+
 - name: System robot accounts
   ramanavelineni.harbor.robot_account_info:
   register: robots
@@ -63,6 +70,49 @@ robot_accounts:
           namespace: "*"
           access:
             - {resource: repository, action: pull}
+  contains:
+    id:
+      description: Harbor's id of the robot account.
+      type: int
+    name:
+      description: Name without the robot name prefix and, for a project robot account, without the project part.
+      type: str
+    full_name:
+      description: Name as Harbor stores it and as it is used to log in, for example C(robot$puller).
+      type: str
+    level:
+      description: V(system) or V(project).
+      type: str
+    project:
+      description: Name of the project a V(project) robot account belongs to, V(null) for a V(system) one.
+      type: str
+    description:
+      description: Description, empty when there is none.
+      type: str
+    duration:
+      description: Days until the robot account expires, counted from its creation, or V(-1) for never.
+      type: int
+    expires_at:
+      description: When the robot account expires, in seconds since the epoch, or V(-1) for never. V(null) in check mode for a new one.
+      type: int
+    disable:
+      description: Whether the robot account is disabled.
+      type: bool
+    permissions:
+      description: What the robot account may do, in a fixed order.
+      type: list
+      elements: dict
+      contains:
+        kind:
+          description: V(project) or V(system).
+          type: str
+        namespace:
+          description: Project name, C(*) for every project, or C(/) for V(system).
+          type: str
+        access:
+          description: The allowed actions, each with a C(resource) and an C(action).
+          type: list
+          elements: dict
 '''
 
 from ansible.module_utils.basic import AnsibleModule

@@ -105,4 +105,13 @@ notes:
     O(warn_untested_version=false).
   - An option that needs a newer Harbor than the server reports fails the task. When the reported version
     cannot be read, the option is sent and Harbor decides.
+  - The module calls the Harbor API from the host the task runs on. That is usually the controller, in a
+    play on C(localhost) or with C(delegate_to) set to C(localhost); any host that can reach O(url) works.
+    File options such as O(ca_path) and O(client_cert) are read on that host.
+  - Harbor answers a request with wrong credentials as an anonymous user instead of refusing it, and does
+    the same for 1.5 seconds after another client failed to log in as O(username). So the module checks the
+    login first, and checks it again before it takes a project for missing or returns a list of projects
+    that may be incomplete. If Harbor still answers anonymously, the task fails saying that Harbor stopped
+    accepting the credentials during the run, or that it answered as for an anonymous user each time the
+    projects were read.
 '''

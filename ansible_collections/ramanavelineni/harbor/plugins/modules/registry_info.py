@@ -24,9 +24,16 @@ options:
     description:
       - Only return endpoints with this name.
     type: str
+seealso:
+  - module: ramanavelineni.harbor.registry
+    description: Manage registry endpoints.
 '''
 
 EXAMPLES = r'''
+# The connection options (url, username, password) can be set once instead of on every task, with
+# module_defaults for the group/ramanavelineni.harbor.harbor action group, or with the HARBOR_URL,
+# HARBOR_USERNAME and HARBOR_PASSWORD environment variables.
+
 - name: List the registry endpoints
   ramanavelineni.harbor.registry_info:
     url: https://harbor.example.com
@@ -53,6 +60,40 @@ registries:
       has_secret: false
       ca_certificate: ""
       status: healthy
+  contains:
+    id:
+      description: Harbor's id of the endpoint.
+      type: int
+    name:
+      description: Name of the endpoint.
+      type: str
+    type:
+      description: Provider of the endpoint, for example V(docker-hub) or V(harbor).
+      type: str
+    url:
+      description: URL of the endpoint, without a trailing slash.
+      type: str
+    description:
+      description: Description, empty when there is none.
+      type: str
+    insecure:
+      description: Whether Harbor skips verifying the endpoint's TLS certificate.
+      type: bool
+    credential_type:
+      description: How Harbor authenticates to the endpoint, for example V(basic). Empty when no credentials are stored.
+      type: str
+    access_key:
+      description: User name or access key id Harbor logs in with, empty when there is none.
+      type: str
+    has_secret:
+      description: Whether a secret is stored. The secret itself is never returned.
+      type: bool
+    ca_certificate:
+      description: PEM-encoded CA certificate Harbor verifies the endpoint with, empty when there is none.
+      type: str
+    status:
+      description: Result of Harbor's check of the endpoint, for example V(healthy) or V(unhealthy).
+      type: str
 '''
 
 from ansible.module_utils.basic import AnsibleModule

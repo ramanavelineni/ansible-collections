@@ -57,9 +57,20 @@ options:
     description:
       - Whether the rule is switched off. Defaults to V(false) for a new rule.
     type: bool
+seealso:
+  - module: ramanavelineni.harbor.tag_immutability_info
+    description: List a project's tag immutability rules.
+  - module: ramanavelineni.harbor.project
+    description: Create the project the rule belongs to.
+  - module: ramanavelineni.harbor.tag_retention
+    description: Manage a project's tag retention policy.
 '''
 
 EXAMPLES = r'''
+# The connection options (url, username, password) can be set once instead of on every task, with
+# module_defaults for the group/ramanavelineni.harbor.harbor action group, or with the HARBOR_URL,
+# HARBOR_USERNAME and HARBOR_PASSWORD environment variables.
+
 - name: Release tags can't be overwritten
   ramanavelineni.harbor.tag_immutability:
     url: https://harbor.example.com
@@ -93,6 +104,28 @@ tag_immutability:
     tags: "v*"
     tags_decoration: matches
     disabled: false
+  contains:
+    id:
+      description: Harbor's id of the rule.
+      type: int
+    project:
+      description: Name of the project the rule belongs to.
+      type: str
+    repositories:
+      description: Doublestar pattern for the repositories the rule applies to.
+      type: str
+    repositories_decoration:
+      description: V(matches) or V(excludes).
+      type: str
+    tags:
+      description: Doublestar pattern for the tags the rule applies to.
+      type: str
+    tags_decoration:
+      description: V(matches) or V(excludes).
+      type: str
+    disabled:
+      description: Whether the rule is switched off.
+      type: bool
 '''
 
 from ansible.module_utils.basic import AnsibleModule

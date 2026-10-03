@@ -37,9 +37,16 @@ options:
 notes:
   - Harbor needs a default vulnerability scanner (such as Trivy) for this. Without one it refuses
     every Scan All request, reading the schedule included, and the module fails saying so.
+seealso:
+  - module: ramanavelineni.harbor.scan_all_info
+    description: Read the Scan All schedule and the metrics of the latest run.
 '''
 
 EXAMPLES = r'''
+# The connection options (url, username, password) are left out of these examples. Set them once with
+# module_defaults for the group/ramanavelineni.harbor.harbor action group, or with the HARBOR_URL,
+# HARBOR_USERNAME and HARBOR_PASSWORD environment variables.
+
 - name: Scan everything on Sundays at 05:00
   ramanavelineni.harbor.scan_all:
     schedule: custom
@@ -51,6 +58,10 @@ scan_all:
   description: The schedule after the change, or as it would be in check mode.
   returned: always
   type: dict
+  sample:
+    schedule: custom
+    cron: "0 0 5 * * 0"
+    next_scheduled_time: null
   contains:
     schedule:
       description: V(none), V(hourly), V(daily), V(weekly) or V(custom).
@@ -61,10 +72,6 @@ scan_all:
     next_scheduled_time:
       description: Always null; Harbor doesn't report it for this schedule.
       type: str
-  sample:
-    schedule: custom
-    cron: "0 0 5 * * 0"
-    next_scheduled_time: null
 '''
 
 from ansible.module_utils.basic import AnsibleModule
