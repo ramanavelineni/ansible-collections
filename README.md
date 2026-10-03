@@ -112,7 +112,7 @@ looks up its id.
 collections:
   - name: https://github.com/ramanavelineni/ansible-collections.git#/ansible_collections/ramanavelineni/semaphoreui
     type: git
-    version: semaphoreui-v0.2.0
+    version: semaphoreui-v0.2.1
   - name: https://github.com/ramanavelineni/ansible-collections.git#/ansible_collections/ramanavelineni/harbor
     type: git
     version: harbor-v0.2.0

@@ -1,8 +1,0 @@
----
-bugfixes:
-  - >-
-    integration, inventory, key_store, repository, runner, schedule, team_member, template, variable_group,
-    view - check mode no longer fails when the project, or another object the task refers to by name, does not
-    exist yet. An earlier task of the same run may create it, so the task is reported as changed with a warning
-    and an empty result. Outside check mode it fails as before. This makes ``--check`` usable for a play that
-    builds a project from nothing.
