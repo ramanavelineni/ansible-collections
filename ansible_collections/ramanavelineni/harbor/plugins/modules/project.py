@@ -224,6 +224,9 @@ def ensure(module, client):
 
     project_id = current['project_id']
     quota = quota_of(client, project_id)
+    if storage is not None and quota is None:
+        raise ValueError('Project %r has no quota in Harbor, so quota_gb cannot be set. Remove quota_gb, or '
+                         'check the project\'s quota in Harbor.' % params['name'])
     before = view(current, quota, registries)
     if params['proxy_registry'] is not None and before['registry_id'] != registry_id:
         raise ValueError(

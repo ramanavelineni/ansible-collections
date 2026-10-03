@@ -51,8 +51,9 @@ options:
     description:
       - How many times to retry a request that failed without an HTTP response (connection reset, timeout)
         or with HTTP 502, 503 or 504.
-      - Only reads and updates are retried. Creates are never retried, because the server may already
-        have acted and a retry would create a duplicate.
+      - Reads, updates and the login are retried. Creates, deletes and other requests that act at once
+        (setting a password, asking for a runner token) are never retried, because the server may already
+        have acted.
     type: int
     default: 3
   retry_delay:

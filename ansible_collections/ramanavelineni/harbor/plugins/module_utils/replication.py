@@ -7,7 +7,6 @@
 REGISTRY_TYPES = ('ali-acr', 'aws-ecr', 'azure-acr', 'docker-hub', 'docker-registry', 'github-ghcr',
                   'google-gcr', 'harbor', 'huawei-SWR', 'jfrog-artifactory', 'tencent-tcr', 'volcengine-cr')
 
-TRIGGER_TYPES = ('manual', 'scheduled', 'event_based')
 FILTER_TYPES = ('name', 'tag', 'label', 'resource')
 DECORATIONS = ('matches', 'excludes')
 RESOURCE_VALUES = ('image', 'artifact')

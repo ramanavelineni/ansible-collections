@@ -47,8 +47,10 @@ options:
     description:
       - How many times to retry a request that failed without an HTTP response (connection reset, timeout)
         or with HTTP 502, 503 or 504.
-      - Only reads and updates are retried. Creates are never retried, because the server may already
-        have acted and a retry would create a duplicate.
+      - Reads and updates are retried. Creates and deletes are never retried, because the server may already
+        have acted.
+      - Separately, any request answered with HTTP 401 is sent once more after 2 seconds, because Harbor
+        answers 401 while a user is locked after a failed login.
     type: int
     default: 3
   retry_delay:
