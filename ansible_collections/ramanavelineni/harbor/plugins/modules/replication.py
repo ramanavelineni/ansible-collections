@@ -143,6 +143,8 @@ replication:
   description:
     - The rule after the change, or as it would be in check mode, with endpoint names. The local
       Harbor side is null.
+    - After a change it is read back from Harbor, so it shows what Harbor stored. If that differs from what
+      the task sent, the module warns, because the next run will then report a change again.
     - Empty after a deletion.
   returned: always
   type: dict
@@ -175,6 +177,7 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     harbor_argument_spec,
     id_from_location,
     run_module,
+    warn_if_stored_differently,
 )
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.replication import (
     filters_key,
@@ -283,6 +286,11 @@ def ensure(module, client):
         # The update replaces the whole rule (omitted fields become empty and
         # dest_namespace_replace_count -1), so every field goes back.
         client.put('/replication/policies/%d' % current['id'], build_body(after, registry_ids))
+        # Read it back: the result is what Harbor stored, which is what the
+        # next run compares with.
+        after = view(client.get('/replication/policies/%d' % current['id']))
+        warn_if_stored_differently(module, 'replication rule %r' % params['name'],
+                                   [f for f in changed if differs(f, desired[f], after.get(f))])
     return dict(changed=True, replication=after, diff=dict(before=before, after=after))
 
 

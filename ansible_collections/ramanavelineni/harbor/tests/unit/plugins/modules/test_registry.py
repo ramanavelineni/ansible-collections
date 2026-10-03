@@ -18,6 +18,17 @@ def aid(server):
     return server.fixtures['registry_get_with_credential']['body']['id']
 
 
+def stored(server, fixture='registry_get_updated', **fields):
+    """A recorded single-registry answer, for the read after an update.
+
+    With `fields`, hand-edited: those fields are written into the recorded body,
+    because no update with that outcome was recorded.
+    """
+    answer = server.response(fixture)
+    answer['body'].update(fields)
+    return answer
+
+
 def test_create(server, run_module):
     server.route('GET', '/registries', 'registry_list_before')
     server.route('POST', '/registries', 'registry_create')
@@ -75,9 +86,12 @@ def test_no_change_with_trailing_slash(server, run_module):
 def test_update_sends_only_changed_fields(server, run_module):
     server.route('GET', '/registries', 'registry_list')
     server.route('PUT', '/registries/%d' % rid(server), 'registry_update')
+    server.route('GET', '/registries/%d' % rid(server), 'registry_get_updated')
     result = run_module(registry.main, dict(name='rr-fixtures-self', description='updated'))
     assert result['changed'] is True
     assert result['diff']['before']['description'] == ''
+    assert result['registry']['description'] == 'updated'
+    assert not result.get('warnings')
     assert server.calls('PUT')[0]['body'] == dict(description='updated')
 
 
@@ -99,6 +113,7 @@ def test_type_cannot_change(server, run_module):
 def test_secret_always_resent(server, run_module):
     server.route('GET', '/registries', 'registry_list')
     server.route('PUT', '/registries/%d' % aid(server), 'registry_update')
+    server.route('GET', '/registries/%d' % aid(server), 'registry_get_with_credential')
     result = run_module(registry.main, dict(name='rr-fixtures-auth', access_key='admin', access_secret='s'))
     assert result['changed'] is True and result['secret_updated'] is True
     assert server.calls('PUT')[0]['body'] == dict(access_secret='s')
@@ -123,6 +138,7 @@ def test_rejected_secret_reported(server, run_module):
 def test_ca_certificate_needs_2_15(server, run_module):
     server.route('GET', '/registries', 'registry_list')
     server.route('PUT', '/registries/%d' % rid(server), 'registry_update')
+    server.route('GET', '/registries/%d' % rid(server), stored(server, 'registry_get', ca_certificate='-----BEGIN CERTIFICATE-----\nx\n'))
     result = run_module(registry.main, dict(name='rr-fixtures-self', ca_certificate='-----BEGIN CERTIFICATE-----\nx\n'))
     if server.version == '2.14':
         assert result['failed'] is True and '2.15' in result['msg']
@@ -137,6 +153,7 @@ def test_ca_certificate_is_sent_when_the_version_cannot_be_read(server, run_modu
     server.route('GET', '/systeminfo', info)
     server.route('GET', '/registries', 'registry_list')
     server.route('PUT', '/registries/%d' % rid(server), 'registry_update')
+    server.route('GET', '/registries/%d' % rid(server), stored(server, 'registry_get', ca_certificate='-----BEGIN CERTIFICATE-----\nx\n'))
     result = run_module(registry.main, dict(name='rr-fixtures-self', ca_certificate='-----BEGIN CERTIFICATE-----\nx\n'))
     assert result.get('failed') is not True
     assert 'ca_certificate' in server.calls('PUT')[0]['body']
@@ -186,6 +203,8 @@ def test_access_key_alone_gets_a_credential_type(server, run_module):
     # rr-fixtures-self is stored without a credential.
     server.route('GET', '/registries', 'registry_list')
     server.route('PUT', '/registries/%d' % rid(server), 'registry_update')
+    server.route('GET', '/registries/%d' % rid(server),
+                 stored(server, 'registry_get', credential=dict(type='basic', access_key='bot')))
     result = run_module(registry.main, dict(name='rr-fixtures-self', access_key='bot'))
     assert result['changed'] is True and result['secret_updated'] is False
     assert server.calls('PUT')[0]['body'] == dict(access_key='bot', credential_type='basic')
@@ -195,6 +214,8 @@ def test_access_key_alone_gets_a_credential_type(server, run_module):
 def test_secret_alone_gets_a_credential_type(server, run_module):
     server.route('GET', '/registries', 'registry_list')
     server.route('PUT', '/registries/%d' % rid(server), 'registry_update')
+    server.route('GET', '/registries/%d' % rid(server),
+                 stored(server, 'registry_get', credential=dict(type='basic', access_secret='*****')))
     result = run_module(registry.main, dict(name='rr-fixtures-self', access_secret='t0p-secret'))
     assert server.calls('PUT')[0]['body'] == dict(access_secret='t0p-secret', credential_type='basic')
     assert result['registry']['credential_type'] == 'basic'
@@ -203,7 +224,10 @@ def test_secret_alone_gets_a_credential_type(server, run_module):
 def test_declared_credential_type_is_sent_with_the_key(server, run_module):
     server.route('GET', '/registries', 'registry_list')
     server.route('PUT', '/registries/%d' % rid(server), 'registry_update')
-    run_module(registry.main, dict(name='rr-fixtures-self', access_key='bot', credential_type='oauth'))
+    server.route('GET', '/registries/%d' % rid(server),
+                 stored(server, 'registry_get', credential=dict(type='oauth', access_key='bot')))
+    result = run_module(registry.main, dict(name='rr-fixtures-self', access_key='bot', credential_type='oauth'))
+    assert result['changed'] is True and not result.get('warnings')
     assert server.calls('PUT')[0]['body'] == dict(access_key='bot', credential_type='oauth')
 
 
@@ -211,7 +235,10 @@ def test_stored_credential_type_is_left_alone(server, run_module):
     # rr-fixtures-auth is stored with type basic.
     server.route('GET', '/registries', 'registry_list')
     server.route('PUT', '/registries/%d' % aid(server), 'registry_update')
-    run_module(registry.main, dict(name='rr-fixtures-auth', access_key='other'))
+    server.route('GET', '/registries/%d' % aid(server), stored(
+        server, 'registry_get_with_credential', credential=dict(type='basic', access_key='other', access_secret='*****')))
+    result = run_module(registry.main, dict(name='rr-fixtures-auth', access_key='other'))
+    assert result['changed'] is True and not result.get('warnings')
     assert server.calls('PUT')[0]['body'] == dict(access_key='other')
 
 
@@ -239,3 +266,58 @@ def test_check_mode_create_reports_what_a_real_run_does(server, run_module, extr
     assert real['secret_updated'] is sent
     assert check['secret_updated'] is sent
     assert check['changed'] is real['changed'] is True
+
+
+# -- the result of an update is read back --------------------------------------
+
+def test_update_result_is_what_harbor_stored(server, run_module):
+    # Hand-edited answer: Harbor checks the endpoint on a write and sets the
+    # status itself. No update that ended unhealthy was recorded.
+    server.route('GET', '/registries', 'registry_list')
+    server.route('PUT', '/registries/%d' % rid(server), 'registry_update')
+    server.route('GET', '/registries/%d' % rid(server), stored(server, status='unhealthy'))
+    result = run_module(registry.main, dict(name='rr-fixtures-self', description='updated'))
+    assert result['changed'] is True
+    assert result['diff']['before']['status'] == 'healthy'
+    assert result['registry']['status'] == 'unhealthy'
+    assert result['diff']['after'] == result['registry']
+    assert not result.get('warnings')
+    # One request more than before: the read after the write.
+    assert [(r['method'], r['path']) for r in server.requests[-2:]] == [
+        ('PUT', '/registries/%d' % rid(server)), ('GET', '/registries/%d' % rid(server))]
+    assert len(server.calls('GET', '/registries/%d' % rid(server))) == 1
+
+
+def test_update_warns_when_harbor_stored_something_else(server, run_module):
+    # Hand-edited answer: no recorded Harbor changes a description on store.
+    server.route('GET', '/registries', 'registry_list')
+    server.route('PUT', '/registries/%d' % rid(server), 'registry_update')
+    server.route('GET', '/registries/%d' % rid(server), stored(server, description='cut'))
+    result = run_module(registry.main, dict(name='rr-fixtures-self', description='updated'))
+    assert result['changed'] is True
+    assert result['registry']['description'] == 'cut'
+    assert len(result['warnings']) == 1
+    assert 'stored' in json.dumps(result['warnings']) and 'description' in json.dumps(result['warnings'])
+
+
+def test_update_never_returns_the_secret(server, run_module):
+    server.route('GET', '/registries', 'registry_list')
+    server.route('PUT', '/registries/%d' % aid(server), 'registry_update')
+    server.route('GET', '/registries/%d' % aid(server), 'registry_get_with_credential')
+    result = run_module(registry.main, dict(name='rr-fixtures-auth', access_secret='t0p "secret"'))
+    assert result['secret_updated'] is True
+    assert result['registry']['has_secret'] is True
+    assert 'access_secret' not in result['registry']
+    assert 't0p' not in json.dumps(result)
+
+
+def test_update_check_mode_predicts_the_real_result(server, run_module):
+    server.route('GET', '/registries', 'registry_list')
+    server.route('PUT', '/registries/%d' % rid(server), 'registry_update')
+    server.route('GET', '/registries/%d' % rid(server), 'registry_get_updated')
+    args = dict(name='rr-fixtures-self', description='updated')
+    real = run_module(registry.main, args)
+    check = run_module(registry.main, args, check_mode=True)
+    assert check['registry'] == real['registry']
+    assert check['diff'] == real['diff']
+    assert len(server.calls('PUT')) == 1

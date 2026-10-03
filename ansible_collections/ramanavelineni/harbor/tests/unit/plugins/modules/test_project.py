@@ -62,6 +62,8 @@ def test_update_sends_only_changed_keys(server, run_module):
     existing(server)
     server.route('PUT', '/projects/%d' % pid(server), 'project_update')
     server.route('PUT', '/quotas/%d' % qid(server), 'quota_update')
+    server.route('GET', '/projects/%d' % pid(server), 'project_get_updated')
+    server.route('GET', '/quotas', 'quotas_created', 'quotas_created_updated')
     result = run_module(project.main, dict(name='fixtures-core', public=True,
                                            metadata=dict(severity='high', auto_scan=True), quota_gb=-1))
     assert result['changed'] is True
@@ -69,6 +71,9 @@ def test_update_sends_only_changed_keys(server, run_module):
         metadata=dict(severity='high', public='true'))
     assert server.calls('PUT', '/quotas/%d' % qid(server))[0]['body'] == dict(hard=dict(storage=-1))
     assert result['diff']['before']['public'] is False and result['diff']['after']['public'] is True
+    assert result['project']['quota_gb'] == -1
+    assert result['project']['metadata'] == dict(severity='high', auto_scan='true')
+    assert not result.get('warnings')
 
 
 def test_update_check_mode(server, run_module):
@@ -267,12 +272,16 @@ def test_registries_only_read_when_needed(server, run_module):
 def test_non_admin_updates_metadata(server, run_module):
     as_non_admin(server)
     server.route('PUT', '/projects/%d' % pid(server), 'project_update')
+    server.route('GET', '/projects/%d' % pid(server), 'project_get_updated')
     result = run_module(project.main, dict(name='fixtures-core', public=True))
     assert result['changed'] is True
     assert result['project']['public'] is True
     assert result['project']['quota_gb'] is None
     assert server.calls('PUT')[0]['body'] == dict(metadata=dict(public='true'))
     assert server.calls('GET', '/registries') == []
+    # The refused quota read is not repeated after the write.
+    assert len(server.calls('GET', '/quotas')) == 1
+    assert not result.get('warnings')
 
 
 def test_non_admin_no_change(server, run_module):
@@ -348,3 +357,77 @@ def test_project_info_other_failures_are_reported(server, run_module):
     server.route('GET', '/quotas', dict(status=500, body=None, headers={}))
     result = run_module(project_info.main, {})
     assert result['failed'] is True and 'HTTP 500' in result['msg']
+
+
+# -- the result of an update is read back --------------------------------------
+
+def test_update_result_is_what_harbor_stored(server, run_module):
+    # Hand-edited answer: the recorded project after the update, with a repository
+    # count and a severity the module could not have computed.
+    stored = server.response('project_get_updated')
+    stored['body']['repo_count'] = 3
+    stored['body']['metadata']['severity'] = 'critical'
+    existing(server)
+    server.route('PUT', '/projects/%d' % pid(server), 'project_update')
+    server.route('GET', '/projects/%d' % pid(server), stored)
+    result = run_module(project.main, dict(name='fixtures-core', public=True, metadata=dict(severity='high')))
+    assert result['changed'] is True
+    assert result['project']['repo_count'] == 3
+    assert result['project']['metadata']['severity'] == 'critical'
+    assert result['diff']['after'] == result['project']
+    # Harbor stored another severity than was sent: the next run changes it again.
+    assert len(result['warnings']) == 1
+    assert 'severity' in json.dumps(result['warnings']) and 'public' not in json.dumps(result['warnings'])
+    # One read after the write; the quota was not written, so it is not read again.
+    assert [(r['method'], r['path']) for r in server.requests[-2:]] == [
+        ('PUT', '/projects/%d' % pid(server)), ('GET', '/projects/%d' % pid(server))]
+    assert len(server.calls('GET', '/quotas')) == 1
+
+
+def test_quota_is_read_back_after_it_is_written(server, run_module):
+    existing(server)
+    server.route('PUT', '/quotas/%d' % qid(server), 'quota_update')
+    server.route('GET', '/projects/%d' % pid(server), 'project_get')
+    server.route('GET', '/quotas', 'quotas_created', 'quotas_created_updated')
+    result = run_module(project.main, dict(name='fixtures-core', quota_gb=-1))
+    assert result['changed'] is True
+    assert result['project']['quota_gb'] == -1
+    assert not result.get('warnings')
+    assert len(server.calls('GET', '/quotas')) == 2
+    assert server.calls('PUT', '/projects/%d' % pid(server)) == []
+
+
+def test_quota_that_was_not_stored_is_reported(server, run_module):
+    # The quota read after the write still shows the old limit (the recorded
+    # answer from before the update, served twice).
+    existing(server)
+    server.route('PUT', '/quotas/%d' % qid(server), 'quota_update')
+    server.route('GET', '/projects/%d' % pid(server), 'project_get')
+    result = run_module(project.main, dict(name='fixtures-core', quota_gb=-1))
+    assert result['project']['quota_gb'] == 5
+    assert 'quota_gb' in json.dumps(result['warnings'])
+
+
+def test_update_check_mode_predicts_the_real_result(server, run_module):
+    existing(server)
+    server.route('PUT', '/projects/%d' % pid(server), 'project_update')
+    server.route('PUT', '/quotas/%d' % qid(server), 'quota_update')
+    server.route('GET', '/projects/%d' % pid(server), 'project_get_updated')
+    args = dict(name='fixtures-core', public=True, metadata=dict(severity='high', auto_scan=True), quota_gb=-1)
+    server.route('GET', '/quotas', 'quotas_created', 'quotas_created_updated')
+    real = run_module(project.main, args)
+    server.route('GET', '/quotas', 'quotas_created')
+    check = run_module(project.main, args, check_mode=True)
+    assert check['project'] == real['project']
+    assert check['diff'] == real['diff']
+
+
+def test_non_admin_update_survives_a_refused_quota_read_after_the_write(server, run_module):
+    # Hand-written: the quota is readable before the write and refused after it.
+    existing(server)
+    server.route('PUT', '/quotas/%d' % qid(server), 'quota_update')
+    server.route('GET', '/projects/%d' % pid(server), 'project_get')
+    server.route('GET', '/quotas', 'quotas_created', FORBIDDEN)
+    result = run_module(project.main, dict(name='fixtures-core', quota_gb=-1))
+    assert result['changed'] is True
+    assert result['project']['quota_gb'] == -1

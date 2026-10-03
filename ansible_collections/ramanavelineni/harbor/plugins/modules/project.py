@@ -98,6 +98,8 @@ RETURN = r'''
 project:
   description:
     - The project after the change, or as it would be in check mode.
+    - After a change it is read back from Harbor, so it shows what Harbor stored. If that differs from what
+      the task sent, the module warns, because the next run will then report a change again.
     - Empty after a deletion.
   returned: always
   type: dict
@@ -137,6 +139,7 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     project_view as view,
     run_module,
     server_minor,
+    warn_if_stored_differently,
 )
 
 BOOL_KEYS = ('auto_scan', 'auto_sbom_generation', 'prevent_vul', 'reuse_sys_cve_allowlist',
@@ -301,6 +304,17 @@ def ensure(module, client):
             client.put('/projects/%d' % project_id, dict(metadata=changed_meta))
         if quota_changed:
             client.put('/quotas/%d' % quota['id'], dict(hard=dict(storage=storage)))
+            quota = quota_of(client, project_id)
+        # Read it back: the result is what Harbor stored, which is what the
+        # next run compares with. A quota that was not written is not read again.
+        predicted = after
+        after = view(client.get('/projects/%d' % project_id), quota, registries)
+        if quota_changed and quota is None:
+            # No longer readable by this user: report what was asked for.
+            after['quota_gb'] = params['quota_gb']
+        differing = [k for k in changed_meta if k != 'public' and after['metadata'].get(k) != predicted['metadata'][k]]
+        differing += [k for k in ('public', 'quota_gb') if after[k] != predicted[k]]
+        warn_if_stored_differently(module, 'project %r' % params['name'], differing)
     return dict(changed=True, project=after, diff=dict(before=before, after=after))
 
 

@@ -118,6 +118,9 @@ registry:
   description:
     - The endpoint after the change, or as it would be in check mode. The secret is never returned;
       C(has_secret) says whether one is stored.
+    - After a change it is read back from Harbor, so it shows what Harbor stored. If that differs from what
+      the task sent, the module warns, because the next run will then report a change again.
+    - C(status) is the result of the check Harbor makes when it stores the endpoint.
     - Empty after a deletion.
   returned: always
   type: dict
@@ -147,6 +150,7 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     older_than,
     run_module,
     server_minor,
+    warn_if_stored_differently,
 )
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.replication import (
     REGISTRY_TYPES,
@@ -250,6 +254,12 @@ def ensure(module, client):
         # The update merges: only the fields in the body change. Harbor checks
         # that the endpoint is still reachable with the result.
         client.put('/registries/%d' % current['id'], body)
+        # Read it back: the status is the result of that check, and what Harbor
+        # stored is what the next run compares with.
+        predicted = after
+        after = view(client.get('/registries/%d' % current['id']))
+        warn_if_stored_differently(module, 'registry %r' % params['name'],
+                                   [f for f in set(changed) | {'credential_type'} if after[f] != predicted[f]])
     result.update(changed=True, registry=after, secret_updated=send_secret, diff=dict(before=before, after=after))
     return result
 

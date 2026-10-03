@@ -35,12 +35,32 @@ def with_policy(server):
     return server
 
 
+def without_schedule(server):
+    """Hand-edited: the recorded policy with its schedule removed. No such update was recorded."""
+    answer = server.response('tag_retention_get_updated')
+    answer['body']['trigger']['settings']['cron'] = ''
+    return answer
+
+
+def one_rule(server):
+    """Hand-edited: the recorded one-rule policy with the schedule of the recorded three-rule one.
+
+    What Harbor holds after the rules of the three-rule policy are replaced by
+    the first one. No such update was recorded.
+    """
+    answer = server.response('tag_retention_get')
+    answer['body']['trigger'] = server.response('tag_retention_get_updated')['body']['trigger']
+    return answer
+
+
 def test_create(without_policy, run_module):
     server = without_policy
     server.route('POST', '/retentions', 'tag_retention_create')
+    server.route('GET', '/retentions/%d' % rid(server), 'tag_retention_get')
     result = run_module(tag_retention.main, dict(project=PROJECT, rules=RULES[:1]))
     assert result['changed'] is True
     assert result['tag_retention']['id'] == rid(server)
+    assert not result.get('warnings')
     body = server.calls('POST', '/retentions')[0]['body']
     assert body['scope'] == dict(level='project', ref=pid(server))
     assert body['trigger'] == dict(kind='Schedule', settings=dict(cron=''))
@@ -70,8 +90,11 @@ def test_no_change(with_policy, run_module):
 def test_schedule_only_keeps_rules(with_policy, run_module):
     server = with_policy
     server.route('PUT', '/retentions/%d' % rid(server), 'tag_retention_update')
+    server.route('GET', '/retentions/%d' % rid(server), 'tag_retention_get_updated', without_schedule(server))
     result = run_module(tag_retention.main, dict(project=PROJECT, schedule=''))
     assert result['changed'] is True
+    assert result['tag_retention']['schedule'] == '' and len(result['tag_retention']['rules']) == 3
+    assert not result.get('warnings')
     body = server.calls('PUT')[0]['body']
     assert body['trigger']['settings']['cron'] == ''
     assert [r['template'] for r in body['rules']] == ['latestPushedK', 'nDaysSinceLastPull', 'always']
@@ -81,8 +104,11 @@ def test_schedule_only_keeps_rules(with_policy, run_module):
 def test_rules_replace_the_list(with_policy, run_module):
     server = with_policy
     server.route('PUT', '/retentions/%d' % rid(server), 'tag_retention_update')
+    server.route('GET', '/retentions/%d' % rid(server), 'tag_retention_get_updated', one_rule(server))
     result = run_module(tag_retention.main, dict(project=PROJECT, rules=RULES[:1]))
     assert result['changed'] is True
+    assert len(result['tag_retention']['rules']) == 1
+    assert not result.get('warnings')
     assert len(server.calls('PUT')[0]['body']['rules']) == 1
     assert result['diff']['before']['rules'] != result['diff']['after']['rules']
 
@@ -143,3 +169,65 @@ def test_info(with_policy, run_module):
 
 def test_info_without_policy(without_policy, run_module):
     assert run_module(tag_retention_info.main, dict(project=PROJECT))['tag_retention'] == {}
+
+
+# -- the result of a write is read back ----------------------------------------
+
+def test_create_result_is_what_harbor_stored(without_policy, run_module):
+    # Hand-edited answer: the recorded new policy with a rule value Harbor would
+    # have had to change on store. No such create was recorded.
+    server = without_policy
+    stored = server.response('tag_retention_get')
+    stored['body']['rules'][0]['params'] = dict(latestPushedK=5)
+    server.route('POST', '/retentions', 'tag_retention_create')
+    server.route('GET', '/retentions/%d' % rid(server), stored)
+    result = run_module(tag_retention.main, dict(project=PROJECT, rules=RULES[:1]))
+    assert result['changed'] is True
+    assert result['tag_retention']['id'] == rid(server)
+    assert result['tag_retention']['rules'][0]['value'] == 5
+    assert result['diff']['after'] == result['tag_retention']
+    assert len(result['warnings']) == 1 and 'rules' in str(result['warnings'])
+    # One request more than before: the read after the write.
+    assert [(r['method'], r['path']) for r in server.requests[-2:]] == [
+        ('POST', '/retentions'), ('GET', '/retentions/%d' % rid(server))]
+
+
+def test_create_without_a_location_finds_the_policy_through_the_project(without_policy, run_module):
+    # Hand-written create answer: Harbor's has a Location header. The project
+    # then names the new policy in its metadata (recorded).
+    server = without_policy
+    server.route('POST', '/retentions', dict(status=201, body=None, headers={}))
+    server.route('GET', '/projects/%d' % pid(server), 'tag_project_get', 'tag_project_get_with_retention')
+    server.route('GET', '/retentions/%d' % rid(server), 'tag_retention_get')
+    result = run_module(tag_retention.main, dict(project=PROJECT, rules=RULES[:1]))
+    assert result['changed'] is True
+    assert result['tag_retention']['id'] == rid(server)
+    assert len(result['tag_retention']['rules']) == 1
+
+
+def test_update_result_is_what_harbor_stored(with_policy, run_module):
+    # Hand-edited answer: the recorded policy with another schedule than was sent.
+    server = with_policy
+    stored = server.response('tag_retention_get_updated')
+    stored['body']['trigger']['settings']['cron'] = '0 0 0 * * *'
+    server.route('PUT', '/retentions/%d' % rid(server), 'tag_retention_update')
+    server.route('GET', '/retentions/%d' % rid(server), 'tag_retention_get_updated', stored)
+    result = run_module(tag_retention.main, dict(project=PROJECT, schedule='0 30 4 * * *'))
+    assert result['changed'] is True
+    assert server.calls('PUT')[0]['body']['trigger']['settings']['cron'] == '0 30 4 * * *'
+    assert result['tag_retention']['schedule'] == '0 0 0 * * *'
+    assert result['diff']['after'] == result['tag_retention']
+    assert len(result['warnings']) == 1 and 'schedule' in str(result['warnings'])
+    path = '/retentions/%d' % rid(server)
+    assert [(r['method'], r['path']) for r in server.requests[-2:]] == [('PUT', path), ('GET', path)]
+
+
+def test_check_mode_predicts_the_real_result(with_policy, run_module):
+    server = with_policy
+    server.route('PUT', '/retentions/%d' % rid(server), 'tag_retention_update')
+    server.route('GET', '/retentions/%d' % rid(server), 'tag_retention_get_updated', one_rule(server))
+    real = run_module(tag_retention.main, dict(project=PROJECT, rules=RULES[:1]))
+    server.route('GET', '/retentions/%d' % rid(server), 'tag_retention_get_updated')
+    check = run_module(tag_retention.main, dict(project=PROJECT, rules=RULES[:1]), check_mode=True)
+    assert check['tag_retention'] == real['tag_retention']
+    assert check['diff'] == real['diff']
