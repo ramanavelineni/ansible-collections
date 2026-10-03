@@ -1,8 +1,0 @@
----
-bugfixes:
-  - >-
-    project - ``quota_gb`` on a project that has no quota in Harbor now fails with an explanation, instead of
-    being ignored and reported as unchanged.
-  - >-
-    robot_account, robot_account_info - a failed read of Harbor's robot name prefix is now reported. Only a
-    user who may not read the configuration (HTTP 401 or 403) falls back to the default prefix.
