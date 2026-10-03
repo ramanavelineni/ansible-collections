@@ -141,6 +141,7 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     find_by_name,
     harbor_argument_spec,
     id_from_location,
+    older_than,
     run_module,
     server_minor,
 )
@@ -173,7 +174,7 @@ def ensure(module, client):
     params = module.params
     client.warn_if_untested()
     minor = server_minor(client)
-    if params['ca_certificate'] is not None and minor and minor < (2, 15):
+    if params['ca_certificate'] is not None and older_than(minor, (2, 15)):
         raise ValueError('ca_certificate needs Harbor 2.15; Harbor %d.%d ignores it.' % minor)
 
     current = find_by_name(client.list('/registries'), params['name'], 'registry')

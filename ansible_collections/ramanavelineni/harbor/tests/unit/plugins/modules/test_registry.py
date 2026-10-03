@@ -129,6 +129,17 @@ def test_ca_certificate_needs_2_15(server, run_module):
         assert 'ca_certificate' in server.calls('PUT')[0]['body']
 
 
+def test_ca_certificate_is_sent_when_the_version_cannot_be_read(server, run_module):
+    info = server.response('systeminfo')
+    info['body']['harbor_version'] = 'dev'
+    server.route('GET', '/systeminfo', info)
+    server.route('GET', '/registries', 'registry_list')
+    server.route('PUT', '/registries/%d' % rid(server), 'registry_update')
+    result = run_module(registry.main, dict(name='rr-fixtures-self', ca_certificate='-----BEGIN CERTIFICATE-----\nx\n'))
+    assert result.get('failed') is not True
+    assert 'ca_certificate' in server.calls('PUT')[0]['body']
+
+
 def test_delete(server, run_module):
     server.route('GET', '/registries', 'registry_list')
     server.route('DELETE', '/registries/%d' % rid(server), 'registry_delete')

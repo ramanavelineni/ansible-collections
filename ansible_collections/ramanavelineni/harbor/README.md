@@ -30,7 +30,7 @@ ansible-galaxy collection install -r requirements.yml
 ```
 
 Needs ansible-core 2.18 or newer and Harbor 2.14 or 2.15. Other versions work
-but print a warning.
+but print a warning on every task; `warn_untested_version: false` turns it off.
 
 ## Example
 
@@ -126,6 +126,7 @@ environment variables:
 | `url` | `HARBOR_URL` |
 | `username` / `password` | `HARBOR_USERNAME` / `HARBOR_PASSWORD` |
 | `validate_certs` / `ca_path` | `HARBOR_VALIDATE_CERTS` / `HARBOR_CA_PATH` |
+| `warn_untested_version` | `HARBOR_WARN_UNTESTED_VERSION` |
 
 **Wrong credentials don't always fail in Harbor.** Harbor answers many requests
 as an anonymous user instead, so every module checks the login first. Harbor

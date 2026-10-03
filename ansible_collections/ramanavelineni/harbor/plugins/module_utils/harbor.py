@@ -7,6 +7,7 @@ import base64
 import json
 import re
 import socket
+import ssl
 import time
 import traceback
 
@@ -36,6 +37,9 @@ LOGIN_LOCK_WAIT = 2
 
 # Harbor pages every list; 100 is the most a page may hold.
 PAGE_SIZE = 100
+# No list the modules read comes near this. It only stops an endpoint that
+# never runs out of pages.
+MAX_PAGES = 1000
 
 API_PREFIX = '/api/v2.0'
 
@@ -60,6 +64,8 @@ def harbor_argument_spec():
         timeout=dict(type='int', default=30),
         retries=dict(type='int', default=3),
         retry_delay=dict(type='int', default=2),
+        warn_untested_version=dict(type='bool', default=True,
+                                   fallback=(env_fallback, ['HARBOR_WARN_UNTESTED_VERSION'])),
     )
 
 
@@ -90,6 +96,36 @@ def version_is_tested(version):
     if not match:
         return False
     return '%s.%s' % (match.group(1), match.group(2)) in TESTED_VERSIONS
+
+
+def permanent_failure(error):
+    """True for a failure without an HTTP response that asking again cannot cure.
+
+    A certificate that does not verify, a ca_path that is not there and a host
+    name that does not resolve are settings to fix, not moments to wait out.
+    open_url hands on a missing CA file as it is and wraps the other two in a
+    URLError. A refused or reset connection and a timeout stay worth a retry:
+    a server that is restarting answers like that.
+    """
+    cause = error
+    if isinstance(error, URLError) and isinstance(error.reason, BaseException):
+        cause = error.reason
+    if isinstance(cause, (ssl.SSLCertVerificationError, FileNotFoundError)):
+        return True
+    if isinstance(cause, socket.gaierror):
+        # EAI_AGAIN is the resolver saying "try again later".
+        return cause.errno != socket.EAI_AGAIN
+    return False
+
+
+def older_than(minor, needed):
+    """True when the server's major.minor (see server_minor) is known and below `needed`.
+
+    A version that cannot be read (None) is not called older: the option is
+    sent and Harbor decides. A build with a version string of its own is more
+    likely new than old, and warn_if_untested() has already said so.
+    """
+    return minor is not None and minor < needed
 
 
 class HarborError(Exception):
@@ -130,6 +166,7 @@ class HarborClient(object):
         self.timeout = params['timeout']
         self.retries = max(params['retries'], 0)
         self.retry_delay = max(params['retry_delay'], 0)
+        self.warn_untested_version = params.get('warn_untested_version', True)
         credentials = '%s:%s' % (params['username'], params['password'])
         self.auth = 'Basic %s' % to_text(base64.b64encode(to_bytes(credentials, errors='surrogate_or_strict')))
         self._info = None
@@ -203,7 +240,7 @@ class HarborClient(object):
             except (URLError, socket.timeout, ConnectionError, OSError, HTTPException) as e:
                 # HTTPException: the answer was cut short or isn't HTTP at all
                 # (IncompleteRead, BadStatusLine). Neither is an OSError.
-                if attempt < attempts:
+                if attempt < attempts and not permanent_failure(e):
                     time.sleep(self.retry_delay)
                     continue
                 raise HarborError(method, url, request=sent, reason=to_text(e))
@@ -219,18 +256,36 @@ class HarborClient(object):
                                   reason='response is not JSON')
 
     def list(self, path, params=None):
-        """Every item of a paged list endpoint, following all pages."""
+        """Every item of a paged list endpoint, following all pages.
+
+        X-Total-Count decides when it is there: a server or proxy that caps the
+        page size below PAGE_SIZE answers with short pages that are not the
+        last. Without the header a short page is the last one. A page that
+        repeats the one before comes from an endpoint that ignores `page`; its
+        items are already there, so the list ends without them.
+        """
         items = []
         page = 1
+        previous = None
         while True:
             query = dict(params or {})
             query.update(page=page, page_size=PAGE_SIZE)
             chunk, headers = self.request('GET', path, params=query, expected=(200,), retry=True)
             chunk = chunk or []
-            items.extend(chunk)
-            total = headers.get('x-total-count')
-            if not chunk or len(chunk) < PAGE_SIZE or (total is not None and len(items) >= int(total)):
+            if not chunk or chunk == previous:
                 return items
+            items.extend(chunk)
+            previous = chunk
+            total = to_text(headers.get('x-total-count') or '').strip()
+            if total.isdigit():
+                if len(items) >= int(total):
+                    return items
+            elif len(chunk) < PAGE_SIZE:
+                return items
+            if page >= MAX_PAGES:
+                raise ValueError(
+                    'GET %s%s%s did not end after %d pages. Stopping instead of reading it for ever.'
+                    % (self.url, API_PREFIX, path, MAX_PAGES))
             page += 1
 
     # -- server ------------------------------------------------------------
@@ -263,11 +318,14 @@ class HarborClient(object):
                 % (self.module.params['username'], self.url, LOGIN_LOCK_WAIT))
 
     def warn_if_untested(self):
+        if not self.warn_untested_version:
+            return
         version = self.info().get('harbor_version', '')
         if not version_is_tested(version):
             self.module.warn(
                 'Harbor reports version %r, which this collection has not been tested with '
-                '(tested: %s). Continuing.' % (version, ', '.join(TESTED_VERSIONS)))
+                '(tested: %s). Continuing. Set warn_untested_version to false to silence this.'
+                % (version, ', '.join(TESTED_VERSIONS)))
 
 
 def server_minor(client):
