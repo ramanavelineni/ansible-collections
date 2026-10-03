@@ -287,4 +287,3 @@ def test_ca_path_option_wins_over_the_environment(server, run_module, monkeypatc
     monkeypatch.setenv('SEMAPHORE_CA_PATH', '/etc/ssl/from-env.pem')
     run_module(info.main, dict(ca_path='/etc/ssl/step-root.pem'))
     assert all(r['kwargs']['ca_path'] == '/etc/ssl/step-root.pem' for r in server.requests)
-
