@@ -64,9 +64,12 @@ options:
     type: str
   credential_type:
     description:
-      - How Harbor authenticates to the endpoint, for example V(basic).
-      - Defaults to V(basic) when O(access_key) is set on a new endpoint.
+      - How Harbor authenticates to the endpoint. V(basic) sends O(access_key) and O(access_secret) as a user
+        name and password, V(oauth) as an OAuth client.
+      - Defaults to V(basic) when O(access_key) or O(access_secret) is set and the endpoint has no
+        credential type yet.
     type: str
+    choices: [basic, oauth]
   access_key:
     description:
       - User name, access key id or similar, depending on O(type).
@@ -237,9 +240,11 @@ def ensure(module, client):
     if send_secret:
         body['access_secret'] = params['access_secret']
         after['has_secret'] = bool(params['access_secret'])
-        if 'credential_type' not in body and not before['credential_type']:
-            body['credential_type'] = params['credential_type'] or 'basic'
-            after['credential_type'] = body['credential_type']
+    # A key or secret without a type is stored with an empty one, which Harbor
+    # cannot log in with.
+    if (send_secret or body.get('access_key')) and 'credential_type' not in body and not before['credential_type']:
+        body['credential_type'] = params['credential_type'] or 'basic'
+        after['credential_type'] = body['credential_type']
     if not module.check_mode:
         # The update merges: only the fields in the body change. Harbor checks
         # that the endpoint is still reachable with the result.
@@ -258,7 +263,7 @@ def main():
         description=dict(type='str'),
         insecure=dict(type='bool'),
         ca_certificate=dict(type='str'),
-        credential_type=dict(type='str'),
+        credential_type=dict(type='str', choices=['basic', 'oauth']),
         access_key=dict(type='str', no_log=False),
         access_secret=dict(type='str', no_log=True),
         update_secret=dict(type='str', default='always', choices=['always', 'on_create'], no_log=False),

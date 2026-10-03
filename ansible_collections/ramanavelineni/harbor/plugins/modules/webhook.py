@@ -51,10 +51,14 @@ options:
     description:
       - The events that trigger a notification. Required to create a webhook.
       - Compared as a set; the order does not matter.
+      - Harbor 2.14 and 2.15 offer V(PUSH_ARTIFACT), V(PULL_ARTIFACT), V(DELETE_ARTIFACT), V(QUOTA_EXCEED),
+        V(QUOTA_WARNING), V(SCANNING_FAILED), V(SCANNING_STOPPED), V(SCANNING_COMPLETED), V(REPLICATION) and
+        V(TAG_RETENTION).
+      - Any other event is checked against the events the server itself offers for the project, so one a newer
+        Harbor adds can be used. An event the server does not offer fails the task; in check mode it is a
+        warning instead.
     type: list
     elements: str
-    choices: [PUSH_ARTIFACT, PULL_ARTIFACT, DELETE_ARTIFACT, QUOTA_EXCEED, QUOTA_WARNING, SCANNING_FAILED,
-              SCANNING_STOPPED, SCANNING_COMPLETED, REPLICATION, TAG_RETENTION]
   notify_type:
     description:
       - V(http) posts the event as JSON to O(address); V(slack) posts a message to a Slack incoming
@@ -137,6 +141,7 @@ webhook:
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor import (
+    HarborError,
     find_by_name,
     harbor_argument_spec,
     id_from_location,
@@ -144,6 +149,8 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     webhook_view as view,
 )
 
+# The events Harbor 2.14 and 2.15 offer (GET /projects/<id>/webhook/events).
+# These are accepted without asking the server.
 EVENT_TYPES = ['PUSH_ARTIFACT', 'PULL_ARTIFACT', 'DELETE_ARTIFACT', 'QUOTA_EXCEED', 'QUOTA_WARNING', 'SCANNING_FAILED',
                'SCANNING_STOPPED', 'SCANNING_COMPLETED', 'REPLICATION', 'TAG_RETENTION']
 TARGET_OPTIONS = ('notify_type', 'address', 'auth_header', 'skip_cert_verify', 'payload_format')
@@ -154,6 +161,32 @@ def resolve_project(client, name):
     if project is None:
         raise ValueError('Project %r does not exist, or the user this module logs in as cannot see it.' % name)
     return project['project_id']
+
+
+def check_event_types(module, client, project_id, wanted):
+    """Refuse an event the server does not offer.
+
+    Only events outside EVENT_TYPES are looked up, so a task that uses the
+    known ones costs no request more. When the server's list cannot be read,
+    the event is sent as it is and Harbor decides.
+    """
+    unknown = set(wanted) - set(EVENT_TYPES)
+    if not unknown:
+        return
+    try:
+        answer = client.get('/projects/%d/webhook/events' % project_id)
+    except HarborError:
+        return
+    offered = answer.get('event_type') if isinstance(answer, dict) else None
+    if not isinstance(offered, list):
+        return
+    unknown = sorted(unknown - set(offered))
+    if not unknown:
+        return
+    message = 'Unknown event types %s; this server offers %s.' % (', '.join(unknown), ', '.join(sorted(offered)))
+    if not module.check_mode:
+        raise ValueError(message)
+    module.warn(message)
 
 
 def comparable(targets):
@@ -204,6 +237,9 @@ def ensure(module, client):
         if not module.check_mode:
             client.delete('%s/%d' % (base, current['id']))
         return dict(changed=True, webhook={}, diff=dict(before=before, after={}))
+
+    if params['event_types']:
+        check_event_types(module, client, project_id, params['event_types'])
 
     targets = list((current or {}).get('targets') or [])
     if any(params[o] is not None for o in TARGET_OPTIONS):
@@ -256,7 +292,7 @@ def main():
         state=dict(type='str', default='present', choices=['present', 'absent']),
         description=dict(type='str'),
         enabled=dict(type='bool'),
-        event_types=dict(type='list', elements='str', choices=EVENT_TYPES),
+        event_types=dict(type='list', elements='str'),
         notify_type=dict(type='str', choices=['http', 'slack']),
         address=dict(type='str'),
         auth_header=dict(type='str', no_log=True),

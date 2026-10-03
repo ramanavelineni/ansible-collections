@@ -190,3 +190,72 @@ def test_failed_update_does_not_report_stored_auth_header(server, project, run_m
     assert 'not-a-real-token' not in json.dumps(result)
     assert result['request_details']['request']['targets'][0]['auth_header'] == '********'
     assert result['request_details']['request']['enabled'] is False
+
+
+def events(server, project):
+    """Where the server lists the events it offers for the project."""
+    path = project.rsplit('/', 1)[0] + '/events'
+    server.route('GET', path, 'webhook_events')
+    return path
+
+
+def test_known_events_are_not_looked_up(server, project, run_module):
+    path = events(server, project)
+    server.route('GET', project, 'webhook_list_one')
+    result = run_module(webhook.main, HOOK)
+    assert result['changed'] is False
+    assert server.calls('GET', path) == []
+
+
+def test_event_the_server_offers_is_accepted(server, project, run_module):
+    # Hand-made: the recorded list with one event added, as a newer Harbor would answer.
+    offered = server.response('webhook_events')
+    offered['body']['event_type'].append('NEW_EVENT')
+    path = project.rsplit('/', 1)[0] + '/events'
+    server.route('GET', path, offered)
+    server.route('GET', project, 'webhook_list_empty')
+    server.route('POST', project, 'webhook_create')
+    server.route('GET', '%s/%d' % (project, wid(server)), 'webhook_get')
+    result = run_module(webhook.main, dict(HOOK, event_types=['PUSH_ARTIFACT', 'NEW_EVENT']))
+    assert result['changed'] is True
+    assert server.calls('POST', project)[0]['body']['event_types'] == ['NEW_EVENT', 'PUSH_ARTIFACT']
+    assert len(server.calls('GET', path)) == 1
+
+
+def test_event_the_server_does_not_offer_fails(server, project, run_module):
+    events(server, project)
+    server.route('GET', project, 'webhook_list_empty')
+    result = run_module(webhook.main, dict(HOOK, event_types=['PUSH_ARTIFACT', 'NOPE']))
+    assert result['failed'] is True
+    assert result['msg'].startswith('Unknown event types NOPE; this server offers DELETE_ARTIFACT, PULL_ARTIFACT,')
+    assert server.calls('POST') == []
+
+
+def test_event_the_server_does_not_offer_warns_in_check_mode(server, project, run_module):
+    events(server, project)
+    server.route('GET', project, 'webhook_list_empty')
+    result = run_module(webhook.main, dict(HOOK, event_types=['NOPE']), check_mode=True)
+    assert result['changed'] is True
+    assert 'Unknown event types NOPE; this server offers' in json.dumps(result.get('warnings', [])), result
+    assert server.calls('POST') == []
+
+
+@pytest.mark.parametrize('answer', [
+    # Hand-made: a server that has no such list, and one that answers in another form.
+    dict(status=404, body=dict(errors=[dict(code='NOT_FOUND', message='not found')]), headers={}),
+    dict(status=200, body=['PUSH_ARTIFACT'], headers={}),
+])
+def test_unreadable_event_list_leaves_it_to_harbor(server, project, run_module, answer):
+    server.route('GET', project.rsplit('/', 1)[0] + '/events', answer)
+    server.route('GET', project, 'webhook_list_empty')
+    server.route('POST', project, 'webhook_create_bad_event')
+    result = run_module(webhook.main, dict(HOOK, event_types=['NOPE']))
+    assert result['failed'] is True
+    assert 'unsupported event type NOPE' in result['msg']
+    assert server.calls('POST', project)[0]['body']['event_types'] == ['NOPE']
+
+
+def test_delete_does_not_check_events(server, project, run_module):
+    server.route('GET', project, 'webhook_list_empty')
+    result = run_module(webhook.main, dict(HOOK, event_types=['NOPE'], state='absent'))
+    assert result['changed'] is False

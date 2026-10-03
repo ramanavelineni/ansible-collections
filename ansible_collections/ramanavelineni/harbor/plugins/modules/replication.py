@@ -90,7 +90,9 @@ options:
         type: raw
         required: true
       decoration:
-        description: For V(tag) and V(label) only, V(matches) or V(excludes).
+        description:
+          - For V(tag) and V(label) only, V(matches) or V(excludes).
+          - A V(tag) or V(label) filter without it matches, and is sent, compared and returned as V(matches).
         type: str
         choices: [matches, excludes]
   enabled:

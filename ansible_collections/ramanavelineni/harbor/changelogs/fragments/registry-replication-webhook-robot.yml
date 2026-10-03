@@ -1,0 +1,24 @@
+---
+bugfixes:
+  - >-
+    registry - an ``access_key`` set on an endpoint that has no credential type yet is now sent with
+    ``credential_type`` ``basic`` (or the declared one). It was sent with an empty type before, unless
+    ``access_secret`` was sent too.
+  - >-
+    replication - a ``tag`` or ``label`` filter without a ``decoration`` and one with ``matches`` are the same
+    filter and no longer compare as different, which rewrote the rule once. Such a filter is now sent and returned
+    with ``decoration`` ``matches``.
+  - >-
+    robot_account - in check mode, creating a robot account with a declared ``secret`` now reports
+    ``secret_updated`` as ``true``, as the real run does.
+  - >-
+    webhook - ``event_types`` no longer has a fixed list of choices, so an event a newer Harbor adds can be used.
+    An event other than the ten of Harbor 2.14 and 2.15 is checked against the events the server offers for the
+    project. One the server does not offer fails with ``Unknown event types``, or is a warning in check mode.
+minor_changes:
+  - >-
+    registry - ``credential_type`` now takes ``basic`` or ``oauth`` only, and anything else fails before a request
+    is sent.
+  - >-
+    robot_account - ``level`` ``project`` without ``project`` is now refused by the argument check, before the
+    login, with ``level is project but all of the following are missing: project``.
