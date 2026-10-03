@@ -144,8 +144,7 @@ from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semapho
 
 
 def validate(params):
-    if params['cron'] is not None and params['run_at'] is not None:
-        raise ValueError('cron and run_at are mutually exclusive.')
+    # That cron and run_at exclude each other is in the argument spec.
     if params['run_at'] is not None and params['repository']:
         raise ValueError('A run-at schedule cannot poll a repository.')
     if params['run_at'] is not None:
@@ -251,7 +250,8 @@ def main():
         delete_after_run=dict(type='bool'),
         active=dict(type='bool'),
     )
-    module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True, **semaphore_module_kwargs())
+    module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True,
+                           **semaphore_module_kwargs(mutually_exclusive=[('cron', 'run_at')]))
     run_module(module, lambda client: ensure(module, client), placeholder=dict(schedule={}))
 
 

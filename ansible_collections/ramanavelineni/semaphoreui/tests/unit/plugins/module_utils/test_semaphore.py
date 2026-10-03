@@ -9,6 +9,7 @@ from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semapho
     diff_fields,
     find_by_name,
     redact,
+    semaphore_module_kwargs,
     server_minor,
     version_is_tested,
 )
@@ -88,3 +89,32 @@ def test_server_minor():
     assert server_minor('v2.19.12-012ed06-1788086368') == (2, 19)
     assert server_minor('2.9.0') == (2, 9)
     assert server_minor('') is None and server_minor(None) is None
+
+
+SHARED_EXCLUSIVE = [('api_token', 'username'), ('api_token', 'password')]
+
+
+def test_module_kwargs_alone():
+    assert semaphore_module_kwargs() == dict(mutually_exclusive=SHARED_EXCLUSIVE)
+
+
+def test_module_kwargs_add_to_the_shared_ones():
+    kwargs = semaphore_module_kwargs(mutually_exclusive=[('cron', 'run_at')],
+                                     required_if=[('state', 'present', ('role',))])
+    assert kwargs == dict(mutually_exclusive=SHARED_EXCLUSIVE + [('cron', 'run_at')],
+                          required_if=[('state', 'present', ('role',))])
+
+
+def test_module_kwargs_do_not_leak_between_calls():
+    semaphore_module_kwargs(mutually_exclusive=[('cron', 'run_at')])
+    assert semaphore_module_kwargs() == dict(mutually_exclusive=SHARED_EXCLUSIVE)
+
+
+@pytest.mark.parametrize('name', ['required_together', 'required_one_of'])
+def test_module_kwargs_take_the_other_constraints(name):
+    assert semaphore_module_kwargs(**{name: [('a', 'b')]})[name] == [('a', 'b')]
+
+
+def test_module_kwargs_refuse_anything_else():
+    with pytest.raises(TypeError):
+        semaphore_module_kwargs(supports_check_mode=False)

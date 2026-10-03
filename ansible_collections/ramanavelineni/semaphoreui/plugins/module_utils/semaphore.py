@@ -64,14 +64,30 @@ def semaphore_argument_spec():
     )
 
 
-def semaphore_module_kwargs():
-    """AnsibleModule keyword arguments that go with semaphore_argument_spec()."""
+# The constraints a module may add to the shared ones, each a list as
+# AnsibleModule takes it.
+MODULE_CONSTRAINTS = ('mutually_exclusive', 'required_if', 'required_together', 'required_one_of')
+
+
+def semaphore_module_kwargs(**constraints):
+    """AnsibleModule keyword arguments that go with semaphore_argument_spec().
+
+    A module passes the constraints between its own options by name, for
+    example required_if=[('state', 'present', ('role',))]. They are added to
+    the shared ones, so that the argument spec holds them and ansible-doc and
+    the sanity tests see them.
+    """
     # Only what must hold for the options a task passes itself. That a
     # credential is there at all, and that a username has its password, is
     # checked by resolve_credentials(), after the environment is read.
-    return dict(
+    kwargs = dict(
         mutually_exclusive=[('api_token', 'username'), ('api_token', 'password')],
     )
+    for name, rules in constraints.items():
+        if name not in MODULE_CONSTRAINTS:
+            raise TypeError('semaphore_module_kwargs() takes %s, not %r' % (', '.join(MODULE_CONSTRAINTS), name))
+        kwargs[name] = kwargs.get(name, []) + list(rules)
+    return kwargs
 
 
 def resolve_credentials(module):

@@ -210,10 +210,9 @@ def secret_given(params):
 
 
 def validate(params):
+    # That type is there with state: present is in the argument spec.
     if params['state'] != 'present':
         return
-    if params['type'] is None:
-        raise ValueError('type is required when state is present.')
     for key_type, (option, dummy) in SECRET_OPTION.items():
         if params[option] is not None and params['type'] != key_type:
             raise ValueError('%s is only valid with type: %s.' % (option, key_type))
@@ -322,7 +321,7 @@ def main():
     module = AnsibleModule(
         argument_spec=argument_spec,
         supports_check_mode=True,
-        **semaphore_module_kwargs()
+        **semaphore_module_kwargs(required_if=[('state', 'present', ('type',))])
     )
     run_module(module, lambda client: ensure(module, client), placeholder=dict(key={}, secret_updated=False, repositories=[]))
 

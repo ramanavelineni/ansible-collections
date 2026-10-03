@@ -136,6 +136,8 @@ MANAGED = ('name', 'email', 'admin', 'alert')
 
 
 def validate(params):
+    # Not in the argument spec: it depends on the value of external, and
+    # mutually_exclusive would also refuse external: false with a password.
     if params['state'] == 'present' and params['external'] and params['user_password'] is not None:
         raise ValueError('An external user has no local password; drop user_password or external.')
 

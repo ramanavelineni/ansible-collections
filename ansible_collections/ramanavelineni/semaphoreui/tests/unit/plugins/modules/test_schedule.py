@@ -177,7 +177,9 @@ def test_schedule_info_reads_the_template_lists(server, project, run_module):
 def test_cron_and_run_at_exclusive(server, project, run_module):
     result = run_module(schedule.main, dict(project='homelab', name='x', cron='* * * * *', run_at='2099-01-01T00:00:00Z'))
     assert result['failed'] is True
-    assert 'mutually exclusive' in result['msg']
+    assert result['msg'] == 'parameters are mutually exclusive: cron|run_at'
+    # The argument spec refuses it, so not even the login is sent.
+    assert server.requests == []
 
 
 def test_bad_cron_reported(server, project, run_module):

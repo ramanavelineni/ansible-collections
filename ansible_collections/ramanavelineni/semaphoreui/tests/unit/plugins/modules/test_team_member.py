@@ -49,7 +49,9 @@ def test_add_check_mode(server, project, run_module):
 def test_role_required(server, project, run_module):
     result = run_module(team_member.main, dict(project=PROJECT, user='tm-fixture-a'))
     assert result['failed'] is True
-    assert 'role is required' in result['msg']
+    assert result['msg'] == 'state is present but all of the following are missing: role'
+    # The argument spec refuses it, so not even the login is sent.
+    assert server.requests == []
 
 
 def test_no_change(server, project, run_module):
