@@ -39,6 +39,13 @@ API_PREFIX = '/api/v2.0'
 
 GIB = 1024 ** 3
 
+# Request bodies are shown in failures. Values under keys like these, and any
+# value of a no_log option, are replaced first: Ansible's own masking only
+# finds a secret that appears exactly as it was passed, and an update also
+# sends back secrets read from Harbor (a webhook's auth header).
+SECRET_KEYS = re.compile(r'secret|password|token|auth_header', re.IGNORECASE)
+MASK = '********'
+
 
 def harbor_argument_spec():
     """Connection options shared by every module (see doc fragment auth)."""
@@ -62,6 +69,17 @@ def base_url(url):
             url = url[:-len(suffix)]
             break
     return url
+
+
+def redact(value, secrets=(), key=''):
+    """A copy of a request body that is safe to show: secret strings replaced by MASK."""
+    if isinstance(value, dict):
+        return dict((k, redact(v, secrets, k)) for k, v in value.items())
+    if isinstance(value, list):
+        return [redact(v, secrets, key) for v in value]
+    if isinstance(value, str) and value and (SECRET_KEYS.search(key) or value in secrets):
+        return MASK
+    return value
 
 
 def version_is_tested(version):
@@ -136,8 +154,10 @@ class HarborClient(object):
         send_headers = {'Accept': 'application/json', 'Authorization': self.auth}
         send_headers.update(headers or {})
         data = None
+        sent = None
         if body is not None:
             data = json.dumps(body)
+            sent = redact(body, self.module.no_log_values)
             send_headers['Content-Type'] = 'application/json'
 
         attempts = 1 + (self.retries if retry else 0)
@@ -177,21 +197,21 @@ class HarborClient(object):
                 if e.code in RETRY_STATUSES and attempt < attempts:
                     time.sleep(self.retry_delay)
                     continue
-                raise HarborError(method, url, status=e.code, response=raw.strip(), request=data)
+                raise HarborError(method, url, status=e.code, response=raw.strip(), request=sent)
             except (URLError, socket.timeout, ConnectionError, OSError) as e:
                 if attempt < attempts:
                     time.sleep(self.retry_delay)
                     continue
-                raise HarborError(method, url, request=data, reason=to_text(e))
+                raise HarborError(method, url, request=sent, reason=to_text(e))
 
             if status not in expected:
-                raise HarborError(method, url, status=status, response=raw.strip(), request=data)
+                raise HarborError(method, url, status=status, response=raw.strip(), request=sent)
             if not raw.strip():
                 return None, resp_headers
             try:
                 return json.loads(raw), resp_headers
             except ValueError:
-                raise HarborError(method, url, status=status, response=raw.strip(), request=data,
+                raise HarborError(method, url, status=status, response=raw.strip(), request=sent,
                                   reason='response is not JSON')
 
     def list(self, path, params=None):
@@ -275,7 +295,7 @@ def find_by_name(items, name, what, field='name'):
 
 
 def fail_from_error(module, error, **result):
-    """fail_json with a HarborError's full request/response details."""
+    """fail_json with a HarborError's request/response details; the request is already redacted."""
     module.fail_json(msg=error.message(), request_details=error.details(), **result)
 
 

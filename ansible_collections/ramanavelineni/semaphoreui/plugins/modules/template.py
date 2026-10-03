@@ -268,6 +268,7 @@ from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semapho
     run_module,
     semaphore_argument_spec,
     semaphore_module_kwargs,
+    server_minor,
 )
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.template import (
     BOOLS,
@@ -315,7 +316,7 @@ def validate(params, app, server_version):
     for var in params['survey_vars'] or []:
         if var['type'] == 'enum' and not var['values']:
             raise ValueError('Survey variable %r of type enum needs values.' % var['name'])
-        if var['type'] == 'text' and server_version.lstrip('v').startswith('2.18.'):
+        if var['type'] == 'text' and (server_minor(server_version) or (2, 19)) < (2, 19):
             raise ValueError('Survey variable %r uses type text, which Semaphore %s does not support '
                              '(it needs 2.19).' % (var['name'], server_version))
 
@@ -418,7 +419,10 @@ def ensure(module, client):
     params = module.params
     client.warn_if_untested()
 
-    project_id = resolve_project(client, params['project'])
+    project_id = resolve_project(client, params['project'], missing_ok=params['state'] == 'absent')
+    if project_id is None:
+        # The project is gone, and everything in it went with it.
+        return dict(changed=False, template={}, diff=dict(before={}, after={}))
     base = '/project/%d' % project_id
     lookups = Lookups(client, base, params['project'])
     found = find_by_name(lookups.items['template'], params['name'], 'template')

@@ -7,9 +7,11 @@ import json
 import re
 import socket
 import time
+import traceback
 
 from datetime import datetime, timezone
 
+from http.client import HTTPException
 from http.cookiejar import CookieJar
 from urllib.error import HTTPError, URLError
 
@@ -30,6 +32,12 @@ RETRY_STATUSES = (502, 503, 504)
 # and has no paging for them. A list that comes back exactly this long may be
 # missing rows, so lookups on it fail rather than create a duplicate.
 LIST_CAP = 200
+
+# Request bodies are shown in failures. Values under keys like these, and any
+# value of a no_log option, are replaced first: Ansible's own masking only
+# finds a secret that appears exactly as it was passed.
+SECRET_KEYS = re.compile(r'secret|password|passphrase|private_key|token', re.IGNORECASE)
+MASK = '********'
 
 
 def semaphore_argument_spec():
@@ -62,6 +70,23 @@ def base_url(url):
     if url.endswith('/api'):
         url = url[:-len('/api')]
     return url
+
+
+def server_minor(version):
+    """(major, minor) of a reported version ("v2.19.12-012ed06-..."), or None when it doesn't parse."""
+    match = re.match(r'^v?(\d+)\.(\d+)(\.|-|$)', version or '')
+    return (int(match.group(1)), int(match.group(2))) if match else None
+
+
+def redact(value, secrets=(), key=''):
+    """A copy of a request body that is safe to show: secret strings replaced by MASK."""
+    if isinstance(value, dict):
+        return dict((k, redact(v, secrets, k)) for k, v in value.items())
+    if isinstance(value, list):
+        return [redact(v, secrets, key) for v in value]
+    if isinstance(value, str) and value and (SECRET_KEYS.search(key) or value in secrets):
+        return MASK
+    return value
 
 
 def version_is_tested(version):
@@ -174,8 +199,10 @@ class SemaphoreClient(object):
         url = '%s/api%s' % (self.url, path)
         headers = {'Accept': 'application/json'}
         data = None
+        sent = None
         if body is not None:
             data = json.dumps(body)
+            sent = redact(body, self.module.no_log_values)
             headers['Content-Type'] = 'application/json'
         if self.api_token:
             headers['Authorization'] = 'Bearer %s' % self.api_token
@@ -208,21 +235,21 @@ class SemaphoreClient(object):
                 if status in RETRY_STATUSES and attempt < attempts:
                     time.sleep(self.retry_delay)
                     continue
-                raise SemaphoreError(method, url, status=status, response=raw.strip(), request=data)
-            except (URLError, socket.timeout, ConnectionError, OSError) as e:
+                raise SemaphoreError(method, url, status=status, response=raw.strip(), request=sent)
+            except (URLError, socket.timeout, ConnectionError, OSError, HTTPException) as e:
                 if attempt < attempts:
                     time.sleep(self.retry_delay)
                     continue
-                raise SemaphoreError(method, url, request=data, reason=to_text(e))
+                raise SemaphoreError(method, url, request=sent, reason=to_text(e) or type(e).__name__)
 
             if status not in expected:
-                raise SemaphoreError(method, url, status=status, response=raw.strip(), request=data)
+                raise SemaphoreError(method, url, status=status, response=raw.strip(), request=sent)
             if not raw.strip():
                 return None
             try:
                 return json.loads(raw)
             except ValueError:
-                raise SemaphoreError(method, url, status=status, response=raw.strip(), request=data,
+                raise SemaphoreError(method, url, status=status, response=raw.strip(), request=sent,
                                      reason='response is not JSON')
 
     # -- server ------------------------------------------------------------
@@ -244,6 +271,9 @@ class SemaphoreClient(object):
 
     def list(self, path, capped=False):
         items = self.get(path) or []
+        if not isinstance(items, list):
+            raise ValueError('GET %s/api%s did not return a list. Is url the address of a Semaphore server?'
+                             % (self.url, path))
         if capped and len(items) >= LIST_CAP:
             raise ValueError(
                 'GET %s/api%s returned %d rows, the most Semaphore returns for this list. Rows past '
@@ -267,10 +297,12 @@ def find_by_name(items, name, what, field='name'):
     return matches[0] if matches else None
 
 
-def resolve_project(client, name):
-    """Id of the project named `name`; fails when there is none."""
+def resolve_project(client, name, missing_ok=False):
+    """Id of the project named `name`; fails when there is none, or returns None with missing_ok."""
     project = find_by_name(client.list('/projects', capped=True), name, 'project')
     if project is None:
+        if missing_ok:
+            return None
         raise ValueError(
             'Project %r does not exist, or the user this module logs in as cannot see it.' % name)
     return project['id']
@@ -296,10 +328,7 @@ def diff_fields(desired, current):
 
 
 def fail_from_error(module, error, **result):
-    """fail_json with a SemaphoreError's full request/response details.
-
-    Values of no_log options are masked by Ansible in everything returned.
-    """
+    """fail_json with a SemaphoreError's request/response details; the request is already redacted."""
     module.fail_json(msg=error.message(), request_details=error.details(), **result)
 
 
@@ -307,14 +336,17 @@ def run_module(module, handler):
     """Run handler(client) with login/logout and uniform error reporting."""
     client = SemaphoreClient(module)
     try:
-        result = handler(client)
+        try:
+            result = handler(client)
+        finally:
+            client.close()
     except SemaphoreError as e:
-        client.close()
         fail_from_error(module, e)
     except ValueError as e:
-        client.close()
         module.fail_json(msg=to_text(e))
-    client.close()
+    except Exception as e:
+        module.fail_json(msg='Unexpected %s: %s. The server may have answered in a form this module does not '
+                             'expect.' % (type(e).__name__, to_text(e)), exception=traceback.format_exc())
     module.exit_json(**result)
 
 

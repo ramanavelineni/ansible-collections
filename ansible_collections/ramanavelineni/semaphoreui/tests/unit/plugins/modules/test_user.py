@@ -132,7 +132,9 @@ def test_delete_500_explains_2_18(users, run_module):
     users.route('DELETE', '/users/%d' % uid, dict(status=500, body=None))
     result = run_module(user.main, dict(login=created(users)['username'], state='absent'))
     assert result['failed'] is True
-    assert 'before 2.19' in result['msg']
+    assert 'HTTP 500' in result['msg']
+    # Only a server before 2.19 has the session problem; on 2.19 a 500 is reported as it is.
+    assert ('before 2.19' in result['msg']) == (users.version == '2.18')
 
 
 def test_delete_missing(users, run_module):

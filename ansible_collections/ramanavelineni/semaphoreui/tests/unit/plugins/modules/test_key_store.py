@@ -36,7 +36,7 @@ def test_create_ssh_key(server, project, run_module):
     body = server.calls('POST', project + '/keys')[0]['body']
     assert body == dict(project_id=int(project.split('/')[-1]), name='deploy', type='ssh',
                         ssh=dict(login='git', passphrase='', private_key=PRIVATE_KEY))
-    assert PRIVATE_KEY not in json.dumps(result)
+    assert 'unit-test' not in json.dumps(result)
 
 
 def test_create_needs_secret(server, project, run_module):
@@ -157,7 +157,10 @@ def test_rejected_update_is_reported(server, project, run_module):
     result = run_module(key_store.main, SSH)
     assert result['failed'] is True
     assert 'Access key id in URL and in body must be the same' in result['msg']
-    assert PRIVATE_KEY not in json.dumps(result)
+    # json.dumps escapes the key's newlines, so look for a part without any.
+    assert 'unit-test' not in json.dumps(result)
+    assert result['request_details']['request']['ssh']['private_key'] == '********'
+    assert result['request_details']['request']['name'] == 'deploy'
 
 
 def test_option_for_other_type_fails(server, project, run_module):

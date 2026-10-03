@@ -171,7 +171,10 @@ def ensure(module, client):
     project_id = None
     base = ''
     if params['project'] is not None:
-        project_id = resolve_project(client, params['project'])
+        project_id = resolve_project(client, params['project'], missing_ok=params['state'] == 'absent')
+        if project_id is None:
+            # The project is gone, and everything in it went with it.
+            return dict(changed=False, runner={}, registration_token='', diff=dict(before={}, after={}))
         base = '/project/%d' % project_id
     runners = client.list(base + '/runners')
     if project_id is None:

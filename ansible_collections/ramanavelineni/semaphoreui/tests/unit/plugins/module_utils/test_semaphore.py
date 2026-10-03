@@ -8,6 +8,8 @@ from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semapho
     base_url,
     diff_fields,
     find_by_name,
+    redact,
+    server_minor,
     version_is_tested,
 )
 
@@ -70,3 +72,19 @@ def test_semaphore_error_messages():
     transport = SemaphoreError('GET', 'https://s/api/info', reason='connection reset')
     assert 'failed without an HTTP response: connection reset' in transport.message()
     assert transport.details()['status'] is None
+
+
+def test_redact_masks_secret_keys_and_no_log_values():
+    body = dict(name='deploy', type='ssh', ssh=dict(login='git', passphrase='', private_key='-----BEGIN\nKEY'),
+                secrets=[dict(name='API', secret='tok"en', type='env')], override_secret=True, note='declared-value')
+    assert redact(body, secrets={'declared-value'}) == dict(
+        name='deploy', type='ssh', ssh=dict(login='git', passphrase='', private_key='********'),
+        secrets=[dict(name='API', secret='********', type='env')], override_secret=True, note='********')
+    assert body['ssh']['private_key'] == '-----BEGIN\nKEY'
+    assert redact(None) is None
+
+
+def test_server_minor():
+    assert server_minor('v2.19.12-012ed06-1788086368') == (2, 19)
+    assert server_minor('2.9.0') == (2, 9)
+    assert server_minor('') is None and server_minor(None) is None
