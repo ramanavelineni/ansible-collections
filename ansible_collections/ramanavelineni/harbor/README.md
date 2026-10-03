@@ -185,7 +185,14 @@ and reports a change; `on_create` sends it only when the object is created.
 `configuration` takes a `settings` dict of Harbor's own setting names and
 sends only those that differ. Unknown keys and wrong types fail before
 anything is sent, because Harbor would silently ignore or reject them.
-`auth_mode` can only change while no user other than the admin exists.
+`auth_mode` can only change while no user other than the admin exists. A
+setting Harbor reports as not editable fails the task by name before anything
+is sent, unless the declared value is already in place.
+
+Neither `configuration` nor `configuration_info` returns a secret. Besides the
+secrets they know, they leave out any key they have no name for whose name
+contains `secret`, `password`, `passwd`, `token`, `credential` or
+`private_key`, in case a newer Harbor returns one.
 
 </details>
 

@@ -35,6 +35,9 @@ options:
         O(uaa_client_secret), so they are never shown in the output.
       - Harbor only lets C(auth_mode) change while no user other than the admin exists, and
         C(skip_audit_log_database=true) needs C(audit_log_forward_endpoint).
+      - A setting that Harbor reports as not editable, and whose value would change, fails the task
+        before anything is sent, with the names of those settings. A value that is already in place
+        is not a change and passes.
     type: dict
     default: {}
   oidc_client_secret:
@@ -87,7 +90,9 @@ RETURN = r'''
 configuration:
   description:
     - Every setting's value after the change, or as it would be after it in check mode, by API name.
-    - Secrets are never included.
+    - Secrets are never included. A key this module does not know is left out as well when its name
+      contains C(secret), C(password), C(passwd), C(token), C(credential) or C(private_key), so that a
+      secret a newer Harbor adds is not shown.
   returned: always
   type: dict
   sample:
@@ -105,34 +110,18 @@ changed_settings:
 import re
 
 from ansible.module_utils.basic import AnsibleModule
+from ansible_collections.ramanavelineni.harbor.plugins.module_utils.configuration import (
+    READABLE_SECRETS,
+    SETTING_TYPES,
+    WRITE_ONLY,
+    flat,
+    locked,
+)
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor import (
     harbor_argument_spec,
     run_module,
 )
 
-# Every writable setting of /configurations (identical in Harbor 2.14 and
-# 2.15), secrets excepted, with its type.
-SETTING_TYPES = dict(
-    audit_log_forward_endpoint=str, auth_mode=str, banner_message=str, disabled_audit_log_event_types=str,
-    http_authproxy_admin_groups=str, http_authproxy_admin_usernames=str, http_authproxy_endpoint=str,
-    http_authproxy_server_certificate=str, http_authproxy_skip_search=bool,
-    http_authproxy_tokenreview_endpoint=str, http_authproxy_verify_cert=bool, ldap_base_dn=str,
-    ldap_filter=str, ldap_group_admin_dn=str, ldap_group_attach_parallel=bool, ldap_group_attribute_name=str,
-    ldap_group_base_dn=str, ldap_group_membership_attribute=str, ldap_group_search_filter=str,
-    ldap_group_search_scope=int, ldap_scope=int, ldap_search_dn=str, ldap_timeout=int, ldap_uid=str,
-    ldap_url=str, ldap_verify_cert=bool, notification_enable=bool, oidc_admin_group=str,
-    oidc_auto_onboard=bool, oidc_client_id=str, oidc_endpoint=str, oidc_extra_redirect_parms=str,
-    oidc_group_filter=str, oidc_groups_claim=str, oidc_logout=bool, oidc_name=str, oidc_scope=str,
-    oidc_user_claim=str, oidc_verify_cert=bool, primary_auth_mode=bool, project_creation_restriction=str,
-    quota_per_project_enable=bool, read_only=bool, robot_name_prefix=str, robot_token_duration=int,
-    scanner_skip_update_pulltime=bool, self_registration=bool, session_timeout=int,
-    skip_audit_log_database=bool, storage_per_project=int, token_expiration=int, uaa_client_id=str,
-    uaa_endpoint=str, uaa_verify_cert=bool,
-)
-# Secrets Harbor never returns, and the setting each belongs to.
-WRITE_ONLY = dict(oidc_client_secret='oidc_client_id', ldap_search_password='ldap_search_dn')
-# Returned by Harbor, but a secret: compared, never output.
-READABLE_SECRETS = ('uaa_client_secret',)
 TYPE_NAMES = {str: 'a string', bool: 'a boolean', int: 'an integer'}
 
 BOOL_WORDS = dict(true=True, yes=True, on=True, false=False, no=False, off=False)
@@ -180,16 +169,6 @@ def validate(settings):
     return out
 
 
-def flat(configurations):
-    """{key: value} of GET /configurations ({key: {value, editable}}), secrets left out."""
-    out = {}
-    for key, item in (configurations or {}).items():
-        if key in READABLE_SECRETS or key in WRITE_ONLY:
-            continue
-        out[key] = item.get('value') if isinstance(item, dict) else item
-    return out
-
-
 def ensure(module, client):
     params = module.params
     settings = validate(params['settings'] or {})
@@ -206,6 +185,16 @@ def ensure(module, client):
             current = current.get('value')
         if params[key] is not None and params[key] != current:
             body[key] = params[key]
+    # Harbor refuses these, some with a message that doesn't say which key it
+    # was. A declared value that is already in place is not in `body`.
+    refused = locked(raw, body)
+    if refused:
+        raise ValueError(
+            'Harbor reports %s as not editable at the moment, so %s cannot be changed: %s.%s'
+            % ('this setting' if len(refused) == 1 else 'these settings',
+               'it' if len(refused) == 1 else 'they', ', '.join(refused),
+               ' auth_mode can only change while no user other than the admin exists.'
+               if 'auth_mode' in refused else ''))
     for key, partner in WRITE_ONLY.items():
         value = params[key]
         if value is None:
