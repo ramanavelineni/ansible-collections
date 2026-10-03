@@ -5,6 +5,7 @@
 
 import base64
 import json
+import os
 import re
 import socket
 import ssl
@@ -13,7 +14,7 @@ import traceback
 
 from http.client import HTTPException
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 from ansible.module_utils.basic import env_fallback
 from ansible.module_utils.common.text.converters import to_bytes, to_text
@@ -61,12 +62,43 @@ def harbor_argument_spec():
         password=dict(type='str', required=True, no_log=True, fallback=(env_fallback, ['HARBOR_PASSWORD'])),
         validate_certs=dict(type='bool', default=True, fallback=(env_fallback, ['HARBOR_VALIDATE_CERTS'])),
         ca_path=dict(type='path', fallback=(env_fallback, ['HARBOR_CA_PATH'])),
+        # client_key is the path of the key file, not the key: nothing to hide.
+        client_cert=dict(type='path', fallback=(env_fallback, ['HARBOR_CLIENT_CERT'])),
+        client_key=dict(type='path', no_log=False, fallback=(env_fallback, ['HARBOR_CLIENT_KEY'])),
+        use_proxy=dict(type='bool', default=True, fallback=(env_fallback, ['HARBOR_USE_PROXY'])),
         timeout=dict(type='int', default=30),
         retries=dict(type='int', default=3),
         retry_delay=dict(type='int', default=2),
         warn_untested_version=dict(type='bool', default=True,
                                    fallback=(env_fallback, ['HARBOR_WARN_UNTESTED_VERSION'])),
     )
+
+
+def validate_connection(module):
+    """Fail before any request on connection options that cannot work."""
+    params = module.params
+    url = params['url']
+    try:
+        parts = urlsplit(url)
+        usable = parts.scheme in ('http', 'https') and bool(parts.netloc)
+    except ValueError:
+        usable = False
+    if not usable:
+        module.fail_json(msg='url must be the address of the Harbor server, starting with http:// or https://, '
+                             'for example https://harbor.example.com. Got %r.' % url)
+    if params['timeout'] < 1:
+        module.fail_json(msg='timeout must be 1 or more (seconds). Got %d.' % params['timeout'])
+    for name in ('retries', 'retry_delay'):
+        if params[name] < 0:
+            module.fail_json(msg='%s must be 0 or more. Got %d.' % (name, params[name]))
+    if params.get('client_key') and not params.get('client_cert'):
+        module.fail_json(msg='client_key needs client_cert: a key alone cannot identify the client.')
+    # A missing file would otherwise surface as an error from deep inside the
+    # TLS setup. Only the path is named, never what a file holds.
+    for name in ('client_cert', 'client_key'):
+        path = params.get(name)
+        if path and not os.path.isfile(path):
+            module.fail_json(msg='%s %r is not a file on the host this module runs on.' % (name, path))
 
 
 def base_url(url):
@@ -131,18 +163,26 @@ def older_than(minor, needed):
 class HarborError(Exception):
     """A request failed. Carries everything needed to see why."""
 
-    def __init__(self, method, url, status=None, response=None, request=None, reason=None):
+    def __init__(self, method, url, status=None, response=None, request=None, reason=None, location=None):
         self.method = method
         self.url = url
         self.status = status
         self.response = response
         self.request = request
         self.reason = reason
+        self.location = location
         super(HarborError, self).__init__(self.message())
 
     def message(self):
         if self.status is None:
             return '%s %s failed without an HTTP response: %s' % (self.method, self.url, self.reason)
+        if 300 <= self.status < 400:
+            # Redirects are not followed: the credentials would go wherever
+            # the answer points. Nearly always url names the wrong scheme,
+            # host or path, and the target shows the right one.
+            target = 'a redirect to %s' % self.location if self.location else 'a redirect without a Location header'
+            return ('%s %s returned HTTP %s, %s. Redirects are not followed. Set url to the address the '
+                    'Harbor server itself answers on.' % (self.method, self.url, self.status, target))
         body = self.response if self.response else '(empty body)'
         msg = '%s %s returned HTTP %s: %s' % (self.method, self.url, self.status, body)
         if self.reason:
@@ -150,8 +190,11 @@ class HarborError(Exception):
         return msg
 
     def details(self):
-        return dict(method=self.method, url=self.url, status=self.status, response=self.response,
-                    request=self.request)
+        details = dict(method=self.method, url=self.url, status=self.status, response=self.response,
+                       request=self.request)
+        if self.location:
+            details['location'] = self.location
+        return details
 
 
 class HarborClient(object):
@@ -160,12 +203,16 @@ class HarborClient(object):
     def __init__(self, module):
         self.module = module
         params = module.params
+        validate_connection(module)
         self.url = base_url(params['url'])
         self.validate_certs = params['validate_certs']
         self.ca_path = params.get('ca_path')
+        self.client_cert = params.get('client_cert')
+        self.client_key = params.get('client_key')
+        self.use_proxy = params['use_proxy']
         self.timeout = params['timeout']
-        self.retries = max(params['retries'], 0)
-        self.retry_delay = max(params['retry_delay'], 0)
+        self.retries = params['retries']
+        self.retry_delay = params['retry_delay']
         self.warn_untested_version = params.get('warn_untested_version', True)
         credentials = '%s:%s' % (params['username'], params['password'])
         self.auth = 'Basic %s' % to_text(base64.b64encode(to_bytes(credentials, errors='surrogate_or_strict')))
@@ -213,8 +260,10 @@ class HarborClient(object):
                     timeout=self.timeout,
                     validate_certs=self.validate_certs,
                     ca_path=self.ca_path,
+                    client_cert=self.client_cert,
+                    client_key=self.client_key,
                     follow_redirects='none',
-                    use_proxy=True,
+                    use_proxy=self.use_proxy,
                     use_netrc=False,
                 )
                 status = response.getcode()
@@ -236,7 +285,9 @@ class HarborClient(object):
                 if e.code in RETRY_STATUSES and attempt < attempts:
                     time.sleep(self.retry_delay)
                     continue
-                raise HarborError(method, url, status=e.code, response=raw.strip(), request=sent)
+                headers_in = getattr(e, 'headers', None)
+                raise HarborError(method, url, status=e.code, response=raw.strip(), request=sent,
+                                  location=headers_in.get('Location') if headers_in else None)
             except (URLError, socket.timeout, ConnectionError, OSError, HTTPException) as e:
                 # HTTPException: the answer was cut short or isn't HTTP at all
                 # (IncompleteRead, BadStatusLine). Neither is an OSError.
@@ -246,7 +297,8 @@ class HarborClient(object):
                 raise HarborError(method, url, request=sent, reason=to_text(e))
 
             if status not in expected:
-                raise HarborError(method, url, status=status, response=raw.strip(), request=sent)
+                raise HarborError(method, url, status=status, response=raw.strip(), request=sent,
+                                  location=resp_headers.get('location'))
             if not raw.strip():
                 return None, resp_headers
             try:

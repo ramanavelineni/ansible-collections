@@ -126,7 +126,19 @@ environment variables:
 | `url` | `HARBOR_URL` |
 | `username` / `password` | `HARBOR_USERNAME` / `HARBOR_PASSWORD` |
 | `validate_certs` / `ca_path` | `HARBOR_VALIDATE_CERTS` / `HARBOR_CA_PATH` |
+| `client_cert` / `client_key` | `HARBOR_CLIENT_CERT` / `HARBOR_CLIENT_KEY` |
+| `use_proxy` | `HARBOR_USE_PROXY` |
 | `warn_untested_version` | `HARBOR_WARN_UNTESTED_VERSION` |
+
+For a server that asks for a TLS client certificate (mutual TLS), `client_cert`
+is the PEM file with the certificate and `client_key` the one with its key;
+`client_key` isn't needed when the certificate file holds the key too. Both are
+read on the host the module runs on.
+
+The proxy from `http_proxy`, `https_proxy` and `no_proxy` is used when set;
+`use_proxy: false` goes to the server directly. Redirects are never followed,
+so `url` has to be the address Harbor itself answers on; a failure on a
+redirect names the target.
 
 **Wrong credentials don't always fail in Harbor.** Harbor answers many requests
 as an anonymous user instead, so every module checks the login first. Harbor
