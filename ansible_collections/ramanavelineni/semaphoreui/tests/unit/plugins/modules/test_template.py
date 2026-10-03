@@ -250,3 +250,144 @@ def test_changed_arguments_are_written_as_a_list(server, project, run_module):
     result = run_module(template.main, dict(project='homelab', name='site', arguments=['-v', '--diff']))
     assert result['changed'] is True
     assert server.calls('PUT')[0]['body']['arguments'] == '["-v", "--diff"]'
+
+
+# -- options that belong to one template type -----------------------------------
+
+@pytest.mark.parametrize('args, option, only', [
+    (dict(start_version='1.0.0'), 'start_version', 'build'),
+    (dict(type='deploy', build_template='site', start_version='1.0.0'), 'start_version', 'build'),
+    (dict(build_template='site'), 'build_template', 'deploy'),
+    (dict(type='build', build_template='site'), 'build_template', 'deploy'),
+], ids=['start_version-task', 'start_version-deploy', 'build_template-task', 'build_template-build'])
+def test_create_refuses_option_of_another_type(server, project, run_module, args, option, only):
+    server.route('GET', project + '/templates', 'templates_one')
+    result = run_module(template.main, dict(SITE, name='other', **args))
+    assert result['failed'] is True
+    assert '%s is only valid for a template of type %s' % (option, only) in result['msg']
+    assert 'of type %s.' % args.get('type', 'task') in result['msg']
+    assert server.calls('POST', project + '/templates') == []
+
+
+def test_update_refuses_option_of_another_type(server, project, run_module):
+    # The stored template is of type task: this used to report a change on every run.
+    existing(server, project)
+    result = run_module(template.main, dict(project='homelab', name='site', start_version='1.0.0'))
+    assert result['failed'] is True
+    assert 'start_version is only valid for a template of type build' in result['msg']
+    assert server.calls('PUT') == []
+
+
+def test_empty_type_options_are_accepted_for_every_type(server, project, run_module):
+    # What template_info returns for a task template.
+    existing(server, project)
+    result = run_module(template.main, dict(project='homelab', name='site', start_version='', build_template=''))
+    assert result['changed'] is False
+    assert server.calls('PUT') == []
+
+
+def test_build_template_takes_start_version(server, project, run_module):
+    server.route('GET', project + '/templates', 'templates_empty')
+    server.route('POST', project + '/templates', 'template_create')
+    result = run_module(template.main, dict(SITE, type='build', start_version='1.0.0'))
+    assert result['changed'] is True
+    body = server.calls('POST', project + '/templates')[0]['body']
+    assert body['type'] == 'build' and body['start_version'] == '1.0.0'
+
+
+def test_stored_type_decides_when_type_is_not_set(server, project, run_module):
+    with_stored(server, type='build', start_version='1.0.0')
+    existing(server, project)
+    result = run_module(template.main, dict(project='homelab', name='site', start_version='2.0.0'))
+    assert result['changed'] is True
+    assert server.calls('PUT')[0]['body']['start_version'] == '2.0.0'
+
+
+def test_leaving_build_type_drops_start_version_from_the_result(server, project, run_module):
+    with_stored(server, type='build', start_version='1.0.0')
+    existing(server, project)
+    result = run_module(template.main, dict(project='homelab', name='site', type='task'))
+    assert result['changed'] is True
+    assert server.calls('PUT')[0]['body']['start_version'] is None
+    assert result['template']['start_version'] == ''
+
+
+# -- apps registered on the server ----------------------------------------------
+# No fixture was recorded with a registered app. These add one to the recorded
+# /apps answer, in the shape of the recorded entries.
+
+CUSTOM = dict(SITE, name='other', app='ruby', task_params=dict(bundle=True))
+
+
+def register(server, app_id):
+    apps = server.response('apps')
+    apps['body'].append(dict(apps['body'][0], id=app_id, priority=100))
+    server.route('GET', '/apps', apps)
+
+
+def test_registered_app_is_accepted(server, project, run_module):
+    register(server, 'ruby')
+    server.route('GET', project + '/templates', 'templates_one')
+    server.route('POST', project + '/templates', 'template_create')
+    result = run_module(template.main, CUSTOM)
+    assert result['changed'] is True
+    body = server.calls('POST', project + '/templates')[0]['body']
+    assert body['app'] == 'ruby'
+    # Its task_params can't be checked, so they go as given.
+    assert body['task_params'] == dict(bundle=True)
+
+
+def test_unregistered_app_fails(server, project, run_module):
+    server.route('GET', project + '/templates', 'templates_one')
+    result = run_module(template.main, CUSTOM)
+    assert result['failed'] is True
+    assert "App 'ruby' is not registered" in result['msg']
+    assert 'registered: ansible, terraform' in result['msg']
+    assert server.calls('POST', project + '/templates') == []
+
+
+def test_unregistered_app_warns_in_check_mode(server, project, run_module):
+    server.route('GET', project + '/templates', 'templates_one')
+    result = run_module(template.main, CUSTOM, check_mode=True)
+    assert result['changed'] is True
+    assert "App 'ruby' is not registered" in json.dumps(result['warnings'])
+
+
+def test_app_is_taken_as_given_without_an_app_list(server, project, run_module):
+    # Hand-written: a server that has no /apps.
+    server.route('GET', '/apps', dict(status=404, body=None))
+    server.route('GET', project + '/templates', 'templates_one')
+    server.route('POST', project + '/templates', 'template_create')
+    result = run_module(template.main, CUSTOM)
+    assert result['changed'] is True
+    assert server.calls('POST', project + '/templates')[0]['body']['app'] == 'ruby'
+
+
+def test_stored_custom_app_is_not_looked_up_again(server, project, run_module):
+    # The app was set outside the module and has since been removed from the
+    # server: an unrelated update still goes through.
+    with_stored(server, app='ruby')
+    existing(server, project)
+    result = run_module(template.main, dict(project='homelab', name='site', app='ruby', description='updated',
+                                            task_params=dict(bundle=True)))
+    assert result['changed'] is True
+    assert server.calls('GET', '/apps') == []
+    assert server.calls('PUT')[0]['body']['task_params']['bundle'] is True
+
+
+@pytest.mark.parametrize('app', ['pulumi', 'powershell'])
+def test_builtin_app_is_not_looked_up(server, project, run_module, app):
+    # pulumi is not in the recorded /apps, powershell is there but inactive:
+    # both were accepted before the choice list went away.
+    server.route('GET', project + '/templates', 'templates_one')
+    server.route('POST', project + '/templates', 'template_create')
+    result = run_module(template.main, dict(SITE, name='other', app=app, task_params=None))
+    assert result['changed'] is True
+    assert server.calls('GET', '/apps') == []
+
+
+def test_builtin_app_without_task_params_still_refuses_keys(server, project, run_module):
+    server.route('GET', project + '/templates', 'templates_one')
+    result = run_module(template.main, dict(SITE, name='other', app='bash', task_params=dict(limit=['web'])))
+    assert result['failed'] is True
+    assert 'limit' in result['msg'] and 'app bash' in result['msg'] and 'valid: none' in result['msg']
