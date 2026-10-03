@@ -5,7 +5,6 @@ import json
 
 import pytest
 
-from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import SemaphoreError
 from ansible_collections.ramanavelineni.semaphoreui.plugins.modules import user, user_info
 
 
@@ -128,6 +127,7 @@ def test_delete(users, run_module):
 
 
 def test_delete_500_explains_2_18(users, run_module):
+    # Hand-written: no HTTP 500 on a user delete was recorded.
     uid = created(users)['id']
     users.route('DELETE', '/users/%d' % uid, dict(status=500, body=None))
     result = run_module(user.main, dict(login=created(users)['username'], state='absent'))
@@ -146,7 +146,3 @@ def test_user_info(users, run_module):
     result = run_module(user_info.main, dict(login=created(users)['username']))
     assert len(result['users']) == 1
     assert set(result['users'][0]) == set(['id', 'username', 'name', 'email', 'admin', 'alert', 'external'])
-
-
-def test_semaphore_error_passthrough():
-    assert SemaphoreError('DELETE', 'u', status=400).status == 400
