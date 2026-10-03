@@ -23,6 +23,7 @@ options:
   runs:
     description:
       - How many of the most recent runs to return, newest first. V(0) returns none.
+      - Harbor returns at most 100 runs per request; more than that are read in several requests.
     type: int
     default: 10
 '''

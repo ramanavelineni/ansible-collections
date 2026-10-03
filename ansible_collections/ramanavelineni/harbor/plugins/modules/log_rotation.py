@@ -9,7 +9,8 @@ version_added: 0.1.0
 description:
   - Sets, changes or removes the schedule that purges old audit log entries (Administration >
     Clean Up > Log Rotation), and what it purges.
-  - Only the options you set are compared and changed; the others keep their current value.
+  - Only the options you set are compared and changed; the others keep their current value. That
+    includes settings this module has no option for.
   - The module never starts a purge run itself.
 author:
   - ramanavelineni (@ramanavelineni)
@@ -54,6 +55,8 @@ options:
 notes:
   - Settings apply to the schedule, so they can only be set while there is one (or with
     O(schedule) in the same task).
+  - If Harbor reports a schedule of a type other than the choices of O(schedule), the module fails
+    when it would have to write that schedule back. Set O(schedule) to replace it.
 '''
 
 EXAMPLES = r'''
@@ -105,9 +108,11 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     run_module,
 )
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.schedule import (
+    carried_parameters,
     comparable,
     desired_timing,
     read_schedule,
+    require_known_type,
     schedule_argument_spec,
     schedule_body,
     schedule_view,
@@ -159,7 +164,9 @@ def ensure(module, client):
         raise ValueError('%s only apply to a schedule; there is none%s.'
                          % (', '.join(sorted(wanted)), '' if timing is None else ' after this change'))
 
-    new_params = dict((k, v) for k, v in current_params.items() if k in PARAMETERS and v is not None)
+    # Parameters this module has no option for go back as stored: Harbor
+    # replaces them as a whole, and leaving one out would drop it.
+    new_params = carried_parameters(current_params)
     new_params.update(wanted)
     if kind != 'none':
         missing = [n for n in ('audit_retention_hour', 'include_event_types') if n not in new_params]
@@ -172,6 +179,7 @@ def ensure(module, client):
     if comparable(after) == comparable(before):
         return dict(changed=False, log_rotation=before, diff=dict(before=before, after=before))
 
+    require_known_type(kind)
     if not module.check_mode:
         # Harbor requires both parameters on every write, removing the
         # schedule included, so a removal sends the current ones back.
