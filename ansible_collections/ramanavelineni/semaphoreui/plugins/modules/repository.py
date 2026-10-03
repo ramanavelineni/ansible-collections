@@ -119,6 +119,7 @@ repository:
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
+    MissingReference,
     diff_fields,
     find_by_name,
     refuse_delete_if_used,
@@ -162,7 +163,7 @@ def ensure(module, client):
     if params['ssh_key'] is not None:
         key = find_by_name(keys, params['ssh_key'], 'key')
         if key is None:
-            raise ValueError('Key %r does not exist in project %r.' % (params['ssh_key'], params['project']))
+            raise MissingReference('Key %r does not exist in project %r.' % (params['ssh_key'], params['project']))
         ssh_key_id = key['id']
 
     if not current:
@@ -212,7 +213,7 @@ def main():
         supports_check_mode=True,
         **semaphore_module_kwargs()
     )
-    run_module(module, lambda client: ensure(module, client))
+    run_module(module, lambda client: ensure(module, client), placeholder=dict(repository={}))
 
 
 if __name__ == '__main__':

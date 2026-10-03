@@ -10,6 +10,10 @@ class ModuleDocFragment(object):
 attributes:
   check_mode:
     description: Can run in check mode and report what would change without changing anything.
+    details:
+      - When something the task refers to by name does not exist (its project, a key, a repository), check mode
+        assumes that an earlier task of the same run creates it. The task is then reported as changed with a
+        warning and an empty result, without comparing anything.
   diff_mode:
     description: Returns the object before and after the change when run with C(--diff).
   platform:

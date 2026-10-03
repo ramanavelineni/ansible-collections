@@ -196,17 +196,18 @@ webhook_urls:
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
+    MATCHER_FIELDS,
+    MissingReference,
+    NO_AUTH,
+    VALUE_FIELDS,
     find_by_name,
+    integration_view,
+    item_view,
     refuse_delete_if_used,
     resolve_project,
     run_module,
     semaphore_argument_spec,
     semaphore_module_kwargs,
-    MATCHER_FIELDS,
-    NO_AUTH,
-    VALUE_FIELDS,
-    integration_view,
-    item_view,
 )
 
 
@@ -273,7 +274,7 @@ def ensure(module, client):
     def ref(what, items, name):
         item = find_by_name(items, name, what)
         if item is None:
-            raise ValueError('%s %r does not exist in project %r.' % (what.capitalize(), name, params['project']))
+            raise MissingReference('%s %r does not exist in project %r.' % (what.capitalize(), name, params['project']))
         return item['id']
 
     if found:
@@ -377,7 +378,7 @@ def main():
         )),
     )
     module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True, **semaphore_module_kwargs())
-    run_module(module, lambda client: ensure(module, client))
+    run_module(module, lambda client: ensure(module, client), placeholder=dict(integration={}, webhook_urls=[]))
 
 
 if __name__ == '__main__':

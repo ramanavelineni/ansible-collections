@@ -245,7 +245,7 @@ def main():
         regenerate_token=dict(type='bool', default=False, no_log=False),
     )
     module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True, **semaphore_module_kwargs())
-    run_module(module, lambda client: ensure(module, client))
+    run_module(module, lambda client: ensure(module, client), placeholder=dict(runner={}, registration_token=''))
 
 
 if __name__ == '__main__':
