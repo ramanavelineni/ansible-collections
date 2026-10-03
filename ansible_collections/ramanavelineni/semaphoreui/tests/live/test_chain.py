@@ -235,8 +235,6 @@ def test_template(sem):
     assert sem.ok(template, **template_options(sem))['changed'] is False
 
 
-@pytest.mark.xfail(strict=True, reason='template: a create in check mode returns name null in template and diff.after; '
-                                       'a real create returns the name')
 def test_template_create_in_check_mode_names_the_template(sem):
     options = dict(project=PROJECT, name='live-predicted', playbook='site.yml', repository='live-repo',
                    inventory='live-inventory', variable_groups=['live-vars'])
