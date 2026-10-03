@@ -59,6 +59,7 @@ options:
         request is sent.
       - If not set, the value of the E(SEMAPHORE_CLIENT_CERT) environment variable is used.
     type: path
+    version_added: 0.3.0
   client_key:
     description:
       - PEM file with the private key that belongs to O(client_cert). Not needed when O(client_cert) holds
@@ -66,6 +67,7 @@ options:
       - Requires O(client_cert). The key must not be protected by a passphrase.
       - If not set, the value of the E(SEMAPHORE_CLIENT_KEY) environment variable is used.
     type: path
+    version_added: 0.3.0
   use_proxy:
     description:
       - Whether to go through the proxy named by the E(http_proxy), E(https_proxy) and E(no_proxy)
@@ -73,6 +75,7 @@ options:
       - Set to V(false) to reach the server directly even when those variables are set.
       - If not set, the value of the E(SEMAPHORE_USE_PROXY) environment variable is used.
     type: bool
+    version_added: 0.3.0
     default: true
   timeout:
     description:
