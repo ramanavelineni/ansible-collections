@@ -24,7 +24,8 @@ from ansible_collections.ramanavelineni.semaphoreui.tests.unit.plugins.conftest 
 )
 
 CONNECTION_ENV = ('SEMAPHORE_URL', 'SEMAPHORE_API_TOKEN', 'SEMAPHORE_USERNAME', 'SEMAPHORE_PASSWORD',
-                  'SEMAPHORE_VALIDATE_CERTS', 'SEMAPHORE_CA_PATH')
+                  'SEMAPHORE_VALIDATE_CERTS', 'SEMAPHORE_CA_PATH', 'SEMAPHORE_CLIENT_CERT', 'SEMAPHORE_CLIENT_KEY',
+                  'SEMAPHORE_USE_PROXY')
 
 
 @pytest.fixture(autouse=True)
@@ -53,6 +54,15 @@ def urls(server, mocker):
 
     mocker.patch(PATCH_TARGET, side_effect=open_url)
     return seen
+
+
+@pytest.fixture
+def client_files(tmp_path):
+    """Paths of a client certificate and key file. Only their existence is checked, so they are empty."""
+    cert, key = tmp_path / 'client.pem', tmp_path / 'client.key'
+    cert.write_text('')
+    key.write_text('')
+    return str(cert), str(key)
 
 
 def waits():
@@ -97,16 +107,31 @@ def test_defaults_reach_every_request(server, run_module):
         assert kwargs['follow_redirects'] == 'none'
         assert kwargs['use_netrc'] is False
         assert kwargs['use_proxy'] is True
+        assert kwargs['client_cert'] is None
+        assert kwargs['client_key'] is None
 
 
-def test_options_reach_every_request(server, run_module):
-    run_module(info.main, dict(validate_certs=False, ca_path='/etc/ssl/step-root.pem', timeout=7))
+def test_options_reach_every_request(server, run_module, client_files):
+    cert, key = client_files
+    run_module(info.main, dict(validate_certs=False, ca_path='/etc/ssl/step-root.pem', timeout=7,
+                               client_cert=cert, client_key=key, use_proxy=False))
     assert len(server.requests) == 4
     for request in server.requests:
         kwargs = request['kwargs']
         assert kwargs['validate_certs'] is False
         assert kwargs['ca_path'] == '/etc/ssl/step-root.pem'
         assert kwargs['timeout'] == 7
+        assert kwargs['client_cert'] == cert
+        assert kwargs['client_key'] == key
+        assert kwargs['use_proxy'] is False
+
+
+def test_a_client_certificate_that_holds_its_key_needs_no_client_key(server, run_module, client_files):
+    cert = client_files[0]
+    result = run_module(info.main, dict(client_cert=cert))
+    assert result.get('failed') is not True
+    assert len(server.requests) == 4
+    assert all(r['kwargs']['client_cert'] == cert and r['kwargs']['client_key'] is None for r in server.requests)
 
 
 def test_session_cookies_are_shared_by_the_requests_of_a_run(server, run_module):
@@ -361,6 +386,31 @@ def test_the_smallest_numbers_are_accepted(server, run_module, option, value):
     assert len(server.requests) == 4
 
 
+def test_a_client_key_without_a_certificate_fails_before_any_request(server, run_module, client_files):
+    result = run_module(info.main, dict(client_key=client_files[1]))
+    assert result['failed'] is True
+    assert result['msg'] == 'client_key needs client_cert: a key alone cannot identify the client.'
+    assert server.requests == []
+
+
+@pytest.mark.parametrize('option', ['client_cert', 'client_key'])
+def test_a_client_file_that_is_missing_fails_before_any_request(server, run_module, client_files, tmp_path, option):
+    missing = str(tmp_path / 'missing.pem')
+    params = dict(client_cert=client_files[0], client_key=client_files[1])
+    params[option] = missing
+    result = run_module(info.main, params)
+    assert result['failed'] is True
+    assert result['msg'] == '%s %r is not a file on the host this module runs on.' % (option, missing)
+    assert server.requests == []
+
+
+def test_a_client_certificate_that_is_a_directory_fails_before_any_request(server, run_module, tmp_path):
+    result = run_module(info.main, dict(client_cert=str(tmp_path)))
+    assert result['failed'] is True
+    assert 'is not a file' in result['msg']
+    assert server.requests == []
+
+
 # -- environment ---------------------------------------------------------------
 
 def test_url_from_the_environment(run_module, monkeypatch, urls):
@@ -409,3 +459,34 @@ def test_ca_path_option_wins_over_the_environment(server, run_module, monkeypatc
     monkeypatch.setenv('SEMAPHORE_CA_PATH', '/etc/ssl/from-env.pem')
     run_module(info.main, dict(ca_path='/etc/ssl/step-root.pem'))
     assert all(r['kwargs']['ca_path'] == '/etc/ssl/step-root.pem' for r in server.requests)
+
+
+def test_client_certificate_from_the_environment(server, run_module, monkeypatch, client_files):
+    cert, key = client_files
+    monkeypatch.setenv('SEMAPHORE_CLIENT_CERT', cert)
+    monkeypatch.setenv('SEMAPHORE_CLIENT_KEY', key)
+    run_module(info.main, {})
+    assert len(server.requests) == 4
+    assert all(r['kwargs']['client_cert'] == cert and r['kwargs']['client_key'] == key for r in server.requests)
+
+
+def test_client_certificate_option_wins_over_the_environment(server, run_module, monkeypatch, client_files, tmp_path):
+    monkeypatch.setenv('SEMAPHORE_CLIENT_CERT', str(tmp_path / 'from-env.pem'))
+    run_module(info.main, dict(client_cert=client_files[0]))
+    assert len(server.requests) == 4
+    assert all(r['kwargs']['client_cert'] == client_files[0] for r in server.requests)
+
+
+@pytest.mark.parametrize('value, expected', [('false', False), ('no', False), ('0', False), ('true', True)])
+def test_use_proxy_from_the_environment(server, run_module, monkeypatch, value, expected):
+    monkeypatch.setenv('SEMAPHORE_USE_PROXY', value)
+    run_module(info.main, {})
+    assert len(server.requests) == 4
+    assert all(r['kwargs']['use_proxy'] is expected for r in server.requests)
+
+
+def test_use_proxy_option_wins_over_the_environment(server, run_module, monkeypatch):
+    monkeypatch.setenv('SEMAPHORE_USE_PROXY', 'false')
+    run_module(info.main, dict(use_proxy=True))
+    assert len(server.requests) == 4
+    assert all(r['kwargs']['use_proxy'] is True for r in server.requests)
