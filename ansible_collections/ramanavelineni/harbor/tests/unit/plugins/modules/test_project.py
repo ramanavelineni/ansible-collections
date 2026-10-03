@@ -3,6 +3,8 @@
 
 import json
 
+import pytest
+
 from ansible_collections.ramanavelineni.harbor.plugins.modules import project, project_info
 from ansible_collections.ramanavelineni.harbor.tests.unit.plugins.conftest import transport_error
 
@@ -233,3 +235,115 @@ def test_quota_on_a_project_without_quota_fails(server, run_module):
     assert result['failed'] is True
     assert 'has no quota' in result['msg']
     assert server.calls('PUT') == []
+
+
+# -- a user who is not an administrator ----------------------------------------
+# Registries and quotas are refused to anyone but an administrator. Hand-written:
+# no fixture was recorded as a non-admin. The body follows Harbor's error model.
+
+FORBIDDEN = dict(status=403, body=dict(errors=[dict(code='FORBIDDEN', message='forbidden')]), headers={})
+
+
+def as_non_admin(server, listing='projects_with_created', denied=FORBIDDEN):
+    server.route('GET', '/projects', listing)
+    server.route('GET', '/registries', denied)
+    server.route('GET', '/quotas', denied)
+
+
+def proxy_listing(server):
+    listing = server.response('projects_with_created')
+    listing['body'] = [server.response('project_get_proxy')['body']]
+    return listing
+
+
+def test_registries_only_read_when_needed(server, run_module):
+    existing(server)
+    result = run_module(project.main, dict(name='fixtures-core'))
+    assert result['changed'] is False
+    assert server.calls('GET', '/registries') == []
+
+
+def test_non_admin_updates_metadata(server, run_module):
+    as_non_admin(server)
+    server.route('PUT', '/projects/%d' % pid(server), 'project_update')
+    result = run_module(project.main, dict(name='fixtures-core', public=True))
+    assert result['changed'] is True
+    assert result['project']['public'] is True
+    assert result['project']['quota_gb'] is None
+    assert server.calls('PUT')[0]['body'] == dict(metadata=dict(public='true'))
+    assert server.calls('GET', '/registries') == []
+
+
+def test_non_admin_no_change(server, run_module):
+    as_non_admin(server)
+    result = run_module(project.main, dict(name='fixtures-core'))
+    assert result['changed'] is False
+    assert result['project']['quota_gb'] is None
+
+
+def test_non_admin_cannot_set_quota(server, run_module):
+    as_non_admin(server)
+    result = run_module(project.main, dict(name='fixtures-core', public=True, quota_gb=5))
+    assert result['failed'] is True
+    assert 'may not read project quotas' in result['msg'] and 'administrator' in result['msg']
+    assert server.calls('PUT') == []
+
+
+def test_non_admin_cannot_use_proxy_registry(server, run_module):
+    as_non_admin(server, 'projects_before')
+    result = run_module(project.main, dict(name='new', proxy_registry='hub'))
+    assert result['failed'] is True
+    assert 'may not read registries' in result['msg']
+    assert server.calls('POST') == []
+
+
+def test_non_admin_proxy_project_has_no_registry_name(server, run_module):
+    listing = proxy_listing(server)
+    as_non_admin(server, listing)
+    result = run_module(project.main, dict(name=listing['body'][0]['name']))
+    assert result['changed'] is False
+    assert result['project']['registry_id'] == listing['body'][0]['registry_id']
+    assert result['project']['proxy_registry'] is None
+
+
+def test_non_admin_create_reports_the_quota_asked_for(server, run_module):
+    creating(server)
+    server.route('GET', '/quotas', FORBIDDEN)
+    result = run_module(project.main, dict(name='fixtures-core', quota_gb=5))
+    assert result['changed'] is True
+    assert result['project']['project_id'] == pid(server)
+    assert result['project']['quota_gb'] == 5
+
+
+def test_other_quota_failures_are_reported(server, run_module):
+    existing(server)
+    server.route('GET', '/quotas', dict(status=500, body=dict(errors=[dict(code='UNKNOWN', message='boom')]),
+                                        headers={}))
+    result = run_module(project.main, dict(name='fixtures-core'))
+    assert result['failed'] is True and 'HTTP 500' in result['msg']
+
+
+@pytest.mark.parametrize('denied', [FORBIDDEN, 'robot_configurations_forbidden'], ids=['403', 'recorded-401'])
+def test_project_info_non_admin(server, run_module, denied):
+    listing = server.response('projects_with_created')
+    listing['body'].append(server.response('project_get_proxy')['body'])
+    as_non_admin(server, listing, server.response(denied) if isinstance(denied, str) else denied)
+    result = run_module(project_info.main, {})
+    assert 'failed' not in result
+    assert len(result['projects']) == len(listing['body'])
+    assert all(p['quota_gb'] is None and p['proxy_registry'] is None for p in result['projects'])
+
+
+def test_project_info_reads_registries_only_for_proxy_projects(server, run_module):
+    server.route('GET', '/projects', 'projects_with_created')
+    server.route('GET', '/quotas', 'quotas_all')
+    result = run_module(project_info.main, {})
+    assert 'failed' not in result
+    assert server.calls('GET', '/registries') == []
+
+
+def test_project_info_other_failures_are_reported(server, run_module):
+    server.route('GET', '/projects', 'projects_with_created')
+    server.route('GET', '/quotas', dict(status=500, body=None, headers={}))
+    result = run_module(project_info.main, {})
+    assert result['failed'] is True and 'HTTP 500' in result['msg']

@@ -104,6 +104,9 @@ options:
     description:
       - Secret (password) of the robot account. 8 to 128 characters with at least one upper-case
         letter, one lower-case letter and one digit.
+      - Harbor creates a robot account with a secret of its own and takes the declared one in a second
+        request. If that request fails, the module deletes the new robot account again and fails, so
+        the next run starts over.
       - Without it, Harbor generates a secret when the robot account is created and the module
         returns it in RV(secret); an existing robot account's secret is then left alone.
     type: str
@@ -185,6 +188,7 @@ import re
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor import (
+    HarborError,
     canonical_permissions,
     find_by_name,
     harbor_argument_spec,
@@ -302,8 +306,21 @@ def ensure(module, client):
             created, dummy = client.post('/robots', body)
             robot_id = created['id']
             if params['secret'] is not None:
-                client.request('PATCH', '/robots/%d' % robot_id, body=dict(secret=params['secret']),
-                               expected=(200,), retry=True)
+                try:
+                    client.request('PATCH', '/robots/%d' % robot_id, body=dict(secret=params['secret']),
+                                   expected=(200,), retry=True)
+                except HarborError as e:
+                    # Harbor created the robot with a secret of its own, which
+                    # nobody knows. Left like that, update_secret: on_create
+                    # would never set the declared one.
+                    try:
+                        client.delete('/robots/%d' % robot_id)
+                        outcome = 'The robot account was removed again, so the next run starts over.'
+                    except HarborError:
+                        outcome = ('Removing it again failed too: it now exists without the declared secret. '
+                                   'Delete it in Harbor, or run again with update_secret: always.')
+                    raise ValueError('Robot account %r was created, but setting its declared secret failed: %s. %s'
+                                     % (params['name'], e.message(), outcome))
                 result['secret_updated'] = True
             else:
                 result['secret'] = created.get('secret')

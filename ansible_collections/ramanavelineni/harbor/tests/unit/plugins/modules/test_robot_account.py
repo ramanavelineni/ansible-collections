@@ -8,6 +8,7 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     robot_short_name,
 )
 from ansible_collections.ramanavelineni.harbor.plugins.modules import robot_account, robot_account_info
+from ansible_collections.ramanavelineni.harbor.tests.unit.plugins.conftest import transport_error
 
 PULL_ALL = [dict(namespace='*', access=[dict(resource='repository', action='pull')])]
 SECRET = 'DeclaredSecret9'
@@ -46,6 +47,30 @@ def test_create_sets_declared_secret(server, run_module):
     assert result['secret_updated'] is True
     assert 'secret' not in result
     assert server.calls('PATCH')[0]['body'] == dict(secret=SECRET)
+    assert SECRET not in json.dumps(result)
+
+
+def test_create_removes_the_robot_when_the_secret_cannot_be_set(server, run_module):
+    server.route('GET', '/robots', 'robot_list_system_empty')
+    server.route('POST', '/robots', 'robot_create')
+    server.route('PATCH', '/robots/%d' % rid(server), dict(status=500, body=None, headers={}))
+    server.route('DELETE', '/robots/%d' % rid(server), 'robot_delete')
+    result = run_module(robot_account.main, dict(name='fixtures-robot-sys', permissions=PULL_ALL, secret=SECRET))
+    assert result['failed'] is True
+    assert 'setting its declared secret failed' in result['msg'] and 'HTTP 500' in result['msg']
+    assert 'removed again' in result['msg']
+    assert len(server.calls('DELETE', '/robots/%d' % rid(server))) == 1
+    assert SECRET not in json.dumps(result) and 'RecordedSecret0' not in json.dumps(result)
+
+
+def test_create_says_so_when_the_robot_cannot_be_removed_either(server, run_module):
+    server.route('GET', '/robots', 'robot_list_system_empty')
+    server.route('POST', '/robots', 'robot_create')
+    server.route('PATCH', '/robots/%d' % rid(server), transport_error())
+    server.route('DELETE', '/robots/%d' % rid(server), transport_error())
+    result = run_module(robot_account.main, dict(name='fixtures-robot-sys', permissions=PULL_ALL, secret=SECRET))
+    assert result['failed'] is True
+    assert 'Removing it again failed too' in result['msg'] and 'update_secret: always' in result['msg']
     assert SECRET not in json.dumps(result)
 
 

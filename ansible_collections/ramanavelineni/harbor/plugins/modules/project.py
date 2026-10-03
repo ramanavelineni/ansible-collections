@@ -10,6 +10,9 @@ description:
   - Creates, updates or deletes a Harbor project, found by its name, with its visibility, metadata,
     proxy-cache registry and storage quota.
   - Only the options you set are compared and changed; the others keep their current value.
+  - Registries and quotas are system-level in Harbor, so O(proxy_registry) and O(quota_gb) need an
+    administrator. A user who only administers the project can manage the rest; the project's quota
+    and proxy-cache registry name are then returned as V(null).
 author:
   - ramanavelineni (@ramanavelineni)
 extends_documentation_fragment:
@@ -110,11 +113,23 @@ project:
     registry_id: null
     quota_gb: 50
     repo_count: 0
+  contains:
+    proxy_registry:
+      description:
+        - Name of the registry a proxy-cache project is bound to.
+        - Also V(null) when the login user is not an administrator and may not read the registries.
+      type: str
+    quota_gb:
+      description:
+        - Storage quota in GiB, V(-1) for unlimited.
+        - V(null) when the login user is not an administrator and may not read the quotas.
+      type: int
 '''
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor import (
     GIB,
+    HarborError,
     find_by_name,
     harbor_argument_spec,
     id_from_location,
@@ -166,8 +181,29 @@ def normalize_metadata(metadata, minor):
     return out
 
 
-def quota_of(client, project_id):
-    quotas = client.list('/quotas', params=dict(reference='project', reference_id=project_id))
+def read_or_none(read, needed, what):
+    """read(), or None when the login user may not read it and the task can do without.
+
+    Registries and quotas are system-level in Harbor: only an administrator
+    reads them. A project admin can still manage the project itself. Harbor
+    refuses with 403, or with 401 as it does for /configurations.
+    """
+    try:
+        return read()
+    except HarborError as e:
+        if e.status not in (401, 403):
+            raise
+        if needed:
+            raise ValueError('The user this module logs in as may not read %s (HTTP %s), which this task needs. '
+                             'Log in as an administrator, or leave the option out.' % (what, e.status))
+        return None
+
+
+def quota_of(client, project_id, needed=False):
+    """The project's quota object, or None when there is none or it may not be read."""
+    quotas = read_or_none(
+        lambda: client.list('/quotas', params=dict(reference='project', reference_id=project_id)),
+        needed, 'project quotas (quota_gb)')
     return quotas[0] if quotas else None
 
 
@@ -181,8 +217,12 @@ def ensure(module, client):
 
     current = find_by_name(client.list('/projects'), params['name'], 'project')
     registries = {}
-    if current or params['proxy_registry']:
-        registries = dict((r['id'], r['name']) for r in client.list('/registries'))
+    # Only needed to turn proxy_registry into an id, or a proxy-cache
+    # project's registry id into its name.
+    if params['proxy_registry'] or (current and current.get('registry_id')):
+        listed = read_or_none(lambda: client.list('/registries'), bool(params['proxy_registry']),
+                              'registries (proxy_registry)')
+        registries = dict((r['id'], r['name']) for r in listed or [])
 
     if params['state'] == 'absent':
         if not current:
@@ -219,11 +259,15 @@ def ensure(module, client):
             project_id = id_from_location(headers)
             created = client.get('/projects/%d' % project_id) if project_id else \
                 find_by_name(client.list('/projects'), params['name'], 'project')
-            after = view(created, quota_of(client, created['project_id']), registries)
+            quota = quota_of(client, created['project_id'])
+            after = view(created, quota, registries)
+            if quota is None:
+                # Not readable by this user: report what was asked for.
+                after['quota_gb'] = params['quota_gb']
         return dict(changed=True, project=after, diff=dict(before={}, after=after))
 
     project_id = current['project_id']
-    quota = quota_of(client, project_id)
+    quota = quota_of(client, project_id, needed=storage is not None)
     if storage is not None and quota is None:
         raise ValueError('Project %r has no quota in Harbor, so quota_gb cannot be set. Remove quota_gb, or '
                          'check the project\'s quota in Harbor.' % params['name'])
