@@ -67,13 +67,15 @@ goal.
 
 ```
 ansible-collections/
-├── README.md, PLAN.md, LICENSE
+├── README.md, PLAN.md, LICENSE, CONTRIBUTING.md, SECURITY.md
 ├── Makefile                    # make sanity / units / changelog-lint / build
 ├── .pre-commit-config.yaml     # whitespace, YAML, changelog lint
 ├── .github/workflows/ci.yml    # sanity + units per collection and ansible-core
 ├── tools/
 │   ├── record_semaphoreui_fixtures.py   # record API responses per area
-│   └── record_harbor_fixtures.py
+│   ├── record_harbor_fixtures.py
+│   ├── recorder_common.py               # throwaway-server guard, listing filter, secret scan
+│   └── tests/                           # make tools-test
 └── ansible_collections/ramanavelineni/
     ├── semaphoreui/
     │   ├── galaxy.yml, README.md, meta/runtime.yml, changelogs/
@@ -372,6 +374,9 @@ or an OIDC user's CLI secret.
 - Unit tests replay API responses recorded from throwaway local servers:
   Semaphore UI 2.18.30 and 2.19.12, Harbor 2.14.4 and 2.15.2. Each quirk above
   has at least one test. The recorders live in `tools/`, one area at a time.
+  They refuse a server that isn't on a loopback address unless
+  `--allow-remote` is passed, keep only their own objects from listings, and
+  don't write a recording in which they find a secret.
 - Before merging, every module is exercised live against those servers.
 - No live servers in CI. Before a release is used, the homelab roles run
   against it: first in check mode, then for real.

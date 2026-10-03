@@ -1,0 +1,31 @@
+---
+name: Feature request
+description: A new module, a new option, or support for another server version.
+labels: [enhancement]
+body:
+  - type: dropdown
+    id: collection
+    attributes:
+      label: Collection
+      options:
+        - ramanavelineni.semaphoreui
+        - ramanavelineni.harbor
+    validations:
+      required: true
+  - type: textarea
+    id: need
+    attributes:
+      label: What you want to manage
+      description: The object or setting, and where it is in the server's UI or API.
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: How the task could look
+      render: yaml
+  - type: input
+    id: versions
+    attributes:
+      label: Server version
+      placeholder: Harbor 2.15.2

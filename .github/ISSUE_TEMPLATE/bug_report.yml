@@ -1,0 +1,56 @@
+---
+name: Bug report
+description: A module fails, changes the wrong thing, or reports a change that isn't one.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Remove passwords, tokens and keys from everything you paste.
+        A security problem goes through the private form instead (see SECURITY.md).
+  - type: dropdown
+    id: collection
+    attributes:
+      label: Collection
+      options:
+        - ramanavelineni.semaphoreui
+        - ramanavelineni.harbor
+    validations:
+      required: true
+  - type: input
+    id: module
+    attributes:
+      label: Module
+      placeholder: template
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: The collection, ansible-core, and the Semaphore UI or Harbor server.
+      placeholder: semaphoreui 0.2.1, ansible-core 2.19.3, Semaphore UI 2.19.12
+    validations:
+      required: true
+  - type: textarea
+    id: task
+    attributes:
+      label: Task
+      description: The smallest task that shows the problem.
+      render: yaml
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: The output of the task, with `-vvv` if it failed.
+      render: text
+    validations:
+      required: true
