@@ -40,7 +40,7 @@ EXAMPLES = r'''
 
 RETURN = r'''
 users:
-  description: Matching users, sorted by login name.
+  description: Matching users, sorted by login name, in the form the M(ramanavelineni.semaphoreui.user) module returns.
   returned: always
   type: list
   elements: dict
@@ -59,9 +59,8 @@ from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semapho
     run_module,
     semaphore_argument_spec,
     semaphore_module_kwargs,
+    user_view,
 )
-
-FIELDS = ('id', 'username', 'name', 'email', 'admin', 'alert', 'external')
 
 
 def list_users(module, client):
@@ -70,7 +69,7 @@ def list_users(module, client):
     for user in client.list('/users'):
         if module.params['login'] is not None and user.get('username') != module.params['login']:
             continue
-        out.append(dict((f, user[f]) for f in FIELDS if f in user))
+        out.append(user_view(user))
     return dict(changed=False, users=sorted(out, key=lambda u: (u.get('username') or '', u.get('id') or 0)))
 
 

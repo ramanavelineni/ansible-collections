@@ -39,7 +39,8 @@ EXAMPLES = r'''
 
 RETURN = r'''
 repositories:
-  description: Matching repositories, sorted by name, with the name of the key each one uses.
+  description: Matching repositories, sorted by name, in the form the M(ramanavelineni.semaphoreui.repository) module
+    returns, with the name of the key each one uses.
   returned: always
   type: list
   elements: dict
@@ -55,6 +56,7 @@ repositories:
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
+    repository_view,
     resolve_project,
     run_module,
     semaphore_argument_spec,
@@ -71,7 +73,7 @@ def list_repositories(module, client):
     for repo in client.list(base + '/repositories'):
         if module.params['name'] is not None and repo.get('name') != module.params['name']:
             continue
-        repos.append(dict(repo, ssh_key=key_names.get(repo.get('ssh_key_id'))))
+        repos.append(repository_view(repo, key_names))
     return dict(changed=False, repositories=sorted(repos, key=lambda r: (r.get('name') or '', r.get('id') or 0)))
 
 
