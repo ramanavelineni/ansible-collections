@@ -96,20 +96,39 @@ podman run -d --name semfx -p 127.0.0.1:3019:3000 \
     docker.io/semaphoreui/semaphore:v2.19.12
 ```
 
-Harbor needs its installer, which `tools/harbor_up.sh` drives:
+Harbor is several containers. `tools/harbor_up.sh` starts them the way the
+servers behind the committed fixtures were set up: Harbor's `harbor.yml.tmpl`
+edited for plain HTTP, Harbor's own `prepare` container, and the compose file
+it writes adjusted for rootless podman (the script says what is adjusted and
+why).
 
 ```sh
-HARBOR_PASSWORD=<password> tools/harbor_up.sh up v2.15.0 8015
-tools/harbor_up.sh down v2.15.0
+tools/harbor_up.sh up v2.15.2 8015      # then: user admin, password in ~/harbor-lab/v2.15.2/admin_password
+tools/harbor_up.sh down v2.15.2         # stops it and removes ~/harbor-lab/v2.15.2
 ```
 
-**`tools/harbor_up.sh` has not been run yet.** It was written from Harbor's
-installation guide without a Harbor at hand, and the steps it is least sure
-of are marked `TODO(verify)` in the script. Whoever records Harbor fixtures
-next runs it step by step, fixes what is wrong, and takes the notice out of
-the script and out of this section. The registry area makes Harbor reach
-itself as `http://proxy:8080`, the name and port of the installer's nginx
-service inside its compose network; that is one of the things to verify.
+Run it where the containers run. With a podman machine (macOS) that is inside
+the machine; the published port is reachable on the host, so the recorder
+still runs on the host:
+
+```sh
+podman machine ssh 'bash -s -- up v2.15.2 8015' < tools/harbor_up.sh
+HARBOR_PASSWORD="$(podman machine ssh cat harbor-lab/v2.15.2/admin_password)" \
+    tools/record_harbor_fixtures.py http://127.0.0.1:8015
+podman machine ssh 'bash -s -- down v2.15.2' < tools/harbor_up.sh
+```
+
+It needs podman or docker and a compose command (`podman compose` with a
+provider installed, `docker compose`, `podman-compose` or `docker-compose`).
+
+**What is proven.** The two edits the script makes itself are tested by
+`make tools-test`: its `harbor.yml`, and its compose file, which for 2.14.4
+and 2.15.2 equals the compose file of the working servers. The registry area
+makes Harbor reach itself as `http://proxy:8080`; the compose file confirms
+that name and port. **What is not:** `up` and `down` have not been run end to
+end yet. The call of `prepare`, the compose command on the machine, the wait
+and the removal of the data are the parts to watch on the first run; whoever
+does that run takes this paragraph and the one at the top of the script out.
 
 ### Recording
 
