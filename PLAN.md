@@ -22,8 +22,6 @@ along the way. Each quirk is handled inside a module and covered by a test.
       (`client_cert`, `client_key`, `use_proxy`), `project_id` in
       semaphoreui, `warn_untested_version` in harbor, and the fixes from a
       review of every module
-- [x] The homelab's Semaphore configuration runs on the collection: a
-      playbook in its own repository replaced the `semaphore_config` role
 - [ ] Switch the homelab `harbor_config` role to the collection
 
 ---
