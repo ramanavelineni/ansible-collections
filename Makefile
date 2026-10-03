@@ -4,6 +4,7 @@
 #   make sanity                      # ansible-test sanity in a container
 #   make units                       # unit tests in a container
 #   make changelog-lint              # check changelog fragments
+#   make tools-test                  # tests for the fixture recorders in tools/
 #   make build                       # collection tarball into build/
 #   make sanity COLLECTION=harbor    # another collection (once it exists)
 #
@@ -18,7 +19,7 @@ ANSIBLE_TEST_FLAGS ?= --docker
 ANTSIBULL_CHANGELOG ?= antsibull-changelog
 BUILD_DIR          := $(CURDIR)/build
 
-.PHONY: help sanity units changelog-lint changelog build clean
+.PHONY: help sanity units tools-test changelog-lint changelog build clean
 
 help:
 	@sed -n 's/^#   //p' $(firstword $(MAKEFILE_LIST))
@@ -28,6 +29,10 @@ sanity:
 
 units:
 	cd $(COLLECTION_DIR) && $(ANSIBLE_TEST) units $(ANSIBLE_TEST_FLAGS) -v --color
+
+# The recorders are not part of a collection, so ansible-test doesn't see them.
+tools-test:
+	python3 -B -m unittest discover -s tools/tests -v
 
 changelog-lint:
 	cd $(COLLECTION_DIR) && $(ANTSIBULL_CHANGELOG) lint

@@ -4,8 +4,9 @@
 
 """Record real Semaphore API responses for the semaphoreui unit tests.
 
-Run it against a THROWAWAY server: it creates and deletes objects. Start one
-per tested version, for example with podman:
+Run it against a THROWAWAY server: it creates and deletes objects. It refuses
+a server that is not on this machine (a loopback address) unless --allow-remote
+is passed. Start one per tested version, for example with podman:
 
     podman run -d --name semfx -p 127.0.0.1:3019:3000 \\
         -e SEMAPHORE_DB_DIALECT=sqlite -e SEMAPHORE_ADMIN=admin \\
@@ -13,7 +14,7 @@ per tested version, for example with podman:
         -e SEMAPHORE_ADMIN_EMAIL=admin@localhost \\
         docker.io/semaphoreui/semaphore:v2.19.12
 
-    SEMAPHORE_PASSWORD=<password> tools/record_semaphoreui_fixtures.py http://127.0.0.1:3019 [AREA ...]
+    SEMAPHORE_PASSWORD=<password> tools/record_semaphoreui_fixtures.py [--allow-remote] http://127.0.0.1:3019 [AREA ...]
 
 Responses are recorded per area (see AREAS at the bottom) and written to
 ansible_collections/ramanavelineni/semaphoreui/tests/unit/plugins/fixtures/<major.minor>/<area>.json,
@@ -27,8 +28,12 @@ lists. Every other area has to work next to other projects, so areas can be
 recorded one at a time or by several people at once: create what the area
 needs in a project of its own (named "fixtures-<area>"), and delete it again.
 
-Nothing secret is written: the server is throwaway and no response carries a
-password or token.
+What is written goes into a public repository. Listings are cut down to the
+objects the area created, the runner registration token is replaced by a
+placeholder, and a recording in which the admin password, a generated token or
+something shaped like a credential turns up is not written at all. Still
+written as the server sent them: /info, /apps, and the account the recorder
+logs in with (username, name and e-mail). Another reason to use a throwaway.
 """
 
 import json
@@ -38,6 +43,8 @@ import sys
 import urllib.error
 import urllib.request
 from http.cookiejar import CookieJar
+
+from recorder_common import keep, parse_args, require_throwaway, write_fixture
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FIXTURES = os.path.join(HERE, '..', 'ansible_collections', 'ramanavelineni', 'semaphoreui',
@@ -51,6 +58,8 @@ FAKE_PRIVATE_KEY = '-----BEGIN OPENSSH PRIVATE KEY-----\nnot-a-real-key\n-----EN
 class Server(object):
     def __init__(self, url):
         self.url = url.rstrip('/')
+        # Live secrets of this run; a recording that holds one is not written.
+        self.secrets = []
         self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
 
     def call(self, method, path, body=None, token=None):
@@ -108,6 +117,7 @@ def record_core(srv, out):
 
     # API token auth, checked here so the recording fails if it ever breaks.
     token = expect(srv.call('POST', '/user/tokens'), 201, 'create token')['body']['id']
+    srv.secrets.append(token)
     expect(srv.call('GET', '/info', token=token), 200, 'info with token')
     expect(srv.call('DELETE', '/user/tokens/%s' % token), 204, 'delete token')
 
@@ -304,12 +314,18 @@ def record_team(srv, out):
             'username': name, 'name': name.upper(), 'email': name + '@example.com',
             'password': 'not-a-real-password-1', 'admin': False}), 201, 'create user')['body']
     out['team_user_current'] = expect(srv.call('GET', '/user'), 200, 'current user')
-    out['team_users_search'] = expect(srv.call('GET', '/users?s=tm-fixture-a'), 200, 'search users')
-    out['team_users_search_prefix'] = expect(srv.call('GET', '/users?s=tm-fixture'), 200, 'search users by prefix')
+    # The search matches other people's users too, and /projects lists every project; keep only this area's.
+    def own_user(user):
+        return user['username'] in usernames
+
+    out['team_users_search'] = keep(expect(srv.call('GET', '/users?s=tm-fixture-a'), 200, 'search users'), own_user)
+    out['team_users_search_prefix'] = keep(expect(srv.call('GET', '/users?s=tm-fixture'), 200, 'search users by prefix'),
+                                           own_user)
     project = expect(srv.call('POST', '/projects', {'name': project_name}), 201, 'create project')['body']
     pid = project['id']
     base = '/project/%d/users' % pid
-    out['team_projects_list'] = expect(srv.call('GET', '/projects'), 200, 'projects')
+    out['team_projects_list'] = keep(expect(srv.call('GET', '/projects'), 200, 'projects'),
+                                     lambda p: p['id'] == pid)
     out['team_members_initial'] = expect(srv.call('GET', base), 200, 'members')
     a, b = users['tm-fixture-a']['id'], users['tm-fixture-b']['id']
     out['team_member_add'] = expect(srv.call('POST', base, {'user_id': a, 'role': 'manager'}), 204, 'add member')
@@ -349,6 +365,7 @@ def record_runner(srv, out):
     token = expect(srv.call('POST', '/runners/%d/registration-token' % rid), 200, 'registration token')
     if not token['body']['registration_token'].startswith('smrs_'):
         sys.exit('registration token has an unexpected shape')
+    srv.secrets.append(token['body']['registration_token'])
     token['body']['registration_token'] = RECORDED_TOKEN
     out['runner_registration_token'] = token
     runner = dict(out['runner_get']['body'])
@@ -374,8 +391,9 @@ def record_runner(srv, out):
 def record_user(srv, out):
     """Global users: a local and an external one, created and deleted again.
 
-    Works next to other users. The recorder never logs in as the users it
-    creates, because Semaphore 2.18 cannot delete a user who has a session.
+    Works next to other users, who are left out of the recorded listings.
+    The recorder never logs in as the users it creates, because Semaphore 2.18
+    cannot delete a user who has a session.
     """
     stamp = str(os.getpid())
     login, ext = 'us-fixture-' + stamp, 'us-fixture-ext-' + stamp
@@ -389,11 +407,17 @@ def record_user(srv, out):
     xid = out['user_create_external']['body']['id']
     out['user_create_duplicate_email'] = srv.call('POST', '/users', {
         'username': login + '-dup', 'name': 'Dup', 'email': login + '@example.com', 'password': 'not-a-real-password'})
-    out['user_list'] = expect(srv.call('GET', '/users'), 200, 'users')
+    # The two users above and the one the recorder is logged in as; nobody else's.
+    mine = (uid, xid, out['user_me']['body']['id'])
+
+    def own(listed):
+        return listed['id'] in mine
+
+    out['user_list'] = keep(expect(srv.call('GET', '/users'), 200, 'users'), own)
     user = dict(out['user_create']['body'])
     out['user_update'] = expect(srv.call('PUT', '/users/%d' % uid, dict(user, name='Fixture Team', alert=True)),
                                 204, 'update user')
-    out['user_list_updated'] = expect(srv.call('GET', '/users'), 200, 'users')
+    out['user_list_updated'] = keep(expect(srv.call('GET', '/users'), 200, 'users'), own)
     out['user_password'] = expect(srv.call('POST', '/users/%d/password' % uid, {'password': 'not-a-real-password-2'}),
                                   204, 'set password')
     out['user_password_external'] = srv.call('POST', '/users/%d/password' % xid, {'password': 'not-a-real-password'})
@@ -411,18 +435,15 @@ AREAS = {
 
 
 def main():
-    if len(sys.argv) < 2 or sys.argv[1].startswith('-'):
-        sys.exit('usage: %s <server url> [AREA ...]   (areas: %s)' % (sys.argv[0], ', '.join(sorted(AREAS))))
-    areas = sys.argv[2:] or sorted(AREAS)
-    unknown = [a for a in areas if a not in AREAS]
-    if unknown:
-        sys.exit('unknown area(s) %s; known: %s' % (', '.join(unknown), ', '.join(sorted(AREAS))))
+    url, areas, allow_remote = parse_args(sys.argv, AREAS)
+    require_throwaway(url, allow_remote)
     password = os.environ.get('SEMAPHORE_PASSWORD')
     if not password:
         sys.exit('set SEMAPHORE_PASSWORD to the admin password')
-    srv = Server(sys.argv[1])
+    srv = Server(url)
     srv.username = os.environ.get('SEMAPHORE_USERNAME', 'admin')
     srv.password = password
+    srv.secrets.append(password)
 
     bad_login = expect(srv.call('POST', '/auth/login', {'auth': srv.username, 'password': 'wrong'}), 401, 'bad login')
     login = expect(srv.call('POST', '/auth/login', {'auth': srv.username, 'password': password}), 204, 'login')
@@ -435,11 +456,7 @@ def main():
             out.update(login_bad_password=bad_login, login=login)
         AREAS[area](srv, out)
         path = os.path.normpath(os.path.join(FIXTURES, minor, '%s.json' % area))
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, 'w') as f:
-            json.dump(dict(recorded_from=version, responses=out), f, indent=2, sort_keys=True)
-            f.write('\n')
-        print('wrote %s (%d responses, server %s)' % (path, len(out), version))
+        write_fixture(path, version, out, srv.secrets, placeholders=(RECORDED_TOKEN,))
 
 
 if __name__ == '__main__':
