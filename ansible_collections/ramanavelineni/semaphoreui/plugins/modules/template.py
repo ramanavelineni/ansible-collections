@@ -159,6 +159,8 @@ options:
   survey_vars:
     description:
       - Variables the user is asked for when starting a task, replacing the current list as a whole.
+      - A variable that keeps its name keeps the fields this module has no option for, such as the
+        C(target) that Semaphore 2.19 stores.
     type: list
     elements: dict
     suboptions:
@@ -285,17 +287,26 @@ TERRAFORM_PARAMS = ('allow_destroy', 'allow_auto_approve', 'auto_approve', 'over
 TASK_PARAMS = dict(ansible=ANSIBLE_PARAMS, terraform=TERRAFORM_PARAMS, tofu=TERRAFORM_PARAMS,
                    terragrunt=TERRAFORM_PARAMS)
 TERRAFORM_APPS = ('terraform', 'tofu', 'terragrunt')
-ALL_FIELDS = frozenset(('repository', 'inventory', 'view', 'build_template', 'variable_groups', 'vaults'))
+ALL_FIELDS = frozenset(('repository', 'inventory', 'view', 'build_template', 'variable_groups', 'vaults',
+                        'survey_vars', 'arguments'))
 # References an empty string removes.
 CLEARABLE = ('inventory', 'view', 'build_template')
 CLEAR = '__clear__'
 
 
-def survey_to_api(var):
-    out = dict(name=var['name'], title=var['title'], type=SURVEY_TO_API[var['type']], required=var['required'],
-               description=var['description'], default_value=var['default_value'])
+def survey_to_api(var, stored=None):
+    """A declared survey variable as the API takes it, on top of the stored one of that name.
+
+    Starting from the stored variable keeps the fields this module doesn't
+    manage (2.19's `target`, and whatever a later version adds).
+    """
+    out = dict(stored or {})
+    out.update(name=var['name'], title=var['title'], type=SURVEY_TO_API.get(var['type'], var['type']),
+               required=var['required'], description=var['description'], default_value=var['default_value'])
     if var['values']:
         out['values'] = [dict(name=v['name'], value=v['value']) for v in var['values']]
+    else:
+        out.pop('values', None)
     return out
 
 
@@ -387,14 +398,22 @@ def build_body(base_tpl, view, lookups, params, project_id, changed):
         inventory_id=ids['inventory_id'],
         view_id=ids['view_id'],
         git_branch=view['git_branch'] or None,
-        arguments=json.dumps(view['arguments']) if view['arguments'] else None,
-        type=TYPE_TO_API[view['type']],
+        type=TYPE_TO_API.get(view['type'], view['type']),
         start_version=(view['start_version'] or None) if view['type'] == 'build' else None,
         build_template_id=ids['build_template_id'] if view['type'] == 'deploy' else None,
         runner_tag=view['runner_tag'] or None,
         task_params=view['task_params'],
-        survey_vars=[survey_to_api(v) for v in view['survey_vars']],
     )
+    # What the caller didn't change goes back exactly as stored: rebuilding it
+    # from the module's own view would drop fields the view doesn't have, and
+    # rewrite an arguments string that isn't a JSON list.
+    if 'arguments' in changed:
+        body['arguments'] = json.dumps(view['arguments']) if view['arguments'] else None
+    if 'survey_vars' in changed:
+        stored = dict((v.get('name'), v) for v in base_tpl.get('survey_vars') or [])
+        body['survey_vars'] = [survey_to_api(v, stored.get(v['name'])) for v in view['survey_vars']]
+    else:
+        body['survey_vars'] = list(base_tpl.get('survey_vars') or [])
     env_ids = ids['environment_ids']
     body['environment_ids'] = env_ids
     body['environment_id'] = env_ids[0] if env_ids else 0

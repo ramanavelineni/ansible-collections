@@ -5,7 +5,6 @@ import json
 
 import pytest
 
-from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.template import survey_view
 from ansible_collections.ramanavelineni.semaphoreui.plugins.modules import template
 
 SITE = dict(project='homelab', name='site', playbook='site.yml', repository='ansible', inventory='homelab',
@@ -89,11 +88,9 @@ def test_update_keeps_everything_else(server, project, run_module):
     assert result['changed'] is True
     body = server.calls('PUT')[0]['body']
     current = server.fixtures['template_get']['body']
-    for field in ('repository_id', 'inventory_id', 'view_id', 'environment_ids', 'arguments', 'task_params', 'vaults'):
+    for field in ('repository_id', 'inventory_id', 'view_id', 'environment_ids', 'arguments', 'task_params', 'vaults',
+                  'survey_vars'):
         assert body[field] == current[field], field
-    # Survey variables go back with their default fields written out.
-    assert ([survey_view(v) for v in body['survey_vars']]
-            == [survey_view(v) for v in current['survey_vars']])
     assert body['description'] == 'updated'
     assert 'permissions' not in body and 'tasks' not in body
 
@@ -189,3 +186,67 @@ def test_result_has_no_secret_or_raw_ids_only(server, project, run_module):
     assert tpl['repository'] == 'ansible' and tpl['inventory'] == 'homelab' and tpl['view'] == 'k8s'
     assert tpl['variable_groups'] == ['empty']
     assert json.dumps(tpl['vaults']) == json.dumps([dict(name='default', type='password', key='deploy', script='')])
+
+
+def with_stored(server, **fields):
+    """Change the recorded template before it is routed (hand-edited: no recorded server stores these)."""
+    server.fixtures['template_get']['body'].update(fields)
+    return server.fixtures['template_get']['body']
+
+
+def test_unchanged_survey_vars_go_back_as_stored(server, project, run_module):
+    # 2.19 stores `target`; `colour` stands for a field a later version adds.
+    stored = with_stored(server, survey_vars=[dict(name='host', title='Host', target='env', colour='red')])
+    existing(server, project)
+    result = run_module(template.main, dict(project='homelab', name='site', description='updated'))
+    assert result['changed'] is True
+    assert server.calls('PUT')[0]['body']['survey_vars'] == stored['survey_vars']
+
+
+def test_changed_survey_var_keeps_unmanaged_fields(server, project, run_module):
+    with_stored(server, survey_vars=[dict(name='host', title='Host', target='env', colour='red',
+                                          values=[dict(name='a', value='a')]),
+                                     dict(name='gone', title='Gone', target='env')])
+    existing(server, project)
+    result = run_module(template.main, dict(project='homelab', name='site', survey_vars=[
+        dict(name='host', title='Target host', required=True), dict(name='new', title='New')]))
+    assert result['changed'] is True
+    assert server.calls('PUT')[0]['body']['survey_vars'] == [
+        dict(name='host', title='Target host', type='', required=True, description='', default_value='',
+             target='env', colour='red'),
+        dict(name='new', title='New', type='', required=False, description='', default_value=''),
+    ]
+
+
+def test_unknown_survey_type_round_trips(server, project, run_module):
+    stored = with_stored(server, survey_vars=[dict(name='host', title='Host', type='secret')])
+    existing(server, project)
+    result = run_module(template.main, dict(project='homelab', name='site', description='updated'))
+    assert result['changed'] is True
+    assert result['template']['survey_vars'][0]['type'] == 'secret'
+    assert server.calls('PUT')[0]['body']['survey_vars'] == stored['survey_vars']
+
+
+def test_unknown_template_type_round_trips(server, project, run_module):
+    with_stored(server, type='workflow')
+    existing(server, project)
+    result = run_module(template.main, dict(project='homelab', name='site', description='updated'))
+    assert result['changed'] is True
+    assert result['template']['type'] == 'workflow'
+    assert server.calls('PUT')[0]['body']['type'] == 'workflow'
+
+
+def test_unchanged_arguments_go_back_as_stored(server, project, run_module):
+    with_stored(server, arguments='-v --diff')
+    existing(server, project)
+    result = run_module(template.main, dict(project='homelab', name='site', description='updated'))
+    assert result['changed'] is True
+    assert server.calls('PUT')[0]['body']['arguments'] == '-v --diff'
+
+
+def test_changed_arguments_are_written_as_a_list(server, project, run_module):
+    with_stored(server, arguments='-v --diff')
+    existing(server, project)
+    result = run_module(template.main, dict(project='homelab', name='site', arguments=['-v', '--diff']))
+    assert result['changed'] is True
+    assert server.calls('PUT')[0]['body']['arguments'] == '["-v", "--diff"]'

@@ -4,6 +4,7 @@
 """HTTP client and shared helpers for the ramanavelineni.semaphoreui modules."""
 
 import json
+import os
 import re
 import socket
 import time
@@ -44,9 +45,12 @@ def semaphore_argument_spec():
     """Connection options shared by every module (see doc fragment auth)."""
     return dict(
         url=dict(type='str', required=True, fallback=(env_fallback, ['SEMAPHORE_URL'])),
-        api_token=dict(type='str', no_log=True, fallback=(env_fallback, ['SEMAPHORE_API_TOKEN'])),
-        username=dict(type='str', fallback=(env_fallback, ['SEMAPHORE_USERNAME'])),
-        password=dict(type='str', no_log=True, fallback=(env_fallback, ['SEMAPHORE_PASSWORD'])),
+        # No env fallback here: it would fill these in before the "mutually
+        # exclusive" check and make a token from the environment clash with a
+        # username the task passes. resolve_credentials() reads the environment.
+        api_token=dict(type='str', no_log=True),
+        username=dict(type='str'),
+        password=dict(type='str', no_log=True),
         validate_certs=dict(type='bool', default=True, fallback=(env_fallback, ['SEMAPHORE_VALIDATE_CERTS'])),
         ca_path=dict(type='path', fallback=(env_fallback, ['SEMAPHORE_CA_PATH'])),
         timeout=dict(type='int', default=30),
@@ -57,11 +61,42 @@ def semaphore_argument_spec():
 
 def semaphore_module_kwargs():
     """AnsibleModule keyword arguments that go with semaphore_argument_spec()."""
+    # Only what must hold for the options a task passes itself. That a
+    # credential is there at all, and that a username has its password, is
+    # checked by resolve_credentials(), after the environment is read.
     return dict(
         mutually_exclusive=[('api_token', 'username'), ('api_token', 'password')],
-        required_together=[('username', 'password')],
-        required_one_of=[('api_token', 'username')],
     )
+
+
+def resolve_credentials(module):
+    """(api_token, username, password) to connect with: the task's options first, then the environment.
+
+    Options the task passes win over the environment, as a whole: a task that
+    passes a username doesn't use SEMAPHORE_API_TOKEN, and one that passes a
+    token doesn't use SEMAPHORE_USERNAME. A username or password passed alone
+    takes its other half from the environment. With nothing passed, the
+    environment decides, and there a token wins over a username.
+    """
+    params = module.params
+    env = dict((name, os.environ.get('SEMAPHORE_' + name.upper()) or None)
+               for name in ('api_token', 'username', 'password'))
+    token, username, password = params.get('api_token'), params.get('username'), params.get('password')
+    if token is None and username is None and password is None:
+        token = env['api_token']
+        if token is None:
+            username, password = env['username'], env['password']
+    elif token is None:
+        username = username if username is not None else env['username']
+        password = password if password is not None else env['password']
+    if token is None and username is None and password is None:
+        module.fail_json(msg='one of the following is required: api_token, username')
+    if token is None and (username is None or password is None):
+        module.fail_json(msg='parameters are required together: username, password')
+    # Secrets from the environment are not no_log option values; register them
+    # so they are masked like the ones a task passes.
+    module.no_log_values.update(v for v in (token, password) if v)
+    return token, username, password
 
 
 def base_url(url):
@@ -150,9 +185,7 @@ class SemaphoreClient(object):
         self.module = module
         params = module.params
         self.url = base_url(params['url'])
-        self.api_token = params.get('api_token')
-        self.username = params.get('username')
-        self.password = params.get('password')
+        self.api_token, self.username, self.password = resolve_credentials(module)
         self.validate_certs = params['validate_certs']
         self.ca_path = params.get('ca_path')
         self.timeout = params['timeout']
