@@ -42,7 +42,7 @@ along the way. Each quirk is handled inside a module and covered by a test.
 | Secrets | `update_secret: always` (default) or `on_create`, since neither server returns stored secrets |
 | Module imports | modules import only `module_utils`: Ansible ships nothing else with a module, and sanity's import test enforces it |
 | License hygiene | no GPL-licensed ansible-core code is imported, extended or copied; only its BSD-licensed `module_utils` and the Python standard library |
-| CI | `ansible-test` sanity and unit tests on every supported ansible-core version, for the collections a change touches. No live servers in CI |
+| CI | `ansible-test` sanity and unit tests on every supported ansible-core version, an install test of the built tarball, `ansible-lint` and a coverage floor, for the collections a change touches. No live servers in CI: the live suites in `tests/live` run locally |
 | Fixtures | API responses recorded from throwaway local servers of every supported version, one file per area |
 | Distribution | Git tags via `requirements.yml`, with GitHub Releases for the tarballs. Not published to Ansible Galaxy |
 | Workflow | feature branch and pull request for every change; squash-merge; no Co-Authored-By trailer; the owner pushes. `main` takes changes only through a pull request whose "CI result" check passed |
@@ -405,6 +405,11 @@ or an OIDC user's CLI secret.
   that only touch Markdown skip CI. Everything also runs once a week, and the
   unit tests run on ansible-core `devel` as an early warning that never blocks
   a merge.
+- Also in CI: the tarball is built, installed into an empty directory and used
+  from there; `ansible-lint` with the production profile; the unit tests have
+  to cover at least 95% of the plugin code.
+- Each collection has a live suite in `tests/live` that runs the modules
+  against a real server. It runs locally, never in CI.
 - Unit tests replay API responses recorded from throwaway local servers:
   Semaphore UI 2.18.30 and 2.19.12, Harbor 2.14.4 and 2.15.2. Each quirk above
   has at least one test. The recorders live in `tools/`, one area at a time.
@@ -421,8 +426,9 @@ or an OIDC user's CLI secret.
   `semaphoreui-vX.Y.Z` and `harbor-vX.Y.Z`.
 - Changelogs come from `antsibull-changelog` fragments, and new modules are
   listed from their `version_added`.
-- Pushing a tag runs that collection's changelog lint, sanity and unit tests
-  at the tagged commit (the release workflow calls the CI workflow for it).
+- Pushing a tag runs that collection's CI jobs (changelog lint, sanity, unit
+  tests, install test, lint, coverage) at the tagged commit (the release
+  workflow calls the CI workflow for it).
   When they pass, it builds the collection with
   `ansible-galaxy collection build` and publishes a GitHub Release with the
   tarball and the changelog.

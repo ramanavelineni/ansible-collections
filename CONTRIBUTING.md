@@ -18,17 +18,42 @@ goes there for you. `COLLECTION` is `semaphoreui` (the default) or `harbor`.
 ```sh
 make sanity COLLECTION=harbor    # ansible-test sanity
 make units COLLECTION=harbor     # unit tests
+make coverage COLLECTION=harbor  # unit tests with coverage, against the floor
+make lint COLLECTION=harbor      # ansible-lint and the sanity ignore files
+make docs-lint COLLECTION=harbor # antsibull-docs lint of the module docs
+make install-test COLLECTION=harbor  # build the tarball, install it elsewhere, use it
 make changelog-lint              # check changelog fragments
 make tools-test                  # tests for the fixture recorders
 make build                       # collection tarball into build/
 ```
 
-The first two run in a container (docker, or podman when docker isn't
-installed). `ANSIBLE_TEST_FLAGS="--venv --python 3.13"` runs them in a virtual
-environment instead.
+`sanity`, `units` and `coverage` run in a container (docker, or podman when
+docker isn't installed). `ANSIBLE_TEST_FLAGS="--venv --python 3.13"` runs them
+in a virtual environment instead. `lint`, `docs-lint` and `install-test` need
+`ansible-lint`, `antsibull-docs` and `ansible-core` installed.
 
 CI runs sanity and the unit tests on ansible-core 2.18, 2.19, 2.20 and 2.21,
-and lints the changelog fragments, for the collections a change touches. A
+and lints the changelog fragments, for the collections a change touches. It
+also runs, for those collections:
+
+- **Install test:** the tarball is built, installed into an empty directory
+  and used from there: `ansible-doc` for every module, and the `info` module
+  against a port where nothing listens, which has to fail with the
+  collection's own connection error. On the oldest and the newest supported
+  ansible-core.
+- **Lint:** `ansible-lint` with the production profile, and a check that each
+  `tests/sanity/ignore-<version>.txt` has one explained entry per module and
+  nothing else.
+- **Coverage:** the unit tests have to cover at least 95% of the plugin code
+  (98% when the floor was set). The floor is in
+  `.github/scripts/coverage-floor.sh`.
+- **Docs lint:** `antsibull-docs lint-collection-docs`. It doesn't block a
+  merge yet.
+
+All of these except the docs lint are part of "CI result", the one check a
+pull request needs.
+
+A
 change to the CI workflow or the `Makefile` runs both collections, a change
 under `tools/` runs the recorder tests, and a change that only touches Markdown
 runs none of them. Once a week everything runs for both collections, so a new
@@ -38,6 +63,24 @@ The jobs named "Units (..., devel)" run the unit tests on ansible-core's
 development branch. They are an early warning and never block a merge: a
 failure there on a pull request is worth a look, but usually means ansible-core
 changed, not that the pull request is wrong.
+
+### Live suites
+
+Each collection has a live suite in `tests/live`: the modules run in-process
+against a real server, so it shows what the unit tests can't, that the server
+accepts what a module sends and that a second run changes nothing.
+
+```sh
+SEMAPHORE_URL=http://127.0.0.1:3019 SEMAPHORE_USERNAME=admin SEMAPHORE_PASSWORD=... \
+    make live COLLECTION=semaphoreui
+HARBOR_URL=http://127.0.0.1:8015 HARBOR_USERNAME=admin HARBOR_PASSWORD=... \
+    make live COLLECTION=harbor
+```
+
+The live suites are local only and never run in CI. Use throwaway servers:
+the tests create and delete objects. Without the URL in the environment the
+tests are skipped. Run them before a release, and when a change touches what a
+module sends.
 
 ## What a change needs
 
@@ -187,7 +230,10 @@ the repo changes by itself. The steps, in one pull request:
    Apache-2.0 licence header instead of the GPL one) are needed on every
    version.
 2. Add `stable-2.x` to the two `ansible:` lists in `.github/workflows/ci.yml`
-   (sanity and units).
+   (sanity and units), make it the newer of the two versions of the install
+   test, and move the coverage and docs lint jobs' `ansible-core~=` to it. The
+   Lint job fails until the ignore files from step 1 and the sanity list
+   agree.
 3. Raise the upper bound in the `pip install "ansible-core>=...,<..."` line of
    `.github/workflows/release.yml`.
 4. Update the version badge at the top of the three READMEs, the "Compatibility"
@@ -212,7 +258,8 @@ Maintainers only. Each collection is versioned on its own
 version in `galaxy.yml` and runs `make changelog COLLECTION=<collection>`.
 Once it is merged, pushing the tag `<collection>-v<version>` on `main` starts
 the release workflow. It checks the tag against `galaxy.yml` and
-`CHANGELOG.md`, runs that collection's changelog lint, sanity and unit tests at
-the tagged commit, and only when they pass builds the tarball and publishes the
+`CHANGELOG.md`, runs that collection's CI jobs (changelog lint, sanity, unit
+tests, install test, lint and coverage) at the tagged commit, and only when
+they pass builds the tarball and publishes the
 GitHub Release. When a test fails, nothing is published: fix it on `main`, move
 the tag to the fixed commit and push the tag again.
