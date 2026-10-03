@@ -23,8 +23,16 @@ options:
   project:
     description:
       - Name of the project the inventory belongs to.
+      - Mutually exclusive with O(project_id); one of the two is required.
     type: str
-    required: true
+  project_id:
+    description:
+      - Id of the project, as an alternative to O(project).
+      - With it the list of projects is not read, so a project is found on a server with 200 or more
+        projects too. Semaphore cuts that list off at 200, and O(project) fails there.
+      - Mutually exclusive with O(project). One of the two is required.
+    type: int
+    version_added: 0.3.0
   name:
     description:
       - Name of the inventory. Inventories are looked up by this name within the project.
@@ -120,11 +128,12 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
     INVENTORY_REFERENCES,
     MissingReference,
+    PROJECT_OPTIONS,
     diff_fields,
     find_by_name,
     inventory_view,
+    project_ref,
     refuse_delete_if_used,
-    resolve_project,
     run_module,
     semaphore_argument_spec,
     semaphore_module_kwargs,
@@ -135,7 +144,7 @@ def ensure(module, client):
     params = module.params
     client.warn_if_untested()
 
-    project_id = resolve_project(client, params['project'], missing_ok=params['state'] == 'absent')
+    project_id, project = project_ref(client, params, missing_ok=params['state'] == 'absent')
     if project_id is None:
         # The project is gone, and everything in it went with it.
         return dict(changed=False, inventory={}, diff=dict(before={}, after={}))
@@ -164,7 +173,7 @@ def ensure(module, client):
         else:
             found = find_by_name(lists[endpoint], value, what)
             if found is None:
-                raise MissingReference('%s %r does not exist in project %r.' % (what.capitalize(), value, params['project']))
+                raise MissingReference('%s %r does not exist in project %r.' % (what.capitalize(), value, project))
             desired[field] = found['id']
 
     if not current:
@@ -212,7 +221,8 @@ def ensure(module, client):
 def main():
     argument_spec = semaphore_argument_spec()
     argument_spec.update(
-        project=dict(type='str', required=True),
+        project=dict(type='str'),
+        project_id=dict(type='int'),
         name=dict(type='str', required=True),
         state=dict(type='str', default='present', choices=['present', 'absent']),
         type=dict(type='str', choices=['file', 'static', 'static-yaml']),
@@ -224,7 +234,7 @@ def main():
     module = AnsibleModule(
         argument_spec=argument_spec,
         supports_check_mode=True,
-        **semaphore_module_kwargs()
+        **semaphore_module_kwargs(mutually_exclusive=[PROJECT_OPTIONS], required_one_of=[PROJECT_OPTIONS])
     )
     run_module(module, lambda client: ensure(module, client), placeholder=dict(inventory={}))
 
