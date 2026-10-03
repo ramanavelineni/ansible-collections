@@ -473,36 +473,58 @@ def variable_group_view(group, secrets):
     )
 
 
-def normalize_time(value):
-    """An ISO 8601 time as a comparable UTC string, or the input when it doesn't parse."""
-    if not value:
-        return None
-    text = value.strip().replace('Z', '+00:00')
+def parse_time(value):
+    """An ISO 8601 time as a datetime (naive when it names no time zone), or None when it doesn't parse."""
+    text = value.strip()
+    if text[-1:] in ('Z', 'z'):
+        text = text[:-1] + '+00:00'
     if '.' in text:
         # Go sends up to nanoseconds; Python parses at most microseconds.
         head, rest = text.split('.', 1)
         digits = len(rest) - len(rest.lstrip('0123456789'))
         text = head + '.' + rest[:digits][:6].ljust(6, '0') + rest[digits:]
     try:
-        moment = datetime.fromisoformat(text)
+        return datetime.fromisoformat(text)
     except ValueError:
+        return None
+
+
+def normalize_time(value):
+    """An ISO 8601 time as a comparable UTC string, or the input when it doesn't parse."""
+    if not value:
+        return None
+    moment = parse_time(value)
+    if moment is None:
         return value
     if moment.tzinfo is not None:
         moment = moment.astimezone(timezone.utc).replace(tzinfo=None)
     return moment.strftime('%Y-%m-%dT%H:%M:%S') + (moment.strftime('.%f') if moment.microsecond else '') + 'Z'
 
 
-def all_schedules(client, base, templates):
+def all_schedules(client, base, templates, name=None):
     """Every schedule in the project, with its template's name.
 
     The project list leaves out commit pollers, and each template's list has
     only its pollers; together they are complete. Neither carries a
     schedule's task-parameter overrides: read the schedule itself for those.
+
+    With `name`, the caller wants only the schedule of that name. When the
+    project list has it, the template lists are not read: that is one request
+    per template saved, at the price of not noticing a commit poller of the
+    same name.
+
+    A schedule that both lists return is kept once.
     """
     out = client.list(base + '/schedules')
+    if name is not None and any(sched.get('name') == name for sched in out):
+        return out
+    seen = set(sched.get('id') for sched in out)
     names = dict((t['id'], t.get('name')) for t in templates)
     for tpl in templates:
         for sched in client.list('%s/templates/%d/schedules' % (base, tpl['id'])):
+            if sched.get('id') in seen:
+                continue
+            seen.add(sched.get('id'))
             out.append(dict(sched, tpl_name=names.get(sched.get('template_id'))))
     return out
 
