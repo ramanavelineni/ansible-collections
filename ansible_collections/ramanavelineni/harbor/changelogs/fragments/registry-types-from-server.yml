@@ -1,0 +1,6 @@
+---
+bugfixes:
+  - >-
+    registry - ``type`` no longer has a fixed list of choices, so an endpoint can use a type a newer Harbor
+    adds. The twelve types of Harbor 2.14 and 2.15 behave as before. Any other type is checked against the
+    types the server offers before the endpoint is created (a warning instead of a failure in check mode).

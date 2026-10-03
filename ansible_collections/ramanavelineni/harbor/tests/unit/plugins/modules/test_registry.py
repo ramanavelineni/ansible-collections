@@ -5,6 +5,7 @@ import json
 
 import pytest
 
+from ansible_collections.ramanavelineni.harbor.plugins.module_utils.replication import REGISTRY_TYPES
 from ansible_collections.ramanavelineni.harbor.plugins.modules import registry, registry_info
 
 SELF = dict(name='rr-fixtures-self', type='harbor', endpoint_url='http://proxy:8080/', insecure=True)
@@ -321,3 +322,76 @@ def test_update_check_mode_predicts_the_real_result(server, run_module):
     assert check['registry'] == real['registry']
     assert check['diff'] == real['diff']
     assert len(server.calls('PUT')) == 1
+
+
+# -- types the server offers (GET /replication/adapters) -----------------------
+
+def test_known_type_is_not_looked_up(server, run_module):
+    server.route('GET', '/replication/adapters', 'registry_replication_adapters')
+    server.route('GET', '/registries', 'registry_list_before')
+    server.route('POST', '/registries', 'registry_create')
+    server.route('GET', '/registries/%d' % rid(server), 'registry_get')
+    result = run_module(registry.main, SELF)
+    assert result['changed'] is True
+    assert server.calls('GET', '/replication/adapters') == []
+
+
+def test_recorded_types_are_the_known_ones(server):
+    assert tuple(server.fixtures['registry_replication_adapters']['body']) == REGISTRY_TYPES
+
+
+def test_type_the_server_offers_is_accepted(server, run_module):
+    # Hand-made: the recorded list with one type added, as a newer Harbor would answer.
+    offered = server.response('registry_replication_adapters')
+    offered['body'].append('new-registry')
+    server.route('GET', '/replication/adapters', offered)
+    server.route('GET', '/registries', 'registry_list_before')
+    server.route('POST', '/registries', 'registry_create')
+    server.route('GET', '/registries/%d' % rid(server), 'registry_get')
+    result = run_module(registry.main, dict(SELF, type='new-registry'))
+    assert result['changed'] is True
+    assert server.calls('POST', '/registries')[0]['body']['type'] == 'new-registry'
+    assert len(server.calls('GET', '/replication/adapters')) == 1
+
+
+def test_type_the_server_does_not_offer_fails(server, run_module):
+    server.route('GET', '/replication/adapters', 'registry_replication_adapters')
+    server.route('GET', '/registries', 'registry_list_before')
+    result = run_module(registry.main, dict(SELF, type='nope'))
+    assert result['failed'] is True
+    assert result['msg'] == 'Unknown registry type nope; this server offers %s.' % ', '.join(sorted(REGISTRY_TYPES))
+    assert server.calls('POST') == []
+
+
+def test_type_the_server_does_not_offer_warns_in_check_mode(server, run_module):
+    server.route('GET', '/replication/adapters', 'registry_replication_adapters')
+    server.route('GET', '/registries', 'registry_list_before')
+    result = run_module(registry.main, dict(SELF, type='nope'), check_mode=True)
+    assert result['changed'] is True
+    assert result['registry']['type'] == 'nope'
+    assert 'Unknown registry type nope; this server offers' in json.dumps(result.get('warnings', [])), result
+    assert server.calls('POST') == []
+
+
+@pytest.mark.parametrize('answer', [
+    # Hand-made: a server that has no such list, and one that answers in another form.
+    dict(status=404, body=dict(errors=[dict(code='NOT_FOUND', message='not found')]), headers={}),
+    dict(status=200, body=dict(types=['harbor']), headers={}),
+])
+def test_unreadable_type_list_leaves_it_to_harbor(server, run_module, answer):
+    server.route('GET', '/replication/adapters', answer)
+    server.route('GET', '/registries', 'registry_list_before')
+    server.route('POST', '/registries', 'registry_create')
+    server.route('GET', '/registries/%d' % rid(server), 'registry_get')
+    result = run_module(registry.main, dict(SELF, type='nope'))
+    assert result['changed'] is True
+    assert server.calls('POST', '/registries')[0]['body']['type'] == 'nope'
+
+
+def test_another_type_for_an_existing_endpoint_is_not_looked_up(server, run_module):
+    server.route('GET', '/replication/adapters', 'registry_replication_adapters')
+    server.route('GET', '/registries', 'registry_list')
+    result = run_module(registry.main, dict(SELF, type='nope'))
+    assert result['failed'] is True
+    assert 'Harbor cannot change the type' in result['msg']
+    assert server.calls('GET', '/replication/adapters') == []
