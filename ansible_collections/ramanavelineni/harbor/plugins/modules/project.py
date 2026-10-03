@@ -133,6 +133,7 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     GIB,
     HarborError,
     find_by_name,
+    find_project,
     harbor_argument_spec,
     id_from_location,
     older_than,
@@ -219,7 +220,7 @@ def ensure(module, client):
     if params['quota_gb'] is not None and params['quota_gb'] < -1:
         raise ValueError('quota_gb must be -1 (unlimited) or a number of GiB.')
 
-    current = find_by_name(client.list('/projects'), params['name'], 'project')
+    current = find_project(client, params['name'])
     registries = {}
     # Only needed to turn proxy_registry into an id, or a proxy-cache
     # project's registry id into its name.

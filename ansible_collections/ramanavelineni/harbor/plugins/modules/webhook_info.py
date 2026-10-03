@@ -66,8 +66,8 @@ webhooks:
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor import (
-    find_by_name,
     harbor_argument_spec,
+    require_project,
     run_module,
     webhook_view,
 )
@@ -76,9 +76,7 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
 def list_webhooks(module, client):
     client.warn_if_untested()
     name = module.params['project']
-    project = find_by_name(client.list('/projects', params=dict(name=name)), name, 'project')
-    if project is None:
-        raise ValueError('Project %r does not exist, or the user this module logs in as cannot see it.' % name)
+    project = require_project(client, name)
     out = []
     for policy in client.list('/projects/%d/webhook/policies' % project['project_id']):
         if module.params['name'] is not None and policy.get('name') != module.params['name']:

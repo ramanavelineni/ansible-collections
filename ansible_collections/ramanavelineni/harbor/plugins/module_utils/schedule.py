@@ -26,6 +26,15 @@ INTERNAL_PARAMETERS = ('redis_url_reg', 'time_window')
 # The run history is read in pages of at most this many, Harbor's largest page.
 RUNS_PAGE_SIZE = 100
 
+# The job parameters each schedule module has options for, and its _info
+# module returns.
+GC_PARAMETERS = ('delete_untagged', 'workers', 'delete_tag')
+LOG_ROTATION_PARAMETERS = ('audit_retention_hour', 'include_event_types', 'dry_run')
+
+# What Harbor's HTTP 412 on a Scan All request means.
+NO_SCANNER = ('Harbor has no default vulnerability scanner, and refuses every Scan All request without '
+              'one. Install or register a scanner (for example Trivy) and make it the default.')
+
 
 def schedule_argument_spec():
     """The options every schedule module takes."""
@@ -46,6 +55,13 @@ def parse_parameters(raw):
     for key in INTERNAL_PARAMETERS:
         params.pop(key, None)
     return params
+
+
+def split_types(value):
+    """A log rotation's include_event_types as a sorted list, from a list or Harbor's comma-separated string."""
+    if isinstance(value, list):
+        return sorted(set(value))
+    return sorted(set(t for t in (value or '').split(',') if t))
 
 
 def read_schedule(client, path):

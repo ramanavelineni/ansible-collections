@@ -70,6 +70,7 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     HarborError,
     harbor_argument_spec,
     project_view,
+    read_as_user,
     run_module,
 )
 
@@ -86,8 +87,14 @@ def admin_list(client, path, params=None):
 
 def list_projects(module, client):
     client.warn_if_untested()
-    projects = [p for p in client.list('/projects')
-                if module.params['name'] is None or p.get('name') == module.params['name']]
+    name = module.params['name']
+    # A list cannot show that private projects are missing from it (Harbor
+    # leaves them out for a moment after another client failed to log in as
+    # this user), so the login is checked again after it. One named project
+    # that was found needs no check.
+    projects = read_as_user(
+        client, lambda: [p for p in client.list('/projects') if name is None or p.get('name') == name],
+        lambda found: name is not None and bool(found), 'the list of projects')
     registries = {}
     if any(p.get('registry_id') for p in projects):
         registries = dict((r['id'], r['name']) for r in admin_list(client, '/registries'))

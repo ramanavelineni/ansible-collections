@@ -67,12 +67,12 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     run_module,
 )
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.schedule import (
+    LOG_ROTATION_PARAMETERS as PARAMETERS,
     read_schedule,
     recent_runs,
     schedule_view,
+    split_types,
 )
-
-PARAMETERS = ('audit_retention_hour', 'include_event_types', 'dry_run')
 
 
 def read(module, client):
@@ -81,7 +81,7 @@ def read(module, client):
         raise ValueError('runs must be 0 or more.')
     timing, parameters = read_schedule(client, '/system/purgeaudit/schedule')
     if 'include_event_types' in parameters:
-        parameters['include_event_types'] = sorted(set(t for t in (parameters['include_event_types'] or '').split(',') if t))
+        parameters['include_event_types'] = split_types(parameters['include_event_types'])
     return dict(changed=False, log_rotation=schedule_view(timing, parameters, PARAMETERS),
                 runs=recent_runs(client, '/system/purgeaudit', module.params['runs']))
 

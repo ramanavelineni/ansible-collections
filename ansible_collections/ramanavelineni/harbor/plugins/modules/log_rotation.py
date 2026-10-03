@@ -108,6 +108,7 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     run_module,
 )
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.schedule import (
+    LOG_ROTATION_PARAMETERS as PARAMETERS,
     carried_parameters,
     comparable,
     desired_timing,
@@ -116,18 +117,11 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.schedule imp
     schedule_argument_spec,
     schedule_body,
     schedule_view,
+    split_types,
 )
 
 PATH = '/system/purgeaudit/schedule'
-PARAMETERS = ('audit_retention_hour', 'include_event_types', 'dry_run')
 MAX_RETENTION_HOUR = 240000
-
-
-def split_types(value):
-    """include_event_types as Harbor stores it (a comma-separated string) -> list."""
-    if isinstance(value, list):
-        return sorted(set(value))
-    return sorted(set(t for t in (value or '').split(',') if t))
 
 
 def to_api(parameters):

@@ -57,12 +57,10 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     run_module,
 )
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.schedule import (
+    NO_SCANNER,
     read_schedule,
     schedule_view,
 )
-
-NO_SCANNER = ('Harbor has no default vulnerability scanner, and refuses every Scan All request without '
-              'one. Install or register a scanner (for example Trivy) and make it the default.')
 
 
 def read(module, client):

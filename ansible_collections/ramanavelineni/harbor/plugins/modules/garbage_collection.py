@@ -110,6 +110,7 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     server_minor,
 )
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.schedule import (
+    GC_PARAMETERS as PARAMETERS,
     carried_parameters,
     comparable,
     desired_timing,
@@ -121,7 +122,6 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.schedule imp
 )
 
 PATH = '/system/gc/schedule'
-PARAMETERS = ('delete_untagged', 'workers', 'delete_tag')
 
 
 def ensure(module, client):

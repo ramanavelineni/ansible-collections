@@ -67,8 +67,8 @@ robot_accounts:
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor import (
-    find_by_name,
     harbor_argument_spec,
+    require_project,
     robot_account_view,
     robot_prefix,
     run_module,
@@ -81,9 +81,7 @@ def list_robots(module, client):
     if project is None:
         robots = [r for r in client.list('/robots', {'q': 'Level=system'}) if r.get('level') == 'system']
     else:
-        found = find_by_name(client.list('/projects', {'name': project}), project, 'project')
-        if found is None:
-            raise ValueError('Project %r does not exist, or the user this module logs in as cannot see it.' % project)
+        found = require_project(client, project)
         robots = client.list('/robots', {'q': 'Level=project,ProjectID=%d' % found['project_id']})
     prefix = robot_prefix(client)
     out = []
