@@ -297,6 +297,7 @@ is also exercised live against those servers before it's merged.
 make sanity                      # ansible-test sanity (semaphoreui by default)
 make units COLLECTION=harbor     # unit tests for one collection
 make changelog-lint              # check changelog fragments
+make tools-test                  # tests for the fixture recorders
 make build                       # collection tarball into build/
 ```
 
@@ -304,9 +305,14 @@ make build                       # collection tarball into build/
   containers.
 - **Fixtures.** To re-record them from a throwaway server, for a new version
   or a new module, see the docstrings in `tools/record_semaphoreui_fixtures.py`
-  and `tools/record_harbor_fixtures.py`.
+  and `tools/record_harbor_fixtures.py`. The recorders refuse a server that
+  isn't on a loopback address unless `--allow-remote` is passed, keep only
+  their own objects from listings, and don't write a file in which they find a
+  secret. `make tools-test` tests those guards.
 - **Changelog.** Every user-facing change adds a changelog fragment under
   `ansible_collections/ramanavelineni/<collection>/changelogs/fragments/`.
+- **Contributing.** [CONTRIBUTING.md](CONTRIBUTING.md) has the rules for a
+  change; security problems go through [SECURITY.md](SECURITY.md).
 - **Design.** Decisions, the order of work and every API quirk found are in
   [PLAN.md](PLAN.md).
 
