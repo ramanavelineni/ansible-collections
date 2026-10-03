@@ -382,8 +382,11 @@ or an OIDC user's CLI secret.
   `semaphoreui-vX.Y.Z` and `harbor-vX.Y.Z`.
 - Changelogs come from `antsibull-changelog` fragments, and new modules are
   listed from their `version_added`.
-- Pushing a tag builds that collection with `ansible-galaxy collection build`
-  and publishes a GitHub Release with the tarball and the changelog.
+- Pushing a tag runs that collection's changelog lint, sanity and unit tests
+  at the tagged commit (the release workflow calls the CI workflow for it).
+  When they pass, it builds the collection with
+  `ansible-galaxy collection build` and publishes a GitHub Release with the
+  tarball and the changelog.
 - Installing a release from Git:
 
   ```yaml

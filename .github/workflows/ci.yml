@@ -10,17 +10,28 @@ name: CI
 #     files and still count
 # "CI result" always runs and fails when any job failed, so it is the one check
 # a branch ruleset has to require.
+#
+# The release workflow calls this one with a collection name. Then nothing is
+# compared: that collection's 9 jobs run at the tagged commit, because the last
+# push to main may not have touched it and so may not have tested it.
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
+    inputs:
+      collection:
+        description: Collection to test whatever changed (semaphoreui or harbor)
+        type: string
+        required: true
 
 permissions:
   contents: read
 
 # A newer push to a pull request replaces the run in progress. Runs on main are
 # never cancelled: each one tests only its own push, so a cancelled run would
-# leave that push untested.
+# leave that push untested. Called from the release workflow, github.workflow
+# and github.ref are the caller's, so the group is that tag's alone.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -38,10 +49,19 @@ jobs:
           fetch-depth: 0
       - name: List what the change touches
         id: detect
+        # Named, so that bash runs with pipefail and a failing script fails the
+        # step instead of being hidden by tee.
+        shell: bash
         env:
           EVENT: ${{ github.event_name }}
           BEFORE: ${{ github.event.before }}
+          ONLY: ${{ inputs.collection }}
         run: |
+          # Called with a collection (a release): test that one, compare nothing.
+          if [ -n "${ONLY}" ]; then
+            .github/scripts/ci-changes.sh only "${ONLY}" </dev/null | tee -a "${GITHUB_OUTPUT}"
+            exit 0
+          fi
           # A pull request is checked out as its merge into the base branch, so
           # the first parent is the base. A push is compared with the commit
           # the branch was at before; when that is gone (force push) or there
