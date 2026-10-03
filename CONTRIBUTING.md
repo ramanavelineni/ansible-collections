@@ -31,7 +31,13 @@ CI runs sanity and the unit tests on ansible-core 2.18, 2.19, 2.20 and 2.21,
 and lints the changelog fragments, for the collections a change touches. A
 change to the CI workflow or the `Makefile` runs both collections, a change
 under `tools/` runs the recorder tests, and a change that only touches Markdown
-runs none of them.
+runs none of them. Once a week everything runs for both collections, so a new
+ansible-core patch release that breaks something is noticed.
+
+The jobs named "Units (..., devel)" run the unit tests on ansible-core's
+development branch. They are an early warning and never block a merge: a
+failure there on a pull request is worth a look, but usually means ansible-core
+changed, not that the pull request is wrong.
 
 ## What a change needs
 
@@ -107,6 +113,34 @@ The rules:
   Pull requests are squashed, so the title becomes the commit.
 - `pre-commit install` sets up the light local checks from
   `.pre-commit-config.yaml`.
+
+## A new ansible-core version
+
+When ansible-core gets a new minor version (a `stable-2.x` branch), nothing in
+the repo changes by itself. The steps, in one pull request:
+
+1. Copy the newest `tests/sanity/ignore-2.x.txt` to the new version's name in
+   both collections. Sanity fails without it, because the entries (the
+   Apache-2.0 licence header instead of the GPL one) are needed on every
+   version.
+2. Add `stable-2.x` to the two `ansible:` lists in `.github/workflows/ci.yml`
+   (sanity and units).
+3. Raise the upper bound in the `pip install "ansible-core>=...,<..."` line of
+   `.github/workflows/release.yml`.
+4. Update the version badge at the top of the three READMEs, the "Compatibility"
+   table in the root README, and the version lists in this file and in
+   `PLAN.md`.
+5. Check that the pinned `ansible-community/ansible-test-gh-action` knows the
+   new branch; an older pin tests it with the wrong Python. Dependabot proposes
+   newer pins.
+
+Dropping a version that no longer gets releases is the reverse, plus
+`requires_ansible` in both `meta/runtime.yml` files.
+
+A red "Units (..., devel)" job, or a red weekly run, is often the first sign
+that a new version needs attention: the unit-test harness sets the module
+arguments through private ansible-core names (see
+`tests/unit/plugins/conftest.py`), which a new version may change.
 
 ## Releases
 

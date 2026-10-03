@@ -379,7 +379,9 @@ or an OIDC user's CLI secret.
 
 - `ansible-test sanity` and unit tests for both collections on ansible-core
   2.18, 2.19, 2.20 and 2.21, in GitHub Actions on every pull request. Changes
-  that only touch Markdown skip CI.
+  that only touch Markdown skip CI. Everything also runs once a week, and the
+  unit tests run on ansible-core `devel` as an early warning that never blocks
+  a merge.
 - Unit tests replay API responses recorded from throwaway local servers:
   Semaphore UI 2.18.30 and 2.19.12, Harbor 2.14.4 and 2.15.2. Each quirk above
   has at least one test. The recorders live in `tools/`, one area at a time.
