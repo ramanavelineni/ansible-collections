@@ -1,33 +1,71 @@
 ---
 name: CI
 
-# A change that only touches Markdown (READMEs, PLAN.md) has nothing for
-# ansible-test to check, so it doesn't start the 9 jobs. Module docs live
-# in the .py files and still trigger a run.
+# Only what a change touches is tested. The first job lists the changed files
+# and the other jobs run for the collections among them:
+#   - files under one collection: that collection's 9 jobs
+#   - this workflow, .github/scripts/ or the Makefile: everything
+#   - tools/: the recorder tests
+#   - Markdown only (READMEs, PLAN.md): nothing; module docs live in the .py
+#     files and still count
+# "CI result" always runs and fails when any job failed, so it is the one check
+# a branch ruleset has to require.
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - "**.md"
   pull_request:
-    paths-ignore:
-      - "**.md"
 
 permissions:
   contents: read
 
+# A newer push to a pull request replaces the run in progress. Runs on main are
+# never cancelled: each one tests only its own push, so a cancelled run would
+# leave that push untested.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    name: Changed collections
+    runs-on: ubuntu-latest
+    outputs:
+      collections: ${{ steps.detect.outputs.collections }}
+      tools: ${{ steps.detect.outputs.tools }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - name: List what the change touches
+        id: detect
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          # A pull request is checked out as its merge into the base branch, so
+          # the first parent is the base. A push is compared with the commit
+          # the branch was at before; when that is gone (force push) or there
+          # was none, everything runs.
+          if [ "${EVENT}" = pull_request ]; then
+            base="HEAD^1"
+          else
+            base="${BEFORE}"
+          fi
+          if git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            git diff --name-only "${base}" HEAD | .github/scripts/ci-changes.sh | tee -a "${GITHUB_OUTPUT}"
+          else
+            .github/scripts/ci-changes.sh all </dev/null | tee -a "${GITHUB_OUTPUT}"
+          fi
+
   changelog:
     name: Changelog fragments (${{ matrix.collection }})
+    needs: changes
+    if: needs.changes.outputs.collections != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        collection: [semaphoreui, harbor]
+        collection: ${{ fromJSON(needs.changes.outputs.collections) }}
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-python@v7.0.0
@@ -39,11 +77,13 @@ jobs:
 
   sanity:
     name: Sanity (${{ matrix.collection }}, ${{ matrix.ansible }})
+    needs: changes
+    if: needs.changes.outputs.collections != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        collection: [semaphoreui, harbor]
+        collection: ${{ fromJSON(needs.changes.outputs.collections) }}
         ansible: [stable-2.18, stable-2.19, stable-2.20, stable-2.21]
     steps:
       - uses: ansible-community/ansible-test-gh-action@v1.18.0
@@ -54,11 +94,13 @@ jobs:
 
   units:
     name: Units (${{ matrix.collection }}, ${{ matrix.ansible }})
+    needs: changes
+    if: needs.changes.outputs.collections != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        collection: [semaphoreui, harbor]
+        collection: ${{ fromJSON(needs.changes.outputs.collections) }}
         ansible: [stable-2.18, stable-2.19, stable-2.20, stable-2.21]
     steps:
       - uses: ansible-community/ansible-test-gh-action@v1.18.0
@@ -66,3 +108,25 @@ jobs:
           ansible-core-version: ${{ matrix.ansible }}
           collection-root: ansible_collections/ramanavelineni/${{ matrix.collection }}
           testing-type: units
+
+  tools:
+    name: Recorder tests
+    needs: changes
+    if: needs.changes.outputs.tools == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+      - run: make tools-test
+
+  result:
+    name: CI result
+    needs: [changes, changelog, sanity, units, tools]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail when a job failed or was cancelled
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
