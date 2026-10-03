@@ -1,0 +1,13 @@
+---
+bugfixes:
+  - >-
+    runner - the request for a registration token is repeated on a transient failure, like the read requests
+    (see ``retries``). It was sent once, so a gateway error right after the create left a runner without a
+    token while the task failed, and the next run found the runner and returned no token.
+  - >-
+    runner - when the token of a new runner still cannot be fetched, the module deletes the runner again and
+    says so, so the next run starts over. If the delete fails too, the message points to
+    ``regenerate_token: true``.
+  - >-
+    runner - check mode with ``regenerate_token: true`` on a registered runner now returns
+    ``registered: false`` in ``runner`` and in the diff, as the real run does.
