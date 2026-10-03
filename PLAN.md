@@ -18,10 +18,12 @@ along the way. Each quirk is handled inside a module and covered by a test.
 - [x] `ramanavelineni.harbor`: 23 modules
 - [x] First releases: `semaphoreui-v0.1.0` and `harbor-v0.1.0`, built and
       published as GitHub Releases by a workflow on tag push
-- [ ] Switch the homelab `semaphore_config` role to the collection. The role
-      keeps loading project files, validating, its version switch and its
-      never-delete rule (it only passes `state: present`); its `uri` tasks and
-      name→id maps go away.
+- [x] 0.3.0 of both: connection options for mutual TLS and proxies
+      (`client_cert`, `client_key`, `use_proxy`), `project_id` in
+      semaphoreui, `warn_untested_version` in harbor, and the fixes from a
+      review of every module
+- [x] The homelab's Semaphore configuration runs on the collection: a
+      playbook in its own repository replaced the `semaphore_config` role
 - [ ] Switch the homelab `harbor_config` role to the collection
 
 ---
@@ -37,7 +39,7 @@ along the way. Each quirk is handled inside a module and covered by a test.
 | Module names | the servers' UI labels, singular (`key_store`, `variable_group`, `team_member`, `robot_account`, `tag_retention`, …), each with an `_info` module |
 | Option names | follow the old roles' YAML, with name-based references, so the roles can pass their data straight through. Fields the roles didn't use keep the API's names. Where a name clashes with a connection option, the module uses another: `user`, `login`/`user_password`, `endpoint_url` |
 | State | every resource module takes `state: present \| absent` |
-| Project references | objects inside a project take `project: <name>` |
+| Project references | objects inside a project take `project: <name>`; the semaphoreui modules also take `project_id` |
 | Deleting | fails with the list of what still uses the object. Deleting a project needs `confirm_delete: true` |
 | Secrets | `update_secret: always` (default) or `on_create`, since neither server returns stored secrets |
 | Module imports | modules import only `module_utils`: Ansible ships nothing else with a module, and sanity's import test enforces it |
@@ -105,15 +107,29 @@ differently anyway.
    unmentioned is wiped.
 6. **Connection options** from one doc fragment per collection, with
    `SEMAPHORE_*` / `HARBOR_*` environment fallbacks and an action group for
-   `module_defaults`. `ca_path` works for private CAs.
+   `module_defaults`. `ca_path` works for private CAs, `client_cert` and
+   `client_key` for servers that ask for a client certificate, and
+   `use_proxy: false` skips the proxy from the environment. A `url` that
+   isn't an http or https address, a `timeout` below 1 and negative `retries`
+   fail before any request.
 7. **Retries** for reads and updates on transport errors and 502/503/504.
    Never for creates, where a retry after a lost answer would make a
    duplicate. (A 401 from Harbor's login lock is the one exception; see
-   Harbor `info`.)
-8. **Useful failures.** Method, URL, status, response and request body, with
-   secrets masked.
-9. **Pagination** follows every page; a capped list fails instead of silently
-   missing rows.
+   Harbor `info`.) Harbor's client doesn't retry what waiting can't fix: a
+   certificate that doesn't verify, a missing `ca_path` file, a host name
+   that doesn't resolve.
+8. **Useful failures.** The message names the method, URL and status, and
+   `request_details` holds the response and the request body. In the body,
+   the value of every field whose name marks it as a secret, and every
+   value equal to one of the task's secrets, is replaced before it is
+   returned, so a secret can't appear there whatever characters it has. A
+   redirect is reported with its target and never followed.
+9. **Lists are read to their end, or the module fails.** Harbor's lists are
+   read page by page until the total is reached. Semaphore's lists aren't
+   paged; its project list is cut off at 200 rows, and a lookup by name
+   fails at that length instead of silently missing a project (`project_id`
+   avoids the list). The other Semaphore lists are taken as the server
+   returns them.
 10. **Versions.** A server version outside the tested list gives a warning, not
     a failure.
 
@@ -182,10 +198,19 @@ each module logs in and out within its own run.
   (the API spells the first of each `""`); `text` needs 2.19.
 - `task_params` is merged key by key, and keys are checked against the
   template's app.
+- Survey variables and `arguments` the caller didn't change go back as
+  stored, so fields the module has no option for (2.19's survey variable
+  `target`) survive an update.
+- `app` isn't a fixed list: an app registered on the server is checked
+  against `GET /apps`, and its `task_params` keys aren't checked.
+- `start_version` on a type other than `build`, and `build_template` on one
+  other than `deploy`, fail: Semaphore doesn't store them there.
 
 ### schedule
 - The project list leaves out commit pollers, and each template's list has
-  only its pollers, so both are read.
+  only its pollers. `schedule` reads the template lists only when the
+  project list doesn't have the name; `schedule_info` reads both.
+- `run_at` needs a time zone and is sent in UTC.
 - Semaphore's scheduler runs a poller whatever `active` says, so
   `active: false` on a poller fails.
 - Task-parameter overrides are only in the single read, and an update without

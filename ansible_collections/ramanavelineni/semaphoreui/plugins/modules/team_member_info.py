@@ -36,9 +36,18 @@ options:
     description:
       - Only return this user's membership (by username).
     type: str
+seealso:
+  - module: ramanavelineni.semaphoreui.team_member
+    description: Creates, changes and deletes team members.
+  - module: ramanavelineni.semaphoreui.project
+    description: Manages the project.
 '''
 
 EXAMPLES = r'''
+# The connection options (url and api_token, or username and password) are left out here. Set them once
+# with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
+# collection's README shows both under "Connecting".
+
 - name: Who is in the homelab project
   ramanavelineni.semaphoreui.team_member_info:
     project: homelab
@@ -51,6 +60,22 @@ members:
   returned: always
   type: list
   elements: dict
+  contains:
+    user_id:
+      description: The user's id.
+      type: int
+    username:
+      description: The user's login name.
+      type: str
+    name:
+      description: The user's display name.
+      type: str
+    role:
+      description: The user's role in the project (V(owner), V(manager), V(task_runner) or V(guest)).
+      type: str
+    project_id:
+      description: Id of the project.
+      type: int
   sample:
     - user_id: 3
       username: rc

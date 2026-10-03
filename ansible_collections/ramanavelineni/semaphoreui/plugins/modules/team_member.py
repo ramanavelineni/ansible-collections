@@ -58,9 +58,20 @@ notes:
     without anyone who can manage its team.
   - The module refuses to change the membership of the user it logs in as, so a run can't lock
     itself out of a project.
+seealso:
+  - module: ramanavelineni.semaphoreui.team_member_info
+    description: Reads team members without changing them.
+  - module: ramanavelineni.semaphoreui.user
+    description: Manages the users that can be members.
+  - module: ramanavelineni.semaphoreui.project
+    description: Manages the project.
 '''
 
 EXAMPLES = r'''
+# The connection options (url and api_token, or username and password) are left out here. Set them once
+# with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
+# collection's README shows both under "Connecting".
+
 - name: Give rc the owner role in homelab
   ramanavelineni.semaphoreui.team_member:
     project: homelab
@@ -81,6 +92,22 @@ member:
     - Empty when the user is not (or no longer) in the team.
   returned: always
   type: dict
+  contains:
+    user_id:
+      description: The user's id.
+      type: int
+    username:
+      description: The user's login name.
+      type: str
+    name:
+      description: The user's display name.
+      type: str
+    role:
+      description: The user's role in the project (V(owner), V(manager), V(task_runner) or V(guest)).
+      type: str
+    project_id:
+      description: Id of the project.
+      type: int
   sample:
     user_id: 3
     username: rc

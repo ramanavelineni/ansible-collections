@@ -37,9 +37,18 @@ options:
     description:
       - Only return keys with this name.
     type: str
+seealso:
+  - module: ramanavelineni.semaphoreui.key_store
+    description: Creates, changes and deletes keys.
+  - module: ramanavelineni.semaphoreui.project
+    description: Manages the project.
 '''
 
 EXAMPLES = r'''
+# The connection options (url and api_token, or username and password) are left out here. Set them once
+# with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
+# collection's README shows both under "Connecting".
+
 - name: List the homelab project's keys
   ramanavelineni.semaphoreui.key_store_info:
     project: homelab

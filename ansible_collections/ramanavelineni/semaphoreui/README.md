@@ -136,8 +136,21 @@ number.
 Each module takes `url` (with or without `/api`) and either an `api_token` or
 `username` + `password`. With a password, the module logs in and out within
 the task. Set them once per play with the action group
-`group/ramanavelineni.semaphoreui.semaphoreui`, as in the example, or through
-environment variables:
+`group/ramanavelineni.semaphoreui.semaphoreui`:
+
+```yaml
+- hosts: localhost
+  gather_facts: false
+  module_defaults:
+    group/ramanavelineni.semaphoreui.semaphoreui:
+      url: https://semaphore.example.com
+      api_token: "{{ semaphore_api_token }}"
+  tasks:
+    - ramanavelineni.semaphoreui.project_info:
+```
+
+Or leave them out of the playbook and set environment variables where it
+runs:
 
 | Option | Environment variable |
 |---|---|
@@ -165,6 +178,17 @@ read on the host the module runs on.
 The modules use the proxy from `http_proxy`, `https_proxy` and `no_proxy` on
 that host. `use_proxy: false` goes to the server directly.
 
+The examples in the module documentation (`ansible-doc`) leave the connection
+options out; they rely on one of the two ways above.
+
+### Where the modules run
+
+A module calls the Semaphore API from the host its task runs on. Nothing has
+to be installed on the Semaphore server, so that host is usually the
+controller: `hosts: localhost` as in the example, or `delegate_to: localhost`
+in a play for other hosts. The environment variables above and the files
+named by `ca_path`, `client_cert` and `client_key` are read on that host.
+
 ## Good to know
 
 <details>
@@ -186,6 +210,25 @@ changed, since Semaphore can't change it in place.
 </details>
 
 <details>
+<summary><b>Values that are not secret options but can hold a secret</b></summary>
+
+Secret options (`ssh`, `login_password`, `user_password`, a variable group's
+secret values) are never printed. Three other values are ordinary fields, so
+they appear in a task's result and in `--diff` output:
+
+- `repository.git_url`, when the URL has a user name and password or a token
+  in it. Clone with a key from the Key Store (`ssh_key`) instead.
+- `inventory.inventory` of a `static` or `static-yaml` inventory, when the
+  content has a password such as `ansible_password`. Keep passwords in the Key
+  Store (`ssh_key`, `become_key`).
+- An integration's `webhook_urls`. With `auth_method: none`, knowing the URL is
+  enough to start the task.
+
+Where one of these can't be avoided, set `no_log: true` on the task.
+
+</details>
+
+<details>
 <summary><b>Templates</b></summary>
 
 - Fields the module doesn't manage (such as 2.19's `executor_image`) are sent
@@ -199,6 +242,8 @@ changed, since Semaphore can't change it in place.
 - `start_version` belongs to a `build` template and `build_template` to a
   `deploy` template. Setting either on another type fails: Semaphore would
   not store it.
+- An empty string removes a reference: `inventory: ""`, `view: ""`,
+  `build_template: ""`.
 - A Terraform/OpenTofu template created without an inventory gets a
   workspace inventory named `default` from Semaphore, and keeps it through
   later updates.

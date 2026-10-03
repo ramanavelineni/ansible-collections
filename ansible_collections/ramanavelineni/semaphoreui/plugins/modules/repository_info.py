@@ -36,9 +36,18 @@ options:
     description:
       - Only return repositories with this name.
     type: str
+seealso:
+  - module: ramanavelineni.semaphoreui.repository
+    description: Creates, changes and deletes repositories.
+  - module: ramanavelineni.semaphoreui.project
+    description: Manages the project.
 '''
 
 EXAMPLES = r'''
+# The connection options (url and api_token, or username and password) are left out here. Set them once
+# with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
+# collection's README shows both under "Connecting".
+
 - name: List the homelab project's repositories
   ramanavelineni.semaphoreui.repository_info:
     project: homelab
@@ -52,6 +61,28 @@ repositories:
   returned: always
   type: list
   elements: dict
+  contains:
+    id:
+      description: Repository id.
+      type: int
+    name:
+      description: Repository name.
+      type: str
+    git_url:
+      description: Clone URL or local path.
+      type: str
+    git_branch:
+      description: Branch.
+      type: str
+    ssh_key:
+      description: Name of the key used to clone.
+      type: str
+    ssh_key_id:
+      description: Id of that key.
+      type: int
+    project_id:
+      description: Id of the project.
+      type: int
   sample:
     - id: 1
       name: ansible

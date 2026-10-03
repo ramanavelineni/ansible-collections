@@ -38,9 +38,18 @@ options:
     description:
       - Only return variable groups with this name.
     type: str
+seealso:
+  - module: ramanavelineni.semaphoreui.variable_group
+    description: Creates, changes and deletes variable groups.
+  - module: ramanavelineni.semaphoreui.project
+    description: Manages the project.
 '''
 
 EXAMPLES = r'''
+# The connection options (url and api_token, or username and password) are left out here. Set them once
+# with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
+# collection's README shows both under "Connecting".
+
 - name: List the homelab project's variable groups
   ramanavelineni.semaphoreui.variable_group_info:
     project: homelab
@@ -53,6 +62,33 @@ variable_groups:
   returned: always
   type: list
   elements: dict
+  contains:
+    id:
+      description: Variable group id.
+      type: int
+    name:
+      description: Name of the variable group.
+      type: str
+    project_id:
+      description: Id of the project.
+      type: int
+    json:
+      description: Extra variables passed to Ansible.
+      type: dict
+    env:
+      description: Environment variables for the task's process.
+      type: dict
+    secrets:
+      description: The group's secrets, sorted by name. Values are never returned.
+      type: list
+      elements: dict
+      contains:
+        name:
+          description: Name of the variable.
+          type: str
+        type:
+          description: V(env) for an environment variable, V(var) for an extra variable.
+          type: str
   sample:
     - id: 1
       name: harbor

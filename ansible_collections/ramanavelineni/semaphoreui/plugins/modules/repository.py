@@ -53,6 +53,9 @@ options:
         C(https://github.com/example/ansible.git), or an absolute path on the Semaphore server.
       - Required to create the repository.
       - Changing it makes Semaphore delete the repository's existing checkouts.
+      - This is not a secret option. A URL with a user name and password or a token in it appears in the
+        task's result and in the diff. Use O(ssh_key) with a key from the Key Store instead, or set
+        C(no_log) on the task.
     type: str
   git_branch:
     description:
@@ -65,9 +68,20 @@ options:
       - Use a key of type V(none) (every project has one named C(None)) for a public repository.
       - Required to create the repository.
     type: str
+seealso:
+  - module: ramanavelineni.semaphoreui.repository_info
+    description: Reads repositories without changing them.
+  - module: ramanavelineni.semaphoreui.key_store
+    description: Manages the key a repository is cloned with.
+  - module: ramanavelineni.semaphoreui.project
+    description: Manages the project.
 '''
 
 EXAMPLES = r'''
+# The connection options (url and api_token, or username and password) are left out here. Set them once
+# with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
+# collection's README shows both under "Connecting".
+
 - name: Repository cloned over SSH
   ramanavelineni.semaphoreui.repository:
     project: homelab

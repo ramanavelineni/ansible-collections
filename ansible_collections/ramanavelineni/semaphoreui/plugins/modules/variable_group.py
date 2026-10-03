@@ -101,9 +101,18 @@ options:
     type: str
     choices: [always, on_create]
     default: always
+seealso:
+  - module: ramanavelineni.semaphoreui.variable_group_info
+    description: Reads variable groups without changing them.
+  - module: ramanavelineni.semaphoreui.project
+    description: Manages the project.
 '''
 
 EXAMPLES = r'''
+# The connection options (url and api_token, or username and password) are left out here. Set them once
+# with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
+# collection's README shows both under "Connecting".
+
 - name: Variable group with a token in the environment
   ramanavelineni.semaphoreui.variable_group:
     project: homelab
@@ -132,6 +141,33 @@ variable_group:
     - Empty after a deletion.
   returned: always
   type: dict
+  contains:
+    id:
+      description: Variable group id.
+      type: int
+    name:
+      description: Name of the variable group.
+      type: str
+    project_id:
+      description: Id of the project.
+      type: int
+    json:
+      description: Extra variables passed to Ansible.
+      type: dict
+    env:
+      description: Environment variables for the task's process.
+      type: dict
+    secrets:
+      description: The group's secrets, sorted by name. Values are never returned.
+      type: list
+      elements: dict
+      contains:
+        name:
+          description: Name of the variable.
+          type: str
+        type:
+          description: V(env) for an environment variable, V(var) for an extra variable.
+          type: str
   sample:
     id: 1
     name: harbor
@@ -148,11 +184,13 @@ secrets_sent:
   returned: always
   type: list
   elements: str
+  sample: [HARBOR_TOKEN]
 secrets_deleted:
   description: Names of the secrets the module deleted (purged, or recreated with another type).
   returned: always
   type: list
   elements: str
+  sample: [OLD_TOKEN]
 '''
 
 import json
