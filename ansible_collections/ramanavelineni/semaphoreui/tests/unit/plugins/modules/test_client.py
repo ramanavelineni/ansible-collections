@@ -7,9 +7,11 @@ A change that stops verifying certificates, follows a redirect with the
 credentials, or retries a create has to fail here.
 """
 
+import io
 import time
 
 from http.cookiejar import CookieJar
+from urllib.error import HTTPError
 
 import pytest
 
@@ -57,13 +59,18 @@ def waits():
     return [call.args[0] for call in time.sleep.call_args_list]
 
 
-def answer_html(server, mocker, method, path):
+def http_error(status, raw, headers=None):
+    """An answer the fake server cannot give itself: a body that is not JSON, or response headers."""
+    return HTTPError('https://semaphore.example.com', status, 'error', headers or {}, io.BytesIO(raw))
+
+
+def answer_html(server, mocker, method, path, filler=''):
     """Answer one route with a page instead of JSON, as a proxy or a login page would.
 
     The fake server can only answer with JSON, so this sits in front of it.
     """
     page = FakeResponse(200, None)
-    page.raw = b'<html><body>Sign in</body></html>'
+    page.raw = ('<html><body>Sign in%s</body></html>' % filler).encode()
 
     def open_url(url, **kwargs):
         if kwargs.get('method') == method and url.endswith('/api' + path):
@@ -122,7 +129,26 @@ def test_a_redirect_is_an_error_not_followed(server, run_module):
     result = run_module(info.main, {})
     assert result['failed'] is True
     assert 'returned HTTP 302' in result['msg']
+    assert 'a redirect without a Location header' in result['msg']
+    assert 'location' not in result['request_details']
     assert len(server.calls('GET', '/info')) == 1
+    assert waits() == []
+
+
+@pytest.mark.parametrize('status', [301, 302, 307, 308])
+def test_a_redirect_names_its_target(server, run_module, status):
+    # What a server behind a proxy answers when url says http:// and the proxy wants https://.
+    target = 'https://semaphore.example.com/api/auth/login'
+    server.route('POST', '/auth/login', http_error(status, b'<a href="/">Moved</a>', {'Location': target}))
+    result = run_module(info.main, dict(url='http://semaphore.example.com'))
+    assert result['failed'] is True
+    assert result['msg'] == (
+        'POST http://semaphore.example.com/api/auth/login returned HTTP %d, a redirect to %s. Redirects are '
+        'not followed. Set url to the address the Semaphore server itself answers on.' % (status, target))
+    assert result['request_details']['location'] == target
+    assert result['request_details']['status'] == status
+    # Not followed and not retried: the login went out once, and nothing after it.
+    assert [r['path'] for r in server.requests] == ['/auth/login']
     assert waits() == []
 
 
@@ -171,11 +197,11 @@ def test_transport_retries_run_out(server, run_module):
     assert len(server.calls('GET', '/info')) == 2
 
 
-@pytest.mark.parametrize('retries', [0, -1])
-def test_no_retries(server, run_module, retries):
+def test_no_retries(server, run_module):
     server.route('GET', '/info', unavailable(), 'info')
-    result = run_module(info.main, dict(retries=retries))
+    result = run_module(info.main, dict(retries=0))
     assert result['failed'] is True
+    assert result['request_details']['status'] == 503
     assert len(server.calls('GET', '/info')) == 1
     assert waits() == []
 
@@ -237,6 +263,102 @@ def test_a_body_that_is_not_json_fails_with_the_body(server, run_module, mocker)
     # Not retried: the server answered.
     assert len(server.calls('GET', '/info')) == 1
     assert server.requests[-1]['path'] == '/auth/logout'
+
+
+def test_a_long_error_body_is_cut_in_the_message_and_whole_in_the_details(server, run_module):
+    # A proxy's error page, not Semaphore's own short JSON error.
+    page = '<html><head><title>Bad gateway</title></head><body>' + 'x' * 5000 + 'END-OF-PAGE</body></html>'
+    server.route('GET', '/info', http_error(500, page.encode()))
+    result = run_module(info.main, {})
+    assert result['failed'] is True
+    limit = semaphore.MESSAGE_BODY_LIMIT
+    assert limit == 500
+    assert result['msg'] == (
+        'GET https://semaphore.example.com/api/info returned HTTP 500: %s... (%d more characters; the whole body '
+        'is in request_details.response)' % (page[:limit], len(page) - limit))
+    assert 'END-OF-PAGE' not in result['msg']
+    assert result['request_details']['response'] == page
+
+
+def test_a_body_at_the_limit_is_not_cut(server, run_module):
+    page = 'y' * semaphore.MESSAGE_BODY_LIMIT
+    server.route('GET', '/info', http_error(500, page.encode()))
+    result = run_module(info.main, {})
+    assert result['msg'] == 'GET https://semaphore.example.com/api/info returned HTTP 500: ' + page
+
+
+def test_a_long_body_that_is_not_json_is_cut_too(server, run_module, mocker):
+    answer_html(server, mocker, 'GET', '/info', filler='z' * 5000)
+    result = run_module(info.main, {})
+    assert result['failed'] is True
+    assert result['msg'].endswith('request_details.response) (response is not JSON)')
+    assert len(result['msg']) < 800
+    assert len(result['request_details']['response']) > 5000
+
+
+def test_a_failed_write_shows_the_request_with_its_secrets_masked(server, run_module):
+    # The body is cut for the message only; the request shown beside it is still the redacted one.
+    page = 'gateway timeout ' * 100
+    server.route('POST', '/auth/login', http_error(500, page.encode()))
+    result = run_module(info.main, {})
+    assert result['failed'] is True
+    assert result['request_details']['request'] == dict(auth='admin', password='********')
+    assert result['request_details']['response'] == page.strip()
+    assert 's3cret-pw' not in str(result)
+
+
+# -- options that cannot work --------------------------------------------------
+
+@pytest.mark.parametrize('url', [
+    'semaphore.example.com',
+    'semaphore.example.com:3000',
+    'semaphore.example.com/api',
+    '//semaphore.example.com',
+    'ftp://semaphore.example.com',
+    'file:///etc/passwd',
+    'https://',
+    'https:///api',
+    '',
+])
+def test_a_url_that_is_not_http_fails_before_any_request(server, run_module, url):
+    result = run_module(info.main, dict(url=url))
+    assert result['failed'] is True
+    assert 'url must be the address of the Semaphore server, starting with http:// or https://' in result['msg']
+    assert 'https://semaphore.example.com' in result['msg']
+    assert server.requests == []
+
+
+@pytest.mark.parametrize('url', [
+    'http://semaphore.example.com',
+    'https://semaphore.example.com:3000',
+    'HTTPS://semaphore.example.com/',
+    'https://semaphore.example.com/semaphore/api',
+    'http://[::1]:3000',
+])
+def test_http_and_https_urls_are_accepted(server, run_module, url):
+    result = run_module(info.main, dict(url=url))
+    assert result.get('failed') is not True
+    assert len(server.requests) == 4
+
+
+@pytest.mark.parametrize('option, value, message', [
+    ('timeout', 0, 'timeout must be 1 or more (seconds). Got 0.'),
+    ('timeout', -5, 'timeout must be 1 or more (seconds). Got -5.'),
+    ('retries', -1, 'retries must be 0 or more. Got -1.'),
+    ('retry_delay', -1, 'retry_delay must be 0 or more. Got -1.'),
+])
+def test_a_number_out_of_range_fails_before_any_request(server, run_module, option, value, message):
+    result = run_module(info.main, {option: value})
+    assert result['failed'] is True
+    assert result['msg'] == message
+    assert server.requests == []
+
+
+@pytest.mark.parametrize('option, value', [('timeout', 1), ('retries', 0), ('retry_delay', 0)])
+def test_the_smallest_numbers_are_accepted(server, run_module, option, value):
+    result = run_module(info.main, {option: value})
+    assert result.get('failed') is not True
+    assert len(server.requests) == 4
 
 
 # -- environment ---------------------------------------------------------------

@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from http.client import HTTPException
 from http.cookiejar import CookieJar
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
 
 from ansible.module_utils.basic import env_fallback
 from ansible.module_utils.common.text.converters import to_text
@@ -39,6 +40,10 @@ LIST_CAP = 200
 # finds a secret that appears exactly as it was passed.
 SECRET_KEYS = re.compile(r'secret|password|passphrase|private_key|token', re.IGNORECASE)
 MASK = '********'
+
+# How much of a response body a failure message quotes. A proxy's error page
+# runs to kilobytes; the whole body is in request_details.response.
+MESSAGE_BODY_LIMIT = 500
 
 
 def semaphore_argument_spec():
@@ -99,6 +104,25 @@ def resolve_credentials(module):
     return token, username, password
 
 
+def validate_connection(module):
+    """Fail before any request on connection options that cannot work."""
+    params = module.params
+    url = params['url']
+    try:
+        parts = urlsplit(url)
+        usable = parts.scheme in ('http', 'https') and bool(parts.netloc)
+    except ValueError:
+        usable = False
+    if not usable:
+        module.fail_json(msg='url must be the address of the Semaphore server, starting with http:// or https://, '
+                             'for example https://semaphore.example.com. Got %r.' % url)
+    if params['timeout'] < 1:
+        module.fail_json(msg='timeout must be 1 or more (seconds). Got %d.' % params['timeout'])
+    for name in ('retries', 'retry_delay'):
+        if params[name] < 0:
+            module.fail_json(msg='%s must be 0 or more. Got %d.' % (name, params[name]))
+
+
 def base_url(url):
     """Server base URL without a trailing slash or /api suffix."""
     url = url.rstrip('/')
@@ -135,35 +159,49 @@ def version_is_tested(version):
 class SemaphoreError(Exception):
     """A request failed. Carries everything needed to see why."""
 
-    def __init__(self, method, url, status=None, response=None, request=None, reason=None):
+    def __init__(self, method, url, status=None, response=None, request=None, reason=None, location=None):
         self.method = method
         self.url = url
         self.status = status
         self.response = response
         self.request = request
         self.reason = reason
+        self.location = location
         super(SemaphoreError, self).__init__(self.message())
 
     def message(self):
         if self.status is None:
             return '%s %s failed without an HTTP response: %s' % (self.method, self.url, self.reason)
+        if 300 <= self.status < 400:
+            # Redirects are not followed: the credentials would go wherever
+            # the answer points. Nearly always url names the wrong scheme,
+            # host or path, and the target shows the right one.
+            target = 'a redirect to %s' % self.location if self.location else 'a redirect without a Location header'
+            return ('%s %s returned HTTP %s, %s. Redirects are not followed. Set url to the address the '
+                    'Semaphore server itself answers on.' % (self.method, self.url, self.status, target))
         # Semaphore answers some rejected writes with a bare 400 and an empty
         # body. That is never its validation error (those carry a JSON body):
         # the body could not be decoded or the write hit a database constraint.
         body = self.response if self.response else '(empty body)'
+        if len(body) > MESSAGE_BODY_LIMIT:
+            body = '%s... (%d more characters; the whole body is in request_details.response)' % (
+                body[:MESSAGE_BODY_LIMIT], len(body) - MESSAGE_BODY_LIMIT)
         msg = '%s %s returned HTTP %s: %s' % (self.method, self.url, self.status, body)
         if self.reason:
             msg += ' (%s)' % self.reason
         return msg
 
     def details(self):
-        return dict(
+        details = dict(
             method=self.method,
             url=self.url,
             status=self.status,
             response=self.response,
             request=self.request,
         )
+        if self.location:
+            details['location'] = self.location
+        return details
 
 
 class MissingReference(ValueError):
@@ -184,13 +222,14 @@ class SemaphoreClient(object):
     def __init__(self, module):
         self.module = module
         params = module.params
+        validate_connection(module)
         self.url = base_url(params['url'])
         self.api_token, self.username, self.password = resolve_credentials(module)
         self.validate_certs = params['validate_certs']
         self.ca_path = params.get('ca_path')
         self.timeout = params['timeout']
-        self.retries = max(params['retries'], 0)
-        self.retry_delay = max(params['retry_delay'], 0)
+        self.retries = params['retries']
+        self.retry_delay = params['retry_delay']
         self.cookies = CookieJar()
         self.logged_in = False
         self._info = None
@@ -276,7 +315,9 @@ class SemaphoreClient(object):
                 if status in RETRY_STATUSES and attempt < attempts:
                     time.sleep(self.retry_delay)
                     continue
-                raise SemaphoreError(method, url, status=status, response=raw.strip(), request=sent)
+                headers_in = getattr(e, 'headers', None)
+                raise SemaphoreError(method, url, status=status, response=raw.strip(), request=sent,
+                                     location=headers_in.get('Location') if headers_in else None)
             except (URLError, socket.timeout, ConnectionError, OSError, HTTPException) as e:
                 if attempt < attempts:
                     time.sleep(self.retry_delay)
