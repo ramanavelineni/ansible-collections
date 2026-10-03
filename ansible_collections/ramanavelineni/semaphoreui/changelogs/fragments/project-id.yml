@@ -1,0 +1,12 @@
+---
+minor_changes:
+  - >-
+    integration, inventory, key_store, repository, runner, schedule, team_member, template, variable_group,
+    view and their ``_info`` modules - new option ``project_id`` names the project by its id instead of by
+    name with ``project``. The list of projects is not read then, only that one project, so these modules
+    work on a server with 200 or more projects, where Semaphore cuts the list off and a lookup by name is
+    refused. ``project`` and ``project_id`` exclude each other.
+  - >-
+    integration, inventory, key_store, repository, schedule, team_member, template, variable_group, view and
+    their ``_info`` modules - a task that names no project now fails with ``one of the following is required:
+    project, project_id`` instead of ``missing required arguments: project``.

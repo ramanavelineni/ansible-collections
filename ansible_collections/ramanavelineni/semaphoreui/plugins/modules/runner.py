@@ -38,7 +38,16 @@ options:
       - Name of the project the runner belongs to. Leave it unset for a global runner.
       - Project runners need Semaphore Pro. A Community server lists none and refuses to create one
         (HTTP 403, "Your plan does not allow adding more runners"), and the module fails with that message.
+      - Mutually exclusive with O(project_id).
     type: str
+  project_id:
+    description:
+      - Id of the project, as an alternative to O(project).
+      - With it the list of projects is not read, so a project is found on a server with 200 or more
+        projects too. Semaphore cuts that list off at 200, and O(project) fails there.
+      - Mutually exclusive with O(project).
+    type: int
+    version_added: 0.3.0
   state:
     description:
       - V(present) creates the runner or updates it to match.
@@ -137,9 +146,10 @@ registration_token:
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
+    PROJECT_OPTIONS,
     SemaphoreError,
     find_by_name,
-    resolve_project,
+    project_ref,
     run_module,
     semaphore_argument_spec,
     semaphore_module_kwargs,
@@ -208,10 +218,9 @@ def ensure(module, client):
     params = module.params
     client.warn_if_untested()
 
-    project_id = None
     base = ''
-    if params['project'] is not None:
-        project_id = resolve_project(client, params['project'], missing_ok=params['state'] == 'absent')
+    project_id, project = project_ref(client, params, missing_ok=params['state'] == 'absent')
+    if params['project'] is not None or params['project_id'] is not None:
         if project_id is None:
             # The project is gone, and everything in it went with it.
             return dict(changed=False, runner={}, registration_token='', diff=dict(before={}, after={}))
@@ -227,7 +236,7 @@ def ensure(module, client):
         if not current:
             result.update(diff=dict(before={}, after={}))
             return result
-        before = normalize(current, params['project'])
+        before = normalize(current, project)
         if not module.check_mode:
             client.delete('%s/runners/%d' % (base, current['id']))
         result.update(changed=True, diff=dict(before=before, after={}))
@@ -238,18 +247,18 @@ def ensure(module, client):
         desired['tags'] = sorted(set(desired['tags']))
 
     if not current:
-        after = normalize(dict(name=params['name'], active=True), params['project'])
+        after = normalize(dict(name=params['name'], active=True), project)
         after.update((k, v) for k, v in desired.items() if v is not None)
         after.pop('id')
         if not module.check_mode:
             created = client.post(base + '/runners', body_for(after, project_id), expected=(200, 201))
-            after = normalize(created, params['project'])
+            after = normalize(created, project)
             result['registration_token'] = token_for_new_runner(
                 module, client, '%s/runners/%d' % (base, created['id']), params['name'])
         result.update(changed=True, runner=after, diff=dict(before={}, after=after))
         return result
 
-    before = normalize(current, params['project'])
+    before = normalize(current, project)
     after = dict(before)
     after.update((k, v) for k, v in desired.items() if v is not None)
     fields_changed = any(after[k] != before[k] for k in MANAGED)
@@ -274,6 +283,7 @@ def main():
     argument_spec.update(
         name=dict(type='str', required=True),
         project=dict(type='str'),
+        project_id=dict(type='int'),
         state=dict(type='str', default='present', choices=['present', 'absent']),
         max_parallel_tasks=dict(type='int'),
         active=dict(type='bool'),
@@ -282,7 +292,8 @@ def main():
         is_default=dict(type='bool'),
         regenerate_token=dict(type='bool', default=False, no_log=False),
     )
-    module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True, **semaphore_module_kwargs())
+    module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True,
+                           **semaphore_module_kwargs(mutually_exclusive=[PROJECT_OPTIONS]))
     run_module(module, lambda client: ensure(module, client), placeholder=dict(runner={}, registration_token=''))
 
 

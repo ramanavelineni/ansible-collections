@@ -23,8 +23,16 @@ options:
   project:
     description:
       - Name of the project.
+      - Mutually exclusive with O(project_id); one of the two is required.
     type: str
-    required: true
+  project_id:
+    description:
+      - Id of the project, as an alternative to O(project).
+      - With it the list of projects is not read, so a project is found on a server with 200 or more
+        projects too. Semaphore cuts that list off at 200, and O(project) fails there.
+      - Mutually exclusive with O(project). One of the two is required.
+    type: int
+    version_added: 0.3.0
   name:
     description:
       - Only return keys with this name.
@@ -73,7 +81,8 @@ key_store:
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
-    resolve_project,
+    PROJECT_OPTIONS,
+    project_ref,
     run_module,
     semaphore_argument_spec,
     semaphore_module_kwargs,
@@ -82,7 +91,7 @@ from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semapho
 
 def list_keys(module, client):
     client.warn_if_untested()
-    project_id = resolve_project(client, module.params['project'])
+    project_id = project_ref(client, module.params)[0]
     base = '/project/%d' % project_id
     repos = client.list(base + '/repositories')
     keys = []
@@ -98,13 +107,14 @@ def list_keys(module, client):
 def main():
     argument_spec = semaphore_argument_spec()
     argument_spec.update(
-        project=dict(type='str', required=True),
+        project=dict(type='str'),
+        project_id=dict(type='int'),
         name=dict(type='str'),
     )
     module = AnsibleModule(
         argument_spec=argument_spec,
         supports_check_mode=True,
-        **semaphore_module_kwargs()
+        **semaphore_module_kwargs(mutually_exclusive=[PROJECT_OPTIONS], required_one_of=[PROJECT_OPTIONS])
     )
     run_module(module, lambda client: list_keys(module, client))
 

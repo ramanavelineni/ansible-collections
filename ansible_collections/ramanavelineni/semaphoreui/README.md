@@ -124,6 +124,13 @@ Run it with `--check --diff` first to see what would change.
 
 Full documentation for each: `ansible-doc ramanavelineni.semaphoreui.<module>`.
 
+Every module that works inside a project names it with `project` (its name)
+or `project_id` (its id), one of the two. The name is looked up in the list
+of projects, which Semaphore cuts off at 200 rows, so the modules refuse to
+look a project up by name on a server with 200 or more projects. With
+`project_id` that list is not read and the project is found whatever their
+number.
+
 ## Connecting
 
 Each module takes `url` (with or without `/api`) and either an `api_token` or

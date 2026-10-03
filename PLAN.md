@@ -127,6 +127,10 @@ each module logs in and out within its own run.
 ### project
 - The API caps the project list at 200 rows. The module fails at the cap
   rather than risk creating a duplicate.
+- The modules that work inside a project take `project_id` as an alternative
+  to the project's name. It reads that one project (`GET /project/<id>`)
+  instead of the list, so they work past the cap. `project` itself still
+  finds a project by name only.
 - `state: absent` needs `confirm_delete: true`, because it deletes everything
   inside.
 

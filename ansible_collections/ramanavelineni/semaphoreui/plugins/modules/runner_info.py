@@ -24,7 +24,16 @@ options:
     description:
       - Name of the project whose runners to list. Leave it unset for the global runners.
       - Project runners need Semaphore Pro; a Community server lists none.
+      - Mutually exclusive with O(project_id).
     type: str
+  project_id:
+    description:
+      - Id of the project, as an alternative to O(project).
+      - With it the list of projects is not read, so a project is found on a server with 200 or more
+        projects too. Semaphore cuts that list off at 200, and O(project) fails there.
+      - Mutually exclusive with O(project).
+    type: int
+    version_added: 0.3.0
   name:
     description:
       - Only return runners with this name.
@@ -64,7 +73,8 @@ runners:
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
-    resolve_project,
+    PROJECT_OPTIONS,
+    project_ref,
     run_module,
     semaphore_argument_spec,
     semaphore_module_kwargs,
@@ -73,11 +83,11 @@ from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semapho
 
 def list_runners(module, client):
     client.warn_if_untested()
-    project = module.params['project']
-    base = '/project/%d' % resolve_project(client, project) if project is not None else ''
+    project_id, project = project_ref(client, module.params)
+    base = '/project/%d' % project_id if project_id is not None else ''
     out = []
     for runner in client.list(base + '/runners'):
-        if project is None and runner.get('project_id') is not None:
+        if project_id is None and runner.get('project_id') is not None:
             continue
         if module.params['name'] is not None and runner.get('name') != module.params['name']:
             continue
@@ -92,8 +102,9 @@ def list_runners(module, client):
 
 def main():
     argument_spec = semaphore_argument_spec()
-    argument_spec.update(project=dict(type='str'), name=dict(type='str'))
-    module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True, **semaphore_module_kwargs())
+    argument_spec.update(project=dict(type='str'), project_id=dict(type='int'), name=dict(type='str'))
+    module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True,
+                           **semaphore_module_kwargs(mutually_exclusive=[PROJECT_OPTIONS]))
     run_module(module, lambda client: list_runners(module, client))
 
 
