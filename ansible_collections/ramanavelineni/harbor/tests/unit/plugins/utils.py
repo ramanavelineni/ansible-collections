@@ -20,16 +20,12 @@ import pytest
 
 from ansible.module_utils import basic
 
-try:
-    from ansible.module_utils._internal import _secrets
-except ImportError:
-    # ansible-core up to 2.22: modules mask their own results, see visible_result().
-    _secrets = None
-
 # What ansible-core puts where a secret was.
 MASK = '$REDACTED$'
-# Shorter values are not registered as secrets by ansible-core.
+# Shorter values are not treated as secrets by ansible-core.
 SHORTEST_SECRET = 4
+# Up to this length a secret is masked only where it stands alone.
+LONGEST_SHORT_SECRET = 6
 
 
 @contextlib.contextmanager
@@ -143,12 +139,68 @@ class FakeServer(object):
         return FakeResponse(answer['status'], answer['body'], answer.get('headers'))
 
 
+def _forms(secret):
+    """The ways a secret can be written in a result: as it is, and escaped as inside a JSON string."""
+    return set((secret, json.dumps(secret)[1:-1], json.dumps(secret, ensure_ascii=False)[1:-1]))
+
+
+def _stands_alone(text, start, end):
+    """True when text[start:end] has no letter or digit right before or after it."""
+    return (start == 0 or not text[start - 1].isalnum()) and (end == len(text) or not text[end].isalnum())
+
+
 def _masker(secrets):
-    """mask(text) for the secrets a module reported, as the controller of that ansible-core masks them."""
-    # A module that reports its secrets comes from an ansible-core that has this class.
-    masker = _secrets.SecretMasker()
-    masker.register_secret_texts(str(s) for s in secrets)
-    return lambda text: masker.mask_string(text, mask_placeholder=MASK)
+    """mask(text) for the secrets a module reported.
+
+    Written from how the controller of ansible-core 2.23 behaves, not from its
+    code, which this Apache-2.0 collection does not import:
+
+    - surrounding whitespace is not part of a secret, and a secret shorter
+      than SHORTEST_SECRET characters is not masked at all;
+    - a secret of up to LONGEST_SHORT_SECRET characters is masked only where
+      it stands alone, with no letter or digit on either side;
+    - a longer secret is masked wherever it occurs, as it is and as it is
+      written inside a JSON string;
+    - occurrences that overlap or touch become one MASK.
+
+    Known difference: the controller also masks a short secret that does not
+    stand alone when it overlaps or touches another secret. This does not. It
+    never masks more than the controller, so it cannot hide a leak the
+    controller would show; it can only report one the controller would hide.
+    """
+    forms = set()
+    for secret in secrets:
+        secret = str(secret).strip(' \t\r\n')
+        if len(secret) >= SHORTEST_SECRET:
+            forms.update(_forms(secret))
+    # Longest first, so the spans of a secret that contains another are found
+    # before the shorter one's; the order does not change what is masked.
+    forms = sorted(forms, key=lambda form: (-len(form), form))
+
+    def mask(text):
+        spans = []
+        for form in forms:
+            start = text.find(form)
+            while start != -1:
+                end = start + len(form)
+                if len(form) > LONGEST_SHORT_SECRET or _stands_alone(text, start, end):
+                    spans.append((start, end))
+                start = text.find(form, start + 1)
+        if not spans:
+            return text
+        merged = []
+        for start, end in sorted(spans):
+            if merged and start <= merged[-1][1]:
+                merged[-1] = (merged[-1][0], max(end, merged[-1][1]))
+            else:
+                merged.append((start, end))
+        parts, position = [], 0
+        for start, end in merged:
+            parts.extend((text[position:start], MASK))
+            position = end
+        parts.append(text[position:])
+        return ''.join(parts)
+    return mask
 
 
 def _masked(value, mask):
@@ -179,9 +231,10 @@ def visible_result(raw):
     Later versions leave that to the controller: the module adds the secrets
     it knows as `_ansible_new_secrets`, and the controller removes that key,
     registers the values and masks every occurrence of them, in keys and
-    values, before a callback gets the result. This does the same, with a
-    masker that knows only this result's secrets, so one test cannot hide
-    what another leaks. A secret the module did not report stays as it is.
+    values, before a callback gets the result. This does the same with a
+    masker of its own (see _masker for the rules) that knows only this
+    result's secrets, so one test cannot hide what another leaks. A secret
+    the module did not report stays as it is.
     """
     if not isinstance(raw, dict) or '_ansible_new_secrets' not in raw:
         return raw
