@@ -9,11 +9,12 @@ is in test_login_lock.py.
 """
 
 import base64
+import io
 import json
 import socket
 import ssl
 import time
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 
 import pytest
 
@@ -26,7 +27,7 @@ from ansible_collections.ramanavelineni.harbor.tests.unit.plugins.conftest impor
 )
 
 CONNECTION_ENV = ('HARBOR_URL', 'HARBOR_USERNAME', 'HARBOR_PASSWORD', 'HARBOR_VALIDATE_CERTS', 'HARBOR_CA_PATH',
-                  'HARBOR_WARN_UNTESTED_VERSION')
+                  'HARBOR_CLIENT_CERT', 'HARBOR_CLIENT_KEY', 'HARBOR_USE_PROXY', 'HARBOR_WARN_UNTESTED_VERSION')
 
 
 @pytest.fixture(autouse=True)
@@ -47,6 +48,20 @@ def urls(server, mocker):
 
     mocker.patch(PATCH_TARGET, side_effect=open_url)
     return seen
+
+
+@pytest.fixture
+def client_files(tmp_path):
+    """Paths of a client certificate and key file. Only their existence is checked, so they are empty."""
+    cert, key = tmp_path / 'client.pem', tmp_path / 'client.key'
+    cert.write_text('')
+    key.write_text('')
+    return str(cert), str(key)
+
+
+def http_error(status, raw, headers=None):
+    """An answer the fake server cannot give itself: a body that is not JSON, or response headers."""
+    return HTTPError('https://harbor.example.com', status, 'error', headers or {}, io.BytesIO(raw))
 
 
 def unavailable(status=503):
@@ -105,18 +120,32 @@ def test_defaults_reach_every_request(server, run_module):
         assert kwargs['follow_redirects'] == 'none'
         assert kwargs['use_netrc'] is False
         assert kwargs['use_proxy'] is True
+        assert kwargs['client_cert'] is None
+        assert kwargs['client_key'] is None
 
 
-def test_options_reach_every_request(server, run_module):
+def test_options_reach_every_request(server, run_module, client_files):
     existing(server)
+    cert, key = client_files
     run_module(project.main, dict(name='fixtures-core', validate_certs=False, ca_path='/etc/ssl/step-root.pem',
-                                  timeout=7))
+                                  timeout=7, client_cert=cert, client_key=key, use_proxy=False))
     assert len(server.requests) > 1
     for request in server.requests:
         kwargs = request['kwargs']
         assert kwargs['validate_certs'] is False
         assert kwargs['ca_path'] == '/etc/ssl/step-root.pem'
         assert kwargs['timeout'] == 7
+        assert kwargs['client_cert'] == cert
+        assert kwargs['client_key'] == key
+        assert kwargs['use_proxy'] is False
+
+
+def test_a_client_certificate_that_holds_its_key_needs_no_client_key(server, run_module, client_files):
+    cert = client_files[0]
+    result = run_module(info.main, dict(client_cert=cert))
+    assert result.get('failed') is not True
+    assert len(server.requests) == 1
+    assert all(r['kwargs']['client_cert'] == cert and r['kwargs']['client_key'] is None for r in server.requests)
 
 
 def test_every_request_carries_the_credentials_as_basic_auth(server, run_module):
@@ -138,8 +167,44 @@ def test_a_redirect_is_an_error_not_followed(server, run_module):
     result = run_module(info.main, {})
     assert result['failed'] is True
     assert 'returned HTTP 302' in result['msg']
+    assert 'a redirect without a Location header' in result['msg']
+    assert 'location' not in result['request_details']
     assert len(server.calls('GET', '/systeminfo')) == 1
     assert waits() == []
+
+
+@pytest.mark.parametrize('status', [301, 302, 307, 308])
+def test_a_redirect_names_its_target(server, run_module, status):
+    # What a server behind a proxy answers when url says http:// and the proxy wants https://.
+    target = 'https://harbor.example.com/api/v2.0/systeminfo'
+    server.route('GET', '/systeminfo', http_error(status, b'<a href="/">Moved</a>', {'Location': target}))
+    result = run_module(info.main, dict(url='http://harbor.example.com'))
+    assert result['failed'] is True
+    assert result['msg'] == (
+        'GET http://harbor.example.com/api/v2.0/systeminfo returned HTTP %d, a redirect to %s. Redirects are '
+        'not followed. Set url to the address the Harbor server itself answers on.' % (status, target))
+    assert result['request_details']['location'] == target
+    assert result['request_details']['status'] == status
+    # Not followed and not retried: the login check went out once, and nothing after it.
+    assert [r['path'] for r in server.requests] == ['/systeminfo']
+    assert waits() == []
+
+
+def test_a_redirect_that_arrives_as_a_response_names_its_target_too(server, run_module):
+    # Not how open_url hands on a 3xx today (it raises), but a redirect is one either way.
+    target = 'https://harbor.example.com/api/v2.0/systeminfo'
+    server.route('GET', '/systeminfo', dict(status=301, body=None, headers={'location': target}))
+    result = run_module(info.main, {})
+    assert result['failed'] is True
+    assert 'a redirect to %s' % target in result['msg']
+    assert result['request_details']['location'] == target
+
+
+def test_another_failure_has_no_location(server, run_module):
+    server.route('GET', '/systeminfo', unavailable(500))
+    result = run_module(info.main, {})
+    assert result['failed'] is True
+    assert 'location' not in result['request_details']
 
 
 # -- retries -------------------------------------------------------------------
@@ -186,10 +251,9 @@ def test_transport_retries_run_out(server, run_module):
     assert len(server.calls('GET', '/systeminfo')) == 2
 
 
-@pytest.mark.parametrize('retries', [0, -1])
-def test_no_retries(server, run_module, retries):
+def test_no_retries(server, run_module):
     server.route('GET', '/systeminfo', unavailable(), 'systeminfo')
-    result = run_module(info.main, dict(retries=retries))
+    result = run_module(info.main, dict(retries=0))
     assert result['failed'] is True
     assert len(server.calls('GET', '/systeminfo')) == 1
     assert waits() == []
@@ -299,6 +363,94 @@ def test_a_body_that_is_not_json_fails_with_the_body(server, run_module, mocker)
     assert len(server.calls('GET', '/systeminfo')) == 1
 
 
+# -- options that cannot work fail before any request --------------------------
+
+@pytest.mark.parametrize('url', [
+    'harbor.example.com',
+    'harbor.example.com/api/v2.0',
+    '//harbor.example.com',
+    'ftp://harbor.example.com',
+    'file:///etc/passwd',
+    'https://',
+    'https:///api/v2.0',
+    '',
+])
+def test_a_url_that_is_not_http_fails_before_any_request(server, run_module, url):
+    result = run_module(info.main, dict(url=url))
+    assert result['failed'] is True
+    assert 'url must be the address of the Harbor server, starting with http:// or https://' in result['msg']
+    assert 'https://harbor.example.com' in result['msg']
+    assert 'unknown url type' not in result['msg']
+    assert server.requests == []
+
+
+@pytest.mark.parametrize('url', [
+    'http://harbor.example.com',
+    'https://harbor.example.com:8443',
+    'HTTPS://harbor.example.com/',
+    'https://harbor.example.com/api/v2.0',
+    'http://[::1]:8080',
+])
+def test_http_and_https_urls_are_accepted(server, run_module, url):
+    result = run_module(info.main, dict(url=url))
+    assert result.get('failed') is not True
+    assert len(server.requests) == 1
+
+
+@pytest.mark.parametrize('option, value, message', [
+    ('timeout', 0, 'timeout must be 1 or more (seconds). Got 0.'),
+    ('timeout', -5, 'timeout must be 1 or more (seconds). Got -5.'),
+    ('retries', -1, 'retries must be 0 or more. Got -1.'),
+    ('retry_delay', -1, 'retry_delay must be 0 or more. Got -1.'),
+])
+def test_a_number_out_of_range_fails_before_any_request(server, run_module, option, value, message):
+    result = run_module(info.main, {option: value})
+    assert result['failed'] is True
+    assert result['msg'] == message
+    assert server.requests == []
+
+
+@pytest.mark.parametrize('option, value', [('timeout', 1), ('retries', 0), ('retry_delay', 0)])
+def test_the_smallest_numbers_are_accepted(server, run_module, option, value):
+    result = run_module(info.main, {option: value})
+    assert result.get('failed') is not True
+    assert len(server.requests) == 1
+
+
+def test_a_client_key_without_a_certificate_fails_before_any_request(server, run_module, client_files):
+    result = run_module(info.main, dict(client_key=client_files[1]))
+    assert result['failed'] is True
+    assert result['msg'] == 'client_key needs client_cert: a key alone cannot identify the client.'
+    assert server.requests == []
+
+
+@pytest.mark.parametrize('option', ['client_cert', 'client_key'])
+def test_a_client_file_that_is_missing_fails_before_any_request(server, run_module, client_files, tmp_path, option):
+    missing = str(tmp_path / 'missing.pem')
+    params = dict(client_cert=client_files[0], client_key=client_files[1])
+    params[option] = missing
+    result = run_module(info.main, params)
+    assert result['failed'] is True
+    assert result['msg'] == '%s %r is not a file on the host this module runs on.' % (option, missing)
+    assert server.requests == []
+
+
+def test_a_client_certificate_that_is_a_directory_fails_before_any_request(server, run_module, tmp_path):
+    result = run_module(info.main, dict(client_cert=str(tmp_path)))
+    assert result['failed'] is True
+    assert 'is not a file' in result['msg']
+    assert server.requests == []
+
+
+def test_a_missing_client_file_fails_in_check_mode_too(server, run_module, tmp_path):
+    # Check mode still reads from the server, so it needs the certificate as well.
+    result = run_module(project.main, dict(name='fixtures-core', client_cert=str(tmp_path / 'missing.pem')),
+                        check_mode=True)
+    assert result['failed'] is True
+    assert 'is not a file' in result['msg']
+    assert server.requests == []
+
+
 # -- environment ---------------------------------------------------------------
 
 def test_url_and_credentials_from_the_environment(server, run_module, monkeypatch, urls):
@@ -357,6 +509,37 @@ def test_ca_path_option_wins_over_the_environment(server, run_module, monkeypatc
     assert server.requests[0]['kwargs']['ca_path'] == '/etc/ssl/step-root.pem'
 
 
+def test_client_certificate_from_the_environment(server, run_module, monkeypatch, client_files):
+    cert, key = client_files
+    monkeypatch.setenv('HARBOR_CLIENT_CERT', cert)
+    monkeypatch.setenv('HARBOR_CLIENT_KEY', key)
+    run_module(info.main, {})
+    assert len(server.requests) == 1
+    assert all(r['kwargs']['client_cert'] == cert and r['kwargs']['client_key'] == key for r in server.requests)
+
+
+def test_client_certificate_option_wins_over_the_environment(server, run_module, monkeypatch, client_files, tmp_path):
+    monkeypatch.setenv('HARBOR_CLIENT_CERT', str(tmp_path / 'from-env.pem'))
+    run_module(info.main, dict(client_cert=client_files[0]))
+    assert len(server.requests) == 1
+    assert all(r['kwargs']['client_cert'] == client_files[0] for r in server.requests)
+
+
+@pytest.mark.parametrize('value, expected', [('false', False), ('no', False), ('0', False), ('true', True)])
+def test_use_proxy_from_the_environment(server, run_module, monkeypatch, value, expected):
+    monkeypatch.setenv('HARBOR_USE_PROXY', value)
+    run_module(info.main, {})
+    assert len(server.requests) == 1
+    assert all(r['kwargs']['use_proxy'] is expected for r in server.requests)
+
+
+def test_use_proxy_option_wins_over_the_environment(server, run_module, monkeypatch):
+    monkeypatch.setenv('HARBOR_USE_PROXY', 'false')
+    run_module(info.main, dict(use_proxy=True))
+    assert len(server.requests) == 1
+    assert all(r['kwargs']['use_proxy'] is True for r in server.requests)
+
+
 # -- paged lists ---------------------------------------------------------------
 
 class StubModule(object):
@@ -366,8 +549,8 @@ class StubModule(object):
 
     def __init__(self):
         self.params = dict(url='https://harbor.example.com', username='admin', password='s3cret-pw',
-                           validate_certs=True, ca_path=None, timeout=30, retries=3, retry_delay=2,
-                           warn_untested_version=True)
+                           validate_certs=True, ca_path=None, client_cert=None, client_key=None, use_proxy=True,
+                           timeout=30, retries=3, retry_delay=2, warn_untested_version=True)
 
 
 def page(count, total=None, first=0):
