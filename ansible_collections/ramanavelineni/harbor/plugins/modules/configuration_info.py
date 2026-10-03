@@ -9,6 +9,9 @@ version_added: 0.1.0
 description:
   - Reads every system setting (Administration > Configuration) by its API name. Secrets are never
     included.
+  - A key this collection does not know is left out as well when its name contains C(secret),
+    C(password), C(passwd), C(token), C(credential) or C(private_key), so that a secret a newer Harbor
+    adds is not shown.
 author:
   - ramanavelineni (@ramanavelineni)
 extends_documentation_fragment:
@@ -48,25 +51,19 @@ auth_mode_editable:
 '''
 
 from ansible.module_utils.basic import AnsibleModule
+from ansible_collections.ramanavelineni.harbor.plugins.module_utils.configuration import flat
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor import (
     harbor_argument_spec,
     run_module,
 )
 
-# Kept out of the output: Harbor returns the UAA client secret in clear text.
-SECRETS = ('uaa_client_secret', 'oidc_client_secret', 'ldap_search_password')
-
 
 def read(module, client):
     client.warn_if_untested()
     raw = client.get('/configurations') or {}
-    configuration = {}
-    for key, item in raw.items():
-        if key in SECRETS:
-            continue
-        configuration[key] = item.get('value') if isinstance(item, dict) else item
     auth = raw.get('auth_mode')
-    return dict(changed=False, configuration=configuration,
+    # flat() keeps secrets out: Harbor returns the UAA client secret in clear text.
+    return dict(changed=False, configuration=flat(raw),
                 auth_mode_editable=bool(auth.get('editable')) if isinstance(auth, dict) else False)
 
 

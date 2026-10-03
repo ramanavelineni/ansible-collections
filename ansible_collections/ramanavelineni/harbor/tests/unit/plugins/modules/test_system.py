@@ -167,6 +167,138 @@ def test_configuration_info_hides_secrets(server, run_module):
     assert result['auth_mode_editable'] is current['body']['auth_mode']['editable']
 
 
+# Harbor reports a setting as not editable in two cases the recordings don't
+# hold: auth_mode once a second user exists, and every setting that the
+# server's own configuration fixes. The flag is set by hand here.
+
+def locked_configuration(server, *keys):
+    current = server.response('system_configurations')
+    for key in keys:
+        current['body'][key]['editable'] = False
+    return current
+
+
+def test_configuration_refuses_to_change_a_setting_that_is_not_editable(server, run_module):
+    server.route('GET', '/configurations', locked_configuration(server, 'auth_mode'))
+    result = run_module(configuration.main, dict(settings=dict(auth_mode='oidc_auth', session_timeout=45)))
+    assert result['failed'] is True
+    assert result['msg'] == ('Harbor reports this setting as not editable at the moment, so it cannot be changed: '
+                             'auth_mode. auth_mode can only change while no user other than the admin exists.')
+    assert server.calls('PUT') == []
+
+
+def test_configuration_names_every_setting_that_is_not_editable(server, run_module):
+    server.route('GET', '/configurations', locked_configuration(server, 'session_timeout', 'read_only', 'banner_message'))
+    result = run_module(configuration.main, dict(settings=dict(session_timeout=45, read_only=True)), check_mode=True)
+    assert result['failed'] is True
+    assert result['msg'] == ('Harbor reports these settings as not editable at the moment, so they cannot be '
+                             'changed: read_only, session_timeout.')
+    assert server.calls('PUT') == []
+
+
+def test_configuration_unchanged_setting_that_is_not_editable_is_no_change(server, run_module):
+    current = locked_configuration(server, 'auth_mode')
+    server.route('GET', '/configurations', current)
+    result = run_module(configuration.main, dict(settings=dict(auth_mode=current['body']['auth_mode']['value'])))
+    assert result.get('failed') is not True
+    assert result['changed'] is False
+    assert server.calls('PUT') == []
+
+
+def test_configuration_changes_other_settings_beside_one_that_is_not_editable(server, run_module):
+    current = locked_configuration(server, 'auth_mode')
+    server.route('GET', '/configurations', current, 'system_configurations_updated')
+    server.route('PUT', '/configurations', 'system_configurations_update')
+    result = run_module(configuration.main, dict(settings=dict(
+        auth_mode=current['body']['auth_mode']['value'], session_timeout=45)))
+    assert result['changed'] is True
+    assert server.calls('PUT')[0]['body'] == dict(session_timeout=45)
+
+
+def test_configuration_refuses_a_secret_that_is_not_editable(server, run_module):
+    server.route('GET', '/configurations', locked_configuration(server, 'uaa_client_secret'))
+    result = run_module(configuration.main, dict(uaa_client_secret='uaa-s3cret'))
+    assert result['failed'] is True
+    assert 'cannot be changed: uaa_client_secret.' in result['msg']
+    assert 'uaa-s3cret' not in json.dumps(result)
+    assert server.calls('PUT') == []
+
+
+# A secret a newer Harbor might return: no recorded version has one, so the
+# keys are added by hand. The module has no name for them, only the pattern.
+NEW_SECRETS = dict(oidc_refresh_token='t0ken-value', ldap_bind_password='pw-value',
+                   OIDC_Client_Secret_V2='secret-value', smtp_passwd='passwd-value',
+                   registry_credential='cred-value', jwt_private_key='key-value')
+# Settings the module knows that have such a word in their name and are no secret.
+LOOK_ALIKES = ('robot_token_duration', 'token_expiration', 'http_authproxy_tokenreview_endpoint')
+
+
+def with_new_secrets(server, name='system_configurations'):
+    current = server.response(name)
+    for key, value in NEW_SECRETS.items():
+        current['body'][key] = dict(value=value, editable=True)
+    return current
+
+
+def test_configuration_info_hides_a_secret_it_has_no_name_for(server, run_module):
+    current = with_new_secrets(server)
+    server.route('GET', '/configurations', current)
+    result = run_module(configuration_info.main, {})
+    assert sorted(set(current['body']) - set(result['configuration'])) == sorted(list(NEW_SECRETS) + ['uaa_client_secret'])
+    for value in NEW_SECRETS.values():
+        assert value not in json.dumps(result)
+
+
+def test_configuration_hides_a_secret_it_has_no_name_for(server, run_module):
+    server.route('GET', '/configurations', with_new_secrets(server), with_new_secrets(server, 'system_configurations_updated'))
+    server.route('PUT', '/configurations', 'system_configurations_update')
+    result = run_module(configuration.main, dict(settings=dict(session_timeout=45)))
+    assert result['changed'] is True
+    assert result['configuration']['session_timeout'] == 45
+    assert not set(NEW_SECRETS) & set(result['configuration'])
+    for value in NEW_SECRETS.values():
+        assert value not in json.dumps(result)
+
+
+def test_configuration_hides_a_secret_it_has_no_name_for_without_a_change(server, run_module):
+    server.route('GET', '/configurations', with_new_secrets(server))
+    result = run_module(configuration.main, {})
+    assert result['changed'] is False
+    assert not set(NEW_SECRETS) & set(result['configuration'])
+    for value in NEW_SECRETS.values():
+        assert value not in json.dumps(result)
+
+
+def test_configuration_hides_a_secret_it_has_no_name_for_in_check_mode(server, run_module):
+    server.route('GET', '/configurations', with_new_secrets(server))
+    result = run_module(configuration.main, dict(settings=dict(session_timeout=45)), check_mode=True)
+    assert result['changed'] is True
+    assert not set(NEW_SECRETS) & set(result['configuration'])
+    for value in NEW_SECRETS.values():
+        assert value not in json.dumps(result)
+
+
+@pytest.mark.parametrize('main', [configuration.main, configuration_info.main], ids=['configuration', 'configuration_info'])
+def test_settings_that_only_look_like_secrets_are_returned(server, run_module, main):
+    current = server.response('system_configurations')
+    server.route('GET', '/configurations', current)
+    result = run_module(main, {})
+    for key in LOOK_ALIKES:
+        assert result['configuration'][key] == current['body'][key]['value']
+    # Everything Harbor returned is there, the one recorded secret excepted.
+    assert sorted(set(current['body']) - set(result['configuration'])) == ['uaa_client_secret']
+
+
+def test_a_setting_that_only_looks_like_a_secret_can_be_set(server, run_module):
+    current = server.response('system_configurations')
+    server.route('GET', '/configurations', current, 'system_configurations_updated')
+    server.route('PUT', '/configurations', 'system_configurations_update')
+    wanted = current['body']['robot_token_duration']['value'] + 1
+    result = run_module(configuration.main, dict(settings=dict(robot_token_duration=wanted)))
+    assert result['changed'] is True
+    assert server.calls('PUT')[0]['body'] == dict(robot_token_duration=wanted)
+
+
 # -- garbage collection -------------------------------------------------------
 
 def test_gc_create(server, run_module):
