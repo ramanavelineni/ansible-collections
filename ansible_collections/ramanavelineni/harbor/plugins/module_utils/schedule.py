@@ -5,7 +5,9 @@
 
 All three live at /system/<job>/schedule with one body shape:
 {"schedule": {"type": T, "cron": "..."}, "parameters": {...}}. T "None" removes
-the schedule; T "Manual" starts a run immediately and is never sent.
+the schedule; T "Manual" starts a run immediately and is never sent. A type
+Harbor reports that is none of SCHEDULE_TYPES is shown as it is (lower-cased)
+and refused when a write would have to send it back.
 """
 
 import json
@@ -20,6 +22,9 @@ API_TYPE = dict(none='None', hourly='Hourly', daily='Daily', weekly='Weekly', cu
 # parameters of the job. redis_url_reg is Harbor's internal Redis URL, which
 # may carry a password: Harbor 2.14 returns it, 2.15 strips it.
 INTERNAL_PARAMETERS = ('redis_url_reg', 'time_window')
+
+# The run history is read in pages of at most this many, Harbor's largest page.
+RUNS_PAGE_SIZE = 100
 
 
 def schedule_argument_spec():
@@ -90,8 +95,32 @@ def desired_timing(params, current):
     return 'custom', cron
 
 
+def require_known_type(kind):
+    """Fail when `kind` is a schedule type the modules can't send back.
+
+    read_schedule() returns whatever type Harbor reports. One outside
+    SCHEDULE_TYPES can be shown, and replaced by setting `schedule`, but not
+    written again as it is.
+    """
+    if kind not in API_TYPE:
+        raise ValueError('Harbor reports a schedule of type %r, which this module cannot write back. '
+                         'Set schedule (one of %s) to replace it.' % (kind, ', '.join(SCHEDULE_TYPES)))
+
+
+def carried_parameters(current):
+    """The stored parameters a write has to send back: every one that has a value.
+
+    Harbor replaces a schedule's parameters as a whole, so one left out is
+    lost. That includes parameters the modules have no option for, such as a
+    garbage collection's dry_run. The internal ones are already gone
+    (parse_parameters).
+    """
+    return dict((k, v) for k, v in current.items() if v is not None)
+
+
 def schedule_body(kind, cron, parameters=None):
     """The request body for a schedule write."""
+    require_known_type(kind)
     sched = dict(type=API_TYPE[kind])
     if kind != 'none':
         sched['cron'] = cron
@@ -112,15 +141,30 @@ def schedule_view(timing, parameters, parameter_names):
 
 
 def recent_runs(client, path, count):
-    """The `count` most recent runs of a job (GC or purge history), newest first."""
+    """The `count` most recent runs of a job (GC or purge history), newest first.
+
+    More than one page's worth is read page by page. Reading stops at a short
+    page, and at a page that brings no run not seen before, so an endpoint
+    that ignored `page` could not make this loop or return a run twice.
+    """
     if count <= 0:
         return []
-    items, dummy = client.request('GET', path, params=dict(page=1, page_size=min(count, 100), sort='-creation_time'),
-                                  expected=(200,), retry=True)
+    size = min(count, RUNS_PAGE_SIZE)
+    runs, seen, page = [], set(), 1
+    while len(runs) < count:
+        items, dummy = client.request('GET', path, params=dict(page=page, page_size=size, sort='-creation_time'),
+                                      expected=(200,), retry=True)
+        items = items or []
+        fresh = [item for item in items if item.get('id') is None or item.get('id') not in seen]
+        seen.update(item.get('id') for item in fresh)
+        runs.extend(fresh)
+        if len(items) < size or not fresh:
+            break
+        page += 1
     return [dict(id=item.get('id'), status=item.get('job_status'), trigger=item.get('job_kind'),
                  parameters=parse_parameters(item.get('job_parameters')),
                  creation_time=item.get('creation_time'), update_time=item.get('update_time'))
-            for item in (items or [])[:count]]
+            for item in runs[:count]]
 
 
 def comparable(view):

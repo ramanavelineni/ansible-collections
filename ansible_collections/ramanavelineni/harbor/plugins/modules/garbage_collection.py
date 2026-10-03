@@ -9,7 +9,8 @@ version_added: 0.1.0
 description:
   - Sets, changes or removes the schedule of Harbor's garbage collection (Administration >
     Clean Up > Garbage Collection), and its settings.
-  - Only the options you set are compared and changed; the others keep their current value.
+  - Only the options you set are compared and changed; the others keep their current value. That
+    includes settings this module has no option for, such as a dry run set through Harbor's API.
   - The module never starts a garbage collection run itself.
 author:
   - ramanavelineni (@ramanavelineni)
@@ -51,6 +52,8 @@ options:
 notes:
   - Settings apply to the schedule, so they can only be set while there is one (or with
     O(schedule) in the same task).
+  - If Harbor reports a schedule of a type other than the choices of O(schedule), the module fails
+    when it would have to write that schedule back. Set O(schedule) to replace it.
 '''
 
 EXAMPLES = r'''
@@ -106,9 +109,11 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     server_minor,
 )
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.schedule import (
+    carried_parameters,
     comparable,
     desired_timing,
     read_schedule,
+    require_known_type,
     schedule_argument_spec,
     schedule_body,
     schedule_view,
@@ -136,7 +141,9 @@ def ensure(module, client):
         raise ValueError('%s only apply to a schedule; there is none%s.'
                          % (', '.join(sorted(wanted)), '' if timing is None else ' after this change'))
 
-    new_params = dict((k, v) for k, v in current_params.items() if k in PARAMETERS and v is not None)
+    # Parameters this module has no option for go back as stored: Harbor
+    # replaces them as a whole, and leaving one out would drop it.
+    new_params = carried_parameters(current_params)
     new_params.update(wanted)
     if kind == 'none':
         after = schedule_view(None, {}, PARAMETERS)
@@ -146,6 +153,7 @@ def ensure(module, client):
     if comparable(after) == comparable(before):
         return dict(changed=False, garbage_collection=before, diff=dict(before=before, after=before))
 
+    require_known_type(kind)
     if not module.check_mode:
         # POST and PUT do the same for a schedule type: Harbor deletes the
         # schedule and creates it again. Type Manual would start a run now,

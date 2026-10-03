@@ -1,0 +1,14 @@
+---
+bugfixes:
+  - >-
+    garbage_collection, log_rotation - a change no longer drops the schedule settings the module has no option
+    for. Harbor replaces a schedule's settings as a whole, so a garbage collection schedule created through the
+    API with ``dry_run`` lost it, and became a real garbage collection, on any change made by the module.
+  - >-
+    garbage_collection_info, log_rotation_info - ``runs`` above 100 no longer returns only 100 runs. Harbor
+    returns at most 100 per request, so more than that are now read in several requests.
+  - >-
+    garbage_collection, log_rotation - a schedule of a type other than ``none``, ``hourly``, ``daily``,
+    ``weekly`` or ``custom`` no longer ends in a ``KeyError`` when a task changes only its settings. The task
+    fails with a message that names the type and says to set ``schedule``. The ``_info`` modules return such a
+    schedule with its type as Harbor reports it, in lower case.

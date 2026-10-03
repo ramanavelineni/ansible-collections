@@ -4,8 +4,10 @@
 import pytest
 
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.schedule import (
+    carried_parameters,
     desired_timing,
     parse_parameters,
+    require_known_type,
     schedule_body,
 )
 
@@ -48,3 +50,20 @@ def test_schedule_body():
     assert schedule_body('none', '') == dict(schedule=dict(type='None'))
     assert schedule_body('custom', '0 0 4 * * 0', dict(workers=2)) == dict(
         schedule=dict(type='Custom', cron='0 0 4 * * 0'), parameters=dict(workers=2))
+
+
+def test_schedule_body_refuses_an_unknown_type():
+    with pytest.raises(ValueError, match="type 'manual'"):
+        schedule_body('manual', '0 0 4 * * 0', dict(workers=2))
+
+
+def test_require_known_type():
+    for kind in ('none', 'hourly', 'daily', 'weekly', 'custom'):
+        require_known_type(kind)
+    with pytest.raises(ValueError, match='Set schedule'):
+        require_known_type('manual')
+
+
+def test_carried_parameters_keeps_everything_with_a_value():
+    stored = parse_parameters('{"workers": 2, "dry_run": true, "delete_tag": null, "redis_url_reg": "redis://x"}')
+    assert carried_parameters(stored) == dict(workers=2, dry_run=True)

@@ -302,6 +302,110 @@ def test_gc_info_no_runs(server, run_module):
     assert server.calls('GET', '/system/gc') == []
 
 
+def with_parameters(server, name, **extra):
+    """The recorded schedule `name` with more job parameters. Hand-edited: no fixture has any of them."""
+    schedule = server.response(name)
+    params = json.loads(schedule['body']['job_parameters'])
+    params.update(extra)
+    schedule['body']['job_parameters'] = json.dumps(params)
+    return schedule
+
+
+def with_type(server, name, kind):
+    """The recorded schedule `name` as another type. Hand-edited: only Custom was recorded."""
+    schedule = server.response(name)
+    schedule['body']['schedule']['type'] = kind
+    return schedule
+
+
+def history(first, count):
+    """A page of run history. Hand-written after the swagger model: the recorded history is empty."""
+    return dict(status=200, headers={}, body=[
+        dict(id=i, job_name='GARBAGE_COLLECTION', job_kind='SCHEDULE', job_status='Success',
+             job_parameters='{"workers":2}', creation_time='2026-09-27T20:00:00.000Z',
+             update_time='2026-09-27T20:01:00.000Z')
+        for i in range(first, first - count, -1)])
+
+
+def test_gc_change_keeps_parameters_without_an_option(server, run_module):
+    server.route('GET', GC, with_parameters(server, 'system_gc_schedule_custom', dry_run=True))
+    server.route('PUT', GC, 'system_gc_schedule_update')
+    result = run_module(garbage_collection.main, dict(workers=4))
+    assert result['changed'] is True
+    sent = server.calls('PUT', GC)[0]['body']['parameters']
+    assert sent['dry_run'] is True
+    assert (sent['workers'], sent['delete_untagged']) == (4, True)
+
+
+def test_gc_change_still_drops_internal_parameters(server, run_module):
+    server.route('GET', GC, with_parameters(server, 'system_gc_schedule_custom',
+                                            redis_url_reg='redis://:s3cret@redis:6379/1', time_window=2))
+    server.route('PUT', GC, 'system_gc_schedule_update')
+    run_module(garbage_collection.main, dict(workers=4))
+    sent = server.calls('PUT', GC)[0]['body']['parameters']
+    assert 'redis_url_reg' not in sent and 'time_window' not in sent
+
+
+def test_gc_unknown_type_fails_when_it_would_be_written(server, run_module):
+    server.route('GET', GC, with_type(server, 'system_gc_schedule_custom', 'Manual'))
+    for check_mode in (False, True):
+        result = run_module(garbage_collection.main, dict(workers=4), check_mode=check_mode)
+        assert result['failed'] is True
+        assert "type 'manual'" in result['msg'] and 'Set schedule' in result['msg']
+    assert server.calls('PUT') == []
+
+
+def test_gc_unknown_type_untouched_is_no_change(server, run_module):
+    server.route('GET', GC, with_type(server, 'system_gc_schedule_custom', 'Manual'))
+    result = run_module(garbage_collection.main, dict(workers=2))
+    assert result['changed'] is False
+    assert result['garbage_collection']['schedule'] == 'manual'
+
+
+def test_gc_unknown_type_can_be_replaced(server, run_module):
+    server.route('GET', GC, with_type(server, 'system_gc_schedule_custom', 'Manual'), 'system_gc_schedule_custom')
+    server.route('PUT', GC, 'system_gc_schedule_update')
+    result = run_module(garbage_collection.main, dict(schedule='weekly'))
+    assert result['changed'] is True
+    assert server.calls('PUT', GC)[0]['body']['schedule'] == dict(type='Weekly', cron='0 0 0 * * 0')
+
+
+def test_gc_info_reports_unknown_type(server, run_module):
+    server.route('GET', GC, with_type(server, 'system_gc_schedule_custom', 'Manual'))
+    server.route('GET', '/system/gc', 'system_gc_history')
+    result = run_module(garbage_collection_info.main, {})
+    assert result.get('failed') is not True
+    assert result['garbage_collection']['schedule'] == 'manual'
+    assert result['garbage_collection']['workers'] == 2
+
+
+def test_gc_info_reads_runs_past_one_page(server, run_module):
+    server.route('GET', GC, 'system_gc_schedule_none')
+    server.route('GET', '/system/gc', history(250, 100), history(150, 100), history(50, 50))
+    result = run_module(garbage_collection_info.main, dict(runs=250))
+    assert [run['id'] for run in result['runs']] == list(range(250, 0, -1))
+    queries = [call['query'] for call in server.calls('GET', '/system/gc')]
+    assert [q['page'] for q in queries] == [['1'], ['2'], ['3']]
+    assert all(q['page_size'] == ['100'] and q['sort'] == ['-creation_time'] for q in queries)
+
+
+def test_gc_info_stops_reading_when_it_has_enough_runs(server, run_module):
+    server.route('GET', GC, 'system_gc_schedule_none')
+    server.route('GET', '/system/gc', history(300, 100), history(200, 100), history(100, 100))
+    result = run_module(garbage_collection_info.main, dict(runs=120))
+    assert [run['id'] for run in result['runs']] == list(range(300, 180, -1))
+    assert len(server.calls('GET', '/system/gc')) == 2
+
+
+def test_gc_info_stops_when_a_page_repeats(server, run_module):
+    # A server that ignored `page` answers every request with the same runs.
+    server.route('GET', GC, 'system_gc_schedule_none')
+    server.route('GET', '/system/gc', history(100, 100))
+    result = run_module(garbage_collection_info.main, dict(runs=250))
+    assert [run['id'] for run in result['runs']] == list(range(100, 0, -1))
+    assert len(server.calls('GET', '/system/gc')) == 2
+
+
 # -- log rotation --------------------------------------------------------------
 
 LR = dict(schedule='custom', cron='0 0 6 * * *', audit_retention_hour=720,
@@ -356,6 +460,29 @@ def test_lr_change_keeps_other_parameters(server, run_module):
     body = server.calls('PUT', PURGE)[0]['body']
     assert body['parameters'] == dict(audit_retention_hour=168, include_event_types='create_artifact,delete_artifact')
     assert body['schedule'] == dict(type='Custom', cron='0 0 6 * * *')
+
+
+def test_lr_change_keeps_parameters_without_an_option(server, run_module):
+    server.route('GET', PURGE, with_parameters(server, 'system_purge_schedule_custom', dry_run=True, later_option='x'))
+    server.route('PUT', PURGE, 'system_purge_schedule_update')
+    run_module(log_rotation.main, dict(audit_retention_hour=168))
+    assert server.calls('PUT', PURGE)[0]['body']['parameters'] == dict(
+        audit_retention_hour=168, include_event_types='create_artifact,delete_artifact', dry_run=True, later_option='x')
+
+
+def test_lr_unknown_type_fails_when_it_would_be_written(server, run_module):
+    server.route('GET', PURGE, with_type(server, 'system_purge_schedule_custom', 'Manual'))
+    result = run_module(log_rotation.main, dict(audit_retention_hour=168))
+    assert result['failed'] is True
+    assert "type 'manual'" in result['msg']
+    assert server.calls('PUT') == []
+
+
+def test_lr_info_reports_unknown_type(server, run_module):
+    server.route('GET', PURGE, with_type(server, 'system_purge_schedule_custom', 'Manual'))
+    server.route('GET', '/system/purgeaudit', 'system_purge_history')
+    result = run_module(log_rotation_info.main, {})
+    assert result['log_rotation']['schedule'] == 'manual'
 
 
 def test_lr_remove_sends_parameters(server, run_module):
