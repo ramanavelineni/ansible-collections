@@ -3,7 +3,8 @@
 Bug reports, fixes and new modules are welcome. For anything larger than a
 fix, open an issue first, so the options and behaviour can be agreed before
 the code is written. Security problems go through [SECURITY.md](SECURITY.md),
-not through an issue.
+not through an issue. Everyone taking part is expected to follow the
+[code of conduct](CODE_OF_CONDUCT.md).
 
 [PLAN.md](PLAN.md) holds the design decisions, the conventions every module
 follows, and each API quirk found so far. Read "Conventions for every module"
@@ -98,7 +99,9 @@ The rules:
 
 ## Commits and pull requests
 
-- One topic per pull request, against `main`.
+- One topic per pull request, against `main`. `main` only takes changes
+  through a pull request, and the "CI result" check has to pass before it
+  can be merged.
 - Titles follow [Conventional Commits](https://www.conventionalcommits.org/):
   `fix(harbor): ...`, `feat(semaphoreui): ...`, `docs: ...`, `chore: ...`.
   Pull requests are squashed, so the title becomes the commit.

@@ -312,7 +312,8 @@ make build                       # collection tarball into build/
 - **Changelog.** Every user-facing change adds a changelog fragment under
   `ansible_collections/ramanavelineni/<collection>/changelogs/fragments/`.
 - **Contributing.** [CONTRIBUTING.md](CONTRIBUTING.md) has the rules for a
-  change; security problems go through [SECURITY.md](SECURITY.md).
+  change; security problems go through [SECURITY.md](SECURITY.md). The
+  [code of conduct](CODE_OF_CONDUCT.md) applies to issues and pull requests.
 - **Design.** Decisions, the order of work and every API quirk found are in
   [PLAN.md](PLAN.md).
 
