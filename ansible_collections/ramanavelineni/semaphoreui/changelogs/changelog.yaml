@@ -87,3 +87,44 @@ releases:
       name: view_info
       namespace: ''
     release_date: '2026-09-27'
+  0.2.0:
+    changes:
+      breaking_changes:
+      - All modules - ``request_details.request`` in a failed result is now a dictionary,
+        not a JSON string.
+      - inventory_info, project_info, repository_info - fields of the raw API answer
+        that the matching module does not return (such as a project's ``created``)
+        are no longer returned.
+      bugfixes:
+      - Add the ``LICENSE`` file to the collection, so that installs and release tarballs
+        include the license text.
+      - All modules - an unexpected error (a server that answers in an unexpected
+        form, a port that doesn't speak HTTP) now fails with a message instead of
+        a Python traceback, and the login session is always closed.
+      - integration, inventory, key_store, repository, runner, schedule, team_member,
+        template, variable_group, view - ``state=absent`` now reports no change when
+        the project doesn't exist, instead of failing.
+      - inventory_info, project_info, repository_info, user_info - return each object
+        in the same form as the matching module, with every field filled in. ``project_info``
+        left out ``alert``, ``alert_chat`` and ``max_parallel_tasks`` when they had
+        their default value.
+      - template - the survey variable type ``text`` is now refused on every Semaphore
+        older than 2.19, not only on 2.18.
+      - user - an HTTP 500 on delete is only explained as the pre-2.19 session problem
+        when the server is older than 2.19.
+      release_summary: A security release. A failed request no longer shows secrets,
+        and the collection now includes its ``LICENSE``. Also several fixes to the
+        client and the ``_info`` modules. Two results changed form, see the breaking
+        changes.
+      security_fixes:
+      - 'All modules - a failed request no longer shows secrets. The request body
+        in ``request_details`` was returned as JSON text, where a secret containing
+        a newline, a quote, a backslash or a non-ASCII character is escaped and so
+        was not masked: every SSH private key of ``key_store``, and such values of
+        ``variable_group`` secrets, ``user_password`` and the login ``password``.
+        The body is now returned as a dictionary with secret values replaced by ``********``.'
+    fragments:
+    - 0.2.0.yml
+    - info-shapes.yml
+    - secret-redaction-license-client-hardening.yml
+    release_date: '2026-10-03'
