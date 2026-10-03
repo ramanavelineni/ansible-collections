@@ -9,6 +9,7 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.schedule imp
     parse_parameters,
     require_known_type,
     schedule_body,
+    split_types,
 )
 
 CURRENT = dict(schedule='custom', cron='0 0 4 * * 0', next_scheduled_time=None)
@@ -67,3 +68,14 @@ def test_require_known_type():
 def test_carried_parameters_keeps_everything_with_a_value():
     stored = parse_parameters('{"workers": 2, "dry_run": true, "delete_tag": null, "redis_url_reg": "redis://x"}')
     assert carried_parameters(stored) == dict(workers=2, dry_run=True)
+
+
+@pytest.mark.parametrize('stored, expected', [
+    ('delete_artifact,create_artifact', ['create_artifact', 'delete_artifact']),
+    ('create_artifact,,create_artifact', ['create_artifact']),
+    (['b', 'a', 'b'], ['a', 'b']),
+    ('', []),
+    (None, []),
+])
+def test_split_types(stored, expected):
+    assert split_types(stored) == expected

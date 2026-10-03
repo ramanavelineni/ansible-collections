@@ -145,6 +145,7 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     find_by_name,
     harbor_argument_spec,
     id_from_location,
+    require_project,
     run_module,
     webhook_view as view,
 )
@@ -154,13 +155,6 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
 EVENT_TYPES = ['PUSH_ARTIFACT', 'PULL_ARTIFACT', 'DELETE_ARTIFACT', 'QUOTA_EXCEED', 'QUOTA_WARNING', 'SCANNING_FAILED',
                'SCANNING_STOPPED', 'SCANNING_COMPLETED', 'REPLICATION', 'TAG_RETENTION']
 TARGET_OPTIONS = ('notify_type', 'address', 'auth_header', 'skip_cert_verify', 'payload_format')
-
-
-def resolve_project(client, name):
-    project = find_by_name(client.list('/projects', params=dict(name=name)), name, 'project')
-    if project is None:
-        raise ValueError('Project %r does not exist, or the user this module logs in as cannot see it.' % name)
-    return project['project_id']
 
 
 def check_event_types(module, client, project_id, wanted):
@@ -226,7 +220,7 @@ def build_target(current, params):
 def ensure(module, client):
     params = module.params
     client.warn_if_untested()
-    project_id = resolve_project(client, params['project'])
+    project_id = require_project(client, params['project'])['project_id']
     base = '/projects/%d/webhook/policies' % project_id
     current = find_by_name(client.list(base), params['name'], 'webhook')
     before = view(current, params['project']) if current else {}

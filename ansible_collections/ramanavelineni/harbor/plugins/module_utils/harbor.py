@@ -34,6 +34,15 @@ RETRY_STATUSES = (502, 503, 504)
 # harbor_version. It happens when another client fails to log in as the same
 # user at the same moment, so one retry after the lock has passed is enough.
 LOGIN_LOCK_WAIT = 2
+# The lock itself, in seconds. Two answers as the login user less than this
+# apart leave no room for a lock in between: one that began after the first
+# would still hold at the second.
+LOGIN_LOCK = 1.5
+# What HarborClient.recheck_login() can say about the requests made since the
+# login was last checked.
+HELD, LOCKED, UNSURE = 'held', 'locked', 'unsure'
+# How often read_as_user() reads before it stops asking.
+READ_ATTEMPTS = 2
 
 # Harbor pages every list; 100 is the most a page may hold.
 PAGE_SIZE = 100
@@ -296,6 +305,19 @@ class HarborClient(object):
             self._info = self.get('/systeminfo') or {}
         return self._info
 
+    # When /systeminfo was last asked and answered as the login user
+    # (time.monotonic(), taken before the request went out).
+    _login_asked = None
+
+    def _logged_in(self):
+        """Ask /systeminfo afresh; True when Harbor answered it as the login user."""
+        asked = time.monotonic()
+        self._info = None
+        if 'harbor_version' not in self.info():
+            return False
+        self._login_asked = asked
+        return True
+
     def check_login(self):
         """Fail unless the credentials were accepted.
 
@@ -308,14 +330,44 @@ class HarborClient(object):
         to log in as this user (see LOGIN_LOCK_WAIT), so it asks once more
         before giving up.
         """
-        if 'harbor_version' not in self.info():
+        if not self._logged_in():
             time.sleep(LOGIN_LOCK_WAIT)
-            self._info = None
-        if 'harbor_version' not in self.info():
-            raise ValueError(
-                'Harbor did not accept the credentials for %r at %s: it answered as for an anonymous '
-                'user, also when asked again %d seconds later. Check username and password.'
-                % (self.module.params['username'], self.url, LOGIN_LOCK_WAIT))
+            if not self._logged_in():
+                raise ValueError(
+                    'Harbor did not accept the credentials for %r at %s: it answered as for an anonymous '
+                    'user, also when asked again %d seconds later. Check username and password.'
+                    % (self.module.params['username'], self.url, LOGIN_LOCK_WAIT))
+
+    def recheck_login(self):
+        """Check the login again, and say what that means for the requests made since the last check.
+
+        check_login() passes once, at the start. A login lock that begins
+        later makes Harbor answer the requests after it anonymously, and
+        /projects then answers 200 with the public projects only. So an answer
+        that showed less than expected is followed by this.
+
+        HELD: Harbor answered as the login user, and so soon after the last
+        such answer (LOGIN_LOCK) that no lock fits in between. What was read
+        in between was read as the login user.
+        LOCKED: Harbor answered anonymously, and as the login user after
+        LOGIN_LOCK_WAIT. What was read before may be an anonymous answer.
+        UNSURE: Harbor answered as the login user, but too long after the last
+        time to rule a lock out.
+        Still anonymous after the wait fails, as in check_login().
+        """
+        since = self._login_asked
+        if not self._logged_in():
+            time.sleep(LOGIN_LOCK_WAIT)
+            if not self._logged_in():
+                raise ValueError(
+                    'Harbor stopped accepting the credentials for %r at %s during this run: it answered as '
+                    'for an anonymous user, also when asked again %d seconds later. Nothing was decided on '
+                    'such an answer. Check that the user still exists and is not locked.'
+                    % (self.module.params['username'], self.url, LOGIN_LOCK_WAIT))
+            return LOCKED
+        if since is not None and time.monotonic() - since < LOGIN_LOCK:
+            return HELD
+        return UNSURE
 
     def warn_if_untested(self):
         if not self.warn_untested_version:
@@ -349,6 +401,39 @@ def find_by_name(items, name, what, field='name'):
             'More than one %s is named %r; names must be unique for this module to manage them.'
             % (what, name))
     return matches[0] if matches else None
+
+
+def read_as_user(client, read, settled, what):
+    """read(), believed only when it is clear enough that Harbor answered it as the login user.
+
+    During a login lock Harbor answers anonymously, and an anonymous /projects
+    is a 200 that leaves out the private projects (see check_login). A module
+    that took that for the truth would report a private project as absent, or
+    try to create it. So an answer that is not `settled` (it shows nothing, or
+    cannot show whether something is missing) is followed by
+    client.recheck_login():
+      - the login held: the answer stands;
+      - Harbor was in a lock: read again, now that it is over;
+      - it cannot tell (a slow server): read once more and take that.
+    A settled answer costs no request more. `what` names what is read, for
+    the failure when Harbor is in a lock every time.
+    """
+    answer = None
+    state = None
+    for dummy in range(READ_ATTEMPTS):
+        answer = read()
+        if settled(answer):
+            return answer
+        state = client.recheck_login()
+        if state == HELD:
+            return answer
+    if state == LOCKED:
+        raise ValueError(
+            'Harbor answered as for an anonymous user each of the %d times %s was read, so what it showed '
+            'cannot be trusted. That happens while another client keeps failing to log in as %r: each failure '
+            'locks the user for a moment. Stop that client, then run this again.'
+            % (READ_ATTEMPTS, what, client.module.params['username']))
+    return answer
 
 
 def fail_from_error(module, error, **result):
@@ -466,12 +551,30 @@ def webhook_view(policy, project):
     )
 
 
-def project_by_name(client, name):
-    """The project named `name` (read on its own, so its metadata is complete); fails when missing."""
-    found = find_by_name(client.list('/projects'), name, 'project')
+def find_project(client, name):
+    """The project named `name` as the project list shows it, or None.
+
+    ?name= also finds projects whose name merely contains this one, so the
+    exact one is picked from the answer. "None" is only said once the login
+    is known to have held (read_as_user): to an anonymous request a private
+    project does not exist.
+    """
+    return read_as_user(
+        client, lambda: find_by_name(client.list('/projects', dict(name=name)), name, 'project'),
+        lambda found: found is not None, 'project %r' % name)
+
+
+def require_project(client, name):
+    """find_project(), failing when there is no such project."""
+    found = find_project(client, name)
     if found is None:
         raise ValueError('Project %r does not exist, or the user this module logs in as cannot see it.' % name)
-    return client.get('/projects/%d' % found['project_id'])
+    return found
+
+
+def project_by_name(client, name):
+    """The project named `name` (read on its own, so its metadata is complete); fails when missing."""
+    return client.get('/projects/%d' % require_project(client, name)['project_id'])
 
 
 # -- tag retention and tag immutability ---------------------------------------

@@ -131,8 +131,10 @@ environment variables:
 **Wrong credentials don't always fail in Harbor.** Harbor answers many requests
 as an anonymous user instead, so every module checks the login first. Harbor
 also locks a user for 1.5 s after a failed login. A module that hits the lock
-waits and tries once more, but automation that shares one account with
-something else that might fail to log in is better off with its own account.
+waits and tries once more, and it checks the login again before it takes a
+project for missing, since Harbor leaves private projects out of an anonymous
+answer. Automation that shares one account with something else that might fail
+to log in is still better off with its own account.
 
 ## Good to know
 

@@ -67,12 +67,11 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     run_module,
 )
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.schedule import (
+    GC_PARAMETERS as PARAMETERS,
     read_schedule,
     recent_runs,
     schedule_view,
 )
-
-PARAMETERS = ('delete_untagged', 'workers', 'delete_tag')
 
 
 def read(module, client):

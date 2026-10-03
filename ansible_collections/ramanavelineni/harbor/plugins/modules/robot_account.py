@@ -191,8 +191,8 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor import (
     HarborError,
     canonical_permissions,
-    find_by_name,
     harbor_argument_spec,
+    require_project,
     robot_account_view,
     run_module,
 )
@@ -255,13 +255,6 @@ def find_robot(client, params, project_id):
     return matches[0] if matches else None
 
 
-def resolve_project(client, name):
-    project = find_by_name(client.list('/projects', {'name': name}), name, 'project')
-    if project is None:
-        raise ValueError('Project %r does not exist, or the user this module logs in as cannot see it.' % name)
-    return project['project_id']
-
-
 def ensure(module, client):
     params = module.params
     client.warn_if_untested()
@@ -279,7 +272,7 @@ def ensure(module, client):
     if params['duration'] is not None and not (params['duration'] == -1 or params['duration'] > 0):
         raise ValueError('duration must be -1 (never expires) or a positive number of days.')
 
-    project_id = resolve_project(client, params['project']) if params['level'] == 'project' else None
+    project_id = require_project(client, params['project'])['project_id'] if params['level'] == 'project' else None
     current = find_robot(client, params, project_id)
     result = dict(changed=False, robot_account={}, secret_updated=False)
 

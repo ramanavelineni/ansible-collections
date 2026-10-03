@@ -259,9 +259,15 @@ or an OIDC user's CLI secret.
   user during the lock is handled the same way (anonymous reads, 401 on
   anything that needs a login). The failed request itself waits out the lock,
   so only *other* clients using the same account at that moment are hit. The
-  client asks `/systeminfo` once more, and retries a 401 once, after 2 s. A
-  read that comes back anonymous mid-run can't be detected, so automation
-  should have its own account.
+  client asks `/systeminfo` once more, and retries a 401 once, after 2 s.
+- A lock that starts mid-run makes `/projects` answer 200 without the private
+  projects, and nothing in that answer says so. So a project that is not in
+  the answer is only taken as missing after `/systeminfo` was asked again
+  (`read_as_user`): still the login user less than 1.5 s after the last such
+  answer means no lock fits in between; anonymous means wait, check and read
+  again; anonymous twice fails the task. `project_info` checks after every
+  full list. A project that is found costs nothing extra. Automation is still
+  better off with its own account.
 
 ### project
 - Create answers 201 with an empty body; the id is only in `Location`.
