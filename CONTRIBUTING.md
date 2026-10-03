@@ -26,9 +26,11 @@ The first two run in a container (docker, or podman when docker isn't
 installed). `ANSIBLE_TEST_FLAGS="--venv --python 3.13"` runs them in a virtual
 environment instead.
 
-CI runs sanity and the unit tests for both collections on ansible-core 2.18,
-2.19, 2.20 and 2.21, and lints the changelog fragments. A pull request that
-only changes Markdown skips CI.
+CI runs sanity and the unit tests on ansible-core 2.18, 2.19, 2.20 and 2.21,
+and lints the changelog fragments, for the collections a change touches. A
+change to the CI workflow or the `Makefile` runs both collections, a change
+under `tools/` runs the recorder tests, and a change that only touches Markdown
+runs none of them.
 
 ## What a change needs
 

@@ -45,7 +45,7 @@ along the way. Each quirk is handled inside a module and covered by a test.
 | Secrets | `update_secret: always` (default) or `on_create`, since neither server returns stored secrets |
 | Module imports | modules import only `module_utils`: Ansible ships nothing else with a module, and sanity's import test enforces it |
 | License hygiene | no GPL-licensed ansible-core code is imported, extended or copied; only its BSD-licensed `module_utils` and the Python standard library |
-| CI | `ansible-test` sanity and unit tests on every supported ansible-core version. No live servers in CI |
+| CI | `ansible-test` sanity and unit tests on every supported ansible-core version, for the collections a change touches. No live servers in CI |
 | Fixtures | API responses recorded from throwaway local servers of every supported version, one file per area |
 | Distribution | Git tags via `requirements.yml`; Galaxy optional later |
 | Workflow | feature branch and pull request for every change; squash-merge; no Co-Authored-By trailer; the owner pushes |
