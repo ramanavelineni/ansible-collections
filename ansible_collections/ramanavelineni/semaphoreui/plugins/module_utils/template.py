@@ -5,7 +5,7 @@
 
 import json
 
-from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import find_by_name
+from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import MissingReference, find_by_name
 
 BOOLS = ('autorun', 'allow_override_args_in_task', 'allow_override_branch_in_task',
          'allow_parallel_tasks', 'suppress_success_alerts')
@@ -50,8 +50,8 @@ class Lookups(object):
         field = 'title' if what == 'view' else 'name'
         found = find_by_name(self.items[what], name, what.replace('_', ' '), field=field)
         if found is None:
-            raise ValueError('%s %r does not exist in project %r.'
-                             % (what.replace('_', ' ').capitalize(), name, self.project))
+            raise MissingReference('%s %r does not exist in project %r.'
+                                   % (what.replace('_', ' ').capitalize(), name, self.project))
         return found['id']
 
 

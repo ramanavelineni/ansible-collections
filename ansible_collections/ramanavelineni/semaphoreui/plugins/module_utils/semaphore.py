@@ -131,6 +131,14 @@ class SemaphoreError(Exception):
         )
 
 
+class MissingReference(ValueError):
+    """Something a task refers to by name (its project, a key, a template) doesn't exist.
+
+    A failure, except in check mode: there an earlier task of the same play
+    may be the one that creates it, and check mode didn't.
+    """
+
+
 class SemaphoreClient(object):
     """Talks to the Semaphore API on behalf of one module run.
 
@@ -303,7 +311,7 @@ def resolve_project(client, name, missing_ok=False):
     if project is None:
         if missing_ok:
             return None
-        raise ValueError(
+        raise MissingReference(
             'Project %r does not exist, or the user this module logs in as cannot see it.' % name)
     return project['id']
 
@@ -332,8 +340,12 @@ def fail_from_error(module, error, **result):
     module.fail_json(msg=error.message(), request_details=error.details(), **result)
 
 
-def run_module(module, handler):
-    """Run handler(client) with login/logout and uniform error reporting."""
+def run_module(module, handler, placeholder=None):
+    """Run handler(client) with login/logout and uniform error reporting.
+
+    `placeholder` holds the module's own return values, empty. With it, a
+    MissingReference in check mode is reported as a change instead of a failure.
+    """
     client = SemaphoreClient(module)
     try:
         try:
@@ -342,6 +354,12 @@ def run_module(module, handler):
             client.close()
     except SemaphoreError as e:
         fail_from_error(module, e)
+    except MissingReference as e:
+        if not module.check_mode or placeholder is None:
+            module.fail_json(msg=to_text(e))
+        module.warn('%s Check mode assumes that an earlier task creates it, and reports this task as changed '
+                    'without comparing anything.' % to_text(e))
+        result = dict(placeholder, changed=True, diff=dict(before={}, after={}))
     except ValueError as e:
         module.fail_json(msg=to_text(e))
     except Exception as e:

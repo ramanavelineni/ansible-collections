@@ -125,13 +125,14 @@ schedule:
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
+    MissingReference,
+    all_schedules,
     find_by_name,
     resolve_project,
     run_module,
+    schedule_view as view,
     semaphore_argument_spec,
     semaphore_module_kwargs,
-    schedule_view as view,
-    all_schedules,
 )
 
 
@@ -169,7 +170,7 @@ def ensure(module, client):
     def ref(what, items, name):
         found = find_by_name(items, name, what)
         if found is None:
-            raise ValueError('%s %r does not exist in project %r.' % (what.capitalize(), name, params['project']))
+            raise MissingReference('%s %r does not exist in project %r.' % (what.capitalize(), name, params['project']))
         return found['id']
 
     def make_body(base_obj):
@@ -236,7 +237,7 @@ def main():
         active=dict(type='bool'),
     )
     module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True, **semaphore_module_kwargs())
-    run_module(module, lambda client: ensure(module, client))
+    run_module(module, lambda client: ensure(module, client), placeholder=dict(schedule={}))
 
 
 if __name__ == '__main__':

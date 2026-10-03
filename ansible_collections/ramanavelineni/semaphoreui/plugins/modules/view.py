@@ -189,7 +189,7 @@ def main():
         sort_reverse=dict(type='bool'),
     )
     module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True, **semaphore_module_kwargs())
-    run_module(module, lambda client: ensure(module, client))
+    run_module(module, lambda client: ensure(module, client), placeholder=dict(view={}))
 
 
 if __name__ == '__main__':

@@ -119,6 +119,7 @@ inventory:
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
     INVENTORY_REFERENCES,
+    MissingReference,
     diff_fields,
     find_by_name,
     inventory_view,
@@ -162,7 +163,7 @@ def ensure(module, client):
         else:
             found = find_by_name(lists[endpoint], value, what)
             if found is None:
-                raise ValueError('%s %r does not exist in project %r.' % (what.capitalize(), value, params['project']))
+                raise MissingReference('%s %r does not exist in project %r.' % (what.capitalize(), value, params['project']))
             desired[field] = found['id']
 
     if not current:
@@ -224,7 +225,7 @@ def main():
         supports_check_mode=True,
         **semaphore_module_kwargs()
     )
-    run_module(module, lambda client: ensure(module, client))
+    run_module(module, lambda client: ensure(module, client), placeholder=dict(inventory={}))
 
 
 if __name__ == '__main__':

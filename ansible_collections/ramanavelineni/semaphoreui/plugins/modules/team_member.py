@@ -85,6 +85,7 @@ from urllib.parse import quote
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
+    MissingReference,
     find_by_name,
     resolve_project,
     run_module,
@@ -124,7 +125,7 @@ def ensure(module, client):
     if user is None:
         if params['state'] == 'absent':
             return dict(changed=False, member={}, diff=dict(before={}, after={}))
-        raise ValueError('User %r does not exist; create the user first.' % params['user'])
+        raise MissingReference('User %r does not exist; create the user first.' % params['user'])
 
     current = [m for m in members if m.get('id') == user['id']]
     current = current[0] if current else None
@@ -170,7 +171,7 @@ def main():
         state=dict(type='str', default='present', choices=['present', 'absent']),
     )
     module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True, **semaphore_module_kwargs())
-    run_module(module, lambda client: ensure(module, client))
+    run_module(module, lambda client: ensure(module, client), placeholder=dict(member={}))
 
 
 if __name__ == '__main__':
