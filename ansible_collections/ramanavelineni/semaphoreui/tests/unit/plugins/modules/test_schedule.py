@@ -96,6 +96,84 @@ def test_run_at(server, project, run_module):
     assert body['type'] == 'run_at' and body['cron_format'] == '' and body['delete_after_run'] is True
 
 
+def test_run_at_is_sent_in_utc(server, project, run_module):
+    server.route('POST', project + '/schedules', 'schedule_create')
+    # What an unquoted YAML timestamp arrives as: a space where the T belongs.
+    run_module(schedule.main, dict(project='homelab', name='once', template='site', run_at='2099-01-01 05:00:00+02:00'))
+    assert server.calls('POST', project + '/schedules')[0]['body']['run_at'] == '2099-01-01T03:00:00Z'
+
+
+@pytest.mark.parametrize('value', ['tomorrow', '', '2099-01-01', '2099-01-01T05:00:00', '2099-01-01 05:00:00'])
+def test_run_at_needs_a_time_and_a_zone(server, project, run_module, value):
+    result = run_module(schedule.main, dict(project='homelab', name='once', template='site', run_at=value))
+    assert result['failed'] is True
+    assert 'time zone' in result['msg'] and '2026-10-01T03:00:00Z' in result['msg']
+    assert [r for r in server.requests if r['path'].startswith('/project')] == []
+    assert server.calls('POST', project + '/schedules') == []
+
+
+def run_at_schedule(server, stored):
+    """The recorded project list with its schedule turned into a run-at one. No run-at schedule was recorded."""
+    answer = server.response('schedules_project_list')
+    answer['body'][0].update(type='run_at', cron_format='', run_at=stored)
+    return answer
+
+
+@pytest.mark.parametrize('declared', ['2099-01-01T03:00:00Z', '2099-01-01T05:00:00+02:00', '2099-01-01 03:00:00+00:00'])
+def test_run_at_same_moment_is_no_change(server, project, run_module, declared):
+    # Go writes a time as RFC 3339, with as many fraction digits as it has.
+    server.route('GET', project + '/schedules', run_at_schedule(server, '2099-01-01T03:00:00Z'))
+    result = run_module(schedule.main, dict(project='homelab', name='nightly', run_at=declared))
+    assert result['changed'] is False
+    assert result['schedule']['run_at'] == '2099-01-01T03:00:00Z'
+    assert server.calls('PUT') == []
+
+
+def test_run_at_other_moment_is_a_change(server, project, run_module):
+    server.route('GET', project + '/schedules', run_at_schedule(server, '2099-01-01T03:00:00Z'))
+    server.route('GET', '%s/schedules/%d' % (project, sid(server)), single(server, 'schedule_get'))
+    server.route('PUT', '%s/schedules/%d' % (project, sid(server)), 'schedule_update')
+    result = run_module(schedule.main, dict(project='homelab', name='nightly', run_at='2099-01-01T04:00:00+00:00'))
+    assert result['changed'] is True
+    assert server.calls('PUT')[0]['body']['run_at'] == '2099-01-01T04:00:00Z'
+
+
+def template_list(project, server):
+    return '%s/templates/%d/schedules' % (project, server.fixtures['template_create']['body']['id'])
+
+
+def test_template_lists_not_read_when_the_project_list_has_the_name(server, project, run_module):
+    result = run_module(schedule.main, dict(project='homelab', name='nightly', cron='0 3 * * *'))
+    assert result['changed'] is False
+    assert server.calls('GET', template_list(project, server)) == []
+
+
+def test_template_lists_read_when_the_project_list_lacks_the_name(server, project, run_module):
+    server.route('POST', project + '/schedules', 'schedule_create')
+    result = run_module(schedule.main, dict(project='homelab', name='new', template='site', cron='0 4 * * *'))
+    assert result['changed'] is True
+    assert len(server.calls('GET', template_list(project, server))) == 1
+
+
+def test_schedule_in_both_lists_counts_once(server, project, run_module):
+    # No recorded version lists a schedule in both places; this is the project list's own row served twice.
+    server.route('GET', project + '/schedules', 'schedules_empty')
+    server.route('GET', template_list(project, server), 'schedules_project_list')
+    result = run_module(schedule.main, dict(project='homelab', name='nightly', cron='0 3 * * *'))
+    assert result.get('failed') is not True
+    assert result['changed'] is False
+
+    server.route('GET', project + '/schedules', 'schedules_project_list')
+    info = run_module(schedule_info.main, dict(project='homelab'))
+    assert [s['id'] for s in info['schedules']] == [sid(server)]
+
+
+def test_schedule_info_reads_the_template_lists(server, project, run_module):
+    result = run_module(schedule_info.main, dict(project='homelab', name='nightly'))
+    assert [s['name'] for s in result['schedules']] == ['nightly']
+    assert len(server.calls('GET', template_list(project, server))) == 1
+
+
 def test_cron_and_run_at_exclusive(server, project, run_module):
     result = run_module(schedule.main, dict(project='homelab', name='x', cron='* * * * *', run_at='2099-01-01T00:00:00Z'))
     assert result['failed'] is True
@@ -126,6 +204,8 @@ def test_schedule_info_includes_pollers(server, project, run_module):
     ('2026-10-01T05:00:00+02:00', '2026-10-01T03:00:00Z'),
     ('2026-10-01T03:00:00.000000000Z', '2026-10-01T03:00:00Z'),
     ('2026-10-01T03:00:00.5Z', '2026-10-01T03:00:00.500000Z'),
+    ('2026-10-01 03:00:00+00:00', '2026-10-01T03:00:00Z'),
+    ('2026-10-01T03:00:00', '2026-10-01T03:00:00Z'),
     (None, None),
     ('not a time', 'not a time'),
 ])

@@ -64,6 +64,11 @@ options:
     description:
       - Date and time (ISO 8601, for example C(2026-10-01T03:00:00Z)) to run the template once.
         It must be in the future when it is set.
+      - The value must name a time zone, C(Z) or an offset such as C(+02:00). It is sent to
+        Semaphore in UTC, so C(2026-10-01T05:00:00+02:00) and C(2026-10-01T03:00:00Z) are the same
+        schedule. A value that is not a date and time, or has no time zone, fails before anything
+        is changed.
+      - An unquoted YAML timestamp with a time zone works as well.
       - Mutually exclusive with O(cron).
     type: str
   delete_after_run:
@@ -128,6 +133,8 @@ from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semapho
     MissingReference,
     all_schedules,
     find_by_name,
+    normalize_time,
+    parse_time,
     resolve_project,
     run_module,
     schedule_view as view,
@@ -141,6 +148,12 @@ def validate(params):
         raise ValueError('cron and run_at are mutually exclusive.')
     if params['run_at'] is not None and params['repository']:
         raise ValueError('A run-at schedule cannot poll a repository.')
+    if params['run_at'] is not None:
+        moment = parse_time(params['run_at'])
+        if moment is None or moment.tzinfo is None:
+            raise ValueError(
+                'run_at %r is not a date and time with a time zone. Use ISO 8601 with Z or an offset, for '
+                'example 2026-10-01T03:00:00Z or 2026-10-01T05:00:00+02:00.' % params['run_at'])
 
 
 def ensure(module, client):
@@ -157,7 +170,7 @@ def ensure(module, client):
     repositories = client.list(base + '/repositories')
     tpl_names = dict((t['id'], t['name']) for t in templates)
     repo_names = dict((r['id'], r['name']) for r in repositories)
-    current = find_by_name(all_schedules(client, base, templates), params['name'], 'schedule')
+    current = find_by_name(all_schedules(client, base, templates, name=params['name']), params['name'], 'schedule')
 
     if params['state'] == 'absent':
         if not current:
@@ -180,7 +193,9 @@ def ensure(module, client):
         if params['template'] is not None:
             body['template_id'] = ref('template', templates, params['template'])
         if params['run_at'] is not None:
-            body.update(type='run_at', run_at=params['run_at'], cron_format='', repository_id=None)
+            # In UTC, the form Semaphore itself returns. As typed, a value YAML read as a
+            # timestamp would go out with a space where the T belongs.
+            body.update(type='run_at', run_at=normalize_time(params['run_at']), cron_format='', repository_id=None)
         if params['cron'] is not None:
             body.update(type='', cron_format=params['cron'], run_at=None)
         if params['repository'] is not None:
