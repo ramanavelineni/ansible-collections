@@ -88,7 +88,7 @@ def test_rejected_update_reports_request_and_response(server, run_module):
     assert 'Project ID in body and URL must be the same' in result['msg']
     details = result['request_details']
     assert details['method'] == 'PUT'
-    assert json.loads(details['request'])['alert'] is True
+    assert details['request']['alert'] is True
     assert 's3cret-pw' not in json.dumps(result)
     assert server.requests[-1]['path'] == '/auth/logout'
 
@@ -196,3 +196,30 @@ def test_api_suffix_in_url_is_accepted(server, run_module):
 
 def pid(server):
     return copy.deepcopy(server.fixtures['projects_one']['body'][0]['id'])
+
+
+def test_password_with_quotes_is_not_reported(server, run_module):
+    # Ansible only masks a secret that appears exactly as passed; in a JSON
+    # string the quote and backslash are escaped.
+    server.route('POST', '/auth/login', 'login_bad_password')
+    result = run_module(project.main, dict(name='homelab', password='quoted"Zebra7\\pw'))
+    assert result['failed'] is True
+    assert 'Zebra7' not in json.dumps(result)
+    assert result['request_details']['request'] == dict(auth='admin', password='********')
+
+
+def test_unexpected_answer_fails_cleanly_and_logs_out(server, run_module):
+    server.route('GET', '/projects', 'projects_empty')
+    server.route('POST', '/projects', dict(status=201, body=None))
+    result = run_module(project.main, dict(name='homelab'))
+    assert result['failed'] is True
+    assert result['msg'].startswith('Unexpected ')
+    assert server.requests[-1]['path'] == '/auth/logout'
+
+
+def test_list_that_is_not_a_list_fails(server, run_module):
+    server.route('GET', '/projects', dict(status=200, body=dict(message='not semaphore')))
+    result = run_module(project.main, dict(name='homelab'))
+    assert result['failed'] is True
+    assert 'did not return a list' in result['msg']
+    assert server.requests[-1]['path'] == '/auth/logout'

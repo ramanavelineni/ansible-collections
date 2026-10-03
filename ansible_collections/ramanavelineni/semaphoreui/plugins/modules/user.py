@@ -128,6 +128,7 @@ from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semapho
     run_module,
     semaphore_argument_spec,
     semaphore_module_kwargs,
+    server_minor,
 )
 
 MANAGED = ('name', 'email', 'admin', 'alert')
@@ -175,7 +176,8 @@ def ensure(module, client):
             try:
                 client.delete('/users/%d' % current['id'])
             except SemaphoreError as e:
-                if e.status != 500:
+                minor = server_minor(client.info().get('version'))
+                if e.status != 500 or (minor is not None and minor >= (2, 19)):
                     raise
                 # Before 2.19 the session table has no ON DELETE CASCADE, so
                 # a user with any login session cannot be deleted; the server

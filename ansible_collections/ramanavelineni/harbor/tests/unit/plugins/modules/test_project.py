@@ -171,7 +171,7 @@ def test_rejected_create_is_reported(server, run_module):
     result = run_module(project.main, dict(name='fixtures-core'))
     assert result['failed'] is True
     assert 'HTTP 409' in result['msg'] and 'already exists' in result['msg']
-    assert json.loads(result['request_details']['request'])['project_name'] == 'fixtures-core'
+    assert result['request_details']['request']['project_name'] == 'fixtures-core'
     assert 's3cret-pw' not in json.dumps(result)
 
 

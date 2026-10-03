@@ -114,7 +114,10 @@ def ensure(module, client):
         raise ValueError('role is required when state is present.')
     client.warn_if_untested()
 
-    project_id = resolve_project(client, params['project'])
+    project_id = resolve_project(client, params['project'], missing_ok=params['state'] == 'absent')
+    if project_id is None:
+        # The project is gone, and everything in it went with it.
+        return dict(changed=False, member={}, diff=dict(before={}, after={}))
     base = '/project/%d/users' % project_id
     members = client.list(base)
     user = find_user(client, params['user'])

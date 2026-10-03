@@ -177,3 +177,16 @@ def test_webhook_info(server, project, run_module):
 def test_webhook_info_by_name(server, project, run_module):
     server.route('GET', project, 'webhook_list_one')
     assert run_module(webhook_info.main, dict(project='fixtures-webhook', name='other'))['webhooks'] == []
+
+
+def test_failed_update_does_not_report_stored_auth_header(server, project, run_module):
+    # The update sends the stored header back; the task never declared it, so
+    # Ansible has nothing to mask.
+    server.route('GET', project, 'webhook_list_one')
+    server.route('PUT', '%s/%d' % (project, wid(server)), dict(status=400, body=dict(errors=[]), headers={}))
+    result = run_module(webhook.main, dict(project='fixtures-webhook', name='ci-notify', enabled=False))
+    assert result['failed'] is True
+    assert server.calls('PUT')[0]['body']['targets'][0]['auth_header'] == 'Bearer not-a-real-token'
+    assert 'not-a-real-token' not in json.dumps(result)
+    assert result['request_details']['request']['targets'][0]['auth_header'] == '********'
+    assert result['request_details']['request']['enabled'] is False

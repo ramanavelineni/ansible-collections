@@ -8,6 +8,7 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     base_url,
     find_by_name,
     id_from_location,
+    redact,
     storage_to_gb,
     version_is_tested,
 )
@@ -66,3 +67,13 @@ def test_find_by_name():
 def test_error_messages():
     assert 'HTTP 409: (empty body)' in HarborError('POST', 'u', status=409, response='').message()
     assert 'without an HTTP response: reset' in HarborError('GET', 'u', reason='reset').message()
+
+
+def test_redact_masks_secret_keys_and_no_log_values():
+    body = dict(name='ci', secret='Robot"Secret1', credential=dict(access_key='admin', access_secret='x'),
+                targets=[dict(address='http://h', auth_header='Bearer t')], token_expiration=30, note='declared-value')
+    assert redact(body, secrets={'declared-value'}) == dict(
+        name='ci', secret='********', credential=dict(access_key='admin', access_secret='********'),
+        targets=[dict(address='http://h', auth_header='********')], token_expiration=30, note='********')
+    assert body['secret'] == 'Robot"Secret1'
+    assert redact(None) is None

@@ -156,3 +156,14 @@ def test_registry_info(server, run_module):
     reg = result['registries'][0]
     assert reg['access_key'] == 'admin' and reg['has_secret'] is True
     assert '*****' not in json.dumps(result)
+
+
+def test_rejected_secret_with_quotes_is_not_reported(server, run_module):
+    # Ansible only masks a secret that appears exactly as passed; in a JSON
+    # string the quote is escaped.
+    server.route('GET', '/registries', 'registry_list')
+    server.route('PUT', '/registries/%d' % aid(server), 'registry_update_bad_secret')
+    result = run_module(registry.main, dict(name='rr-fixtures-auth', access_secret='wr"ng-Zebra7'))
+    assert result['failed'] is True
+    assert 'Zebra7' not in json.dumps(result)
+    assert result['request_details']['request']['access_secret'] == '********'
