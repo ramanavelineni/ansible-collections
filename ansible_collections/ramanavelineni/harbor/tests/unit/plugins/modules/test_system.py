@@ -64,7 +64,10 @@ def test_configuration_check_mode(server, run_module):
 
 @pytest.mark.parametrize('settings, message', [
     (dict(no_such_setting=1), 'Unknown setting'),
-    (dict(session_timeout='45'), 'must be an integer'),
+    (dict(session_timeout='forty'), 'must be an integer'),
+    (dict(session_timeout='4.5'), 'must be an integer'),
+    (dict(read_only='maybe'), 'must be a boolean'),
+    (dict(banner_message=5), 'must be a string'),
     (dict(read_only=1), 'must be a boolean'),
     (dict(session_timeout=True), 'must be an integer'),
     (dict(oidc_client_secret='x'), 'oidc_client_secret option'),
@@ -76,6 +79,25 @@ def test_configuration_validation(server, run_module, settings, message):
     assert result['failed'] is True
     assert message in result['msg']
     assert server.calls('GET', '/configurations') == []
+
+
+def test_configuration_takes_templated_strings(server, run_module):
+    # What "{{ harbor_session_timeout }}" gives on ansible-core 2.18: strings.
+    server.route('GET', '/configurations', 'system_configurations', 'system_configurations_updated')
+    server.route('PUT', '/configurations', 'system_configurations_update')
+    current = server.fixtures['system_configurations']['body']
+    result = run_module(configuration.main, dict(settings=dict(
+        session_timeout=' 45 ', read_only='Yes', self_registration=str(current['self_registration']['value']))))
+    assert result['changed'] is True
+    assert sorted(result['changed_settings']) == ['read_only', 'session_timeout']
+    assert server.calls('PUT', '/configurations')[0]['body'] == dict(session_timeout=45, read_only=True)
+
+
+def test_configuration_templated_strings_no_change(server, run_module):
+    server.route('GET', '/configurations', 'system_configurations_updated')
+    result = run_module(configuration.main, dict(settings=dict(session_timeout='45', read_only='false')))
+    assert result['changed'] is False
+    assert server.calls('PUT') == []
 
 
 def test_configuration_server_rejection_reported(server, run_module):

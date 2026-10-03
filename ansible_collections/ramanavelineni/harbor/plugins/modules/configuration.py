@@ -28,6 +28,9 @@ options:
         C(auth_mode), C(oidc_endpoint), C(robot_name_prefix), C(session_timeout).
       - An unknown key or a value of the wrong type fails before anything is sent (Harbor itself
         silently ignores unknown keys).
+      - A value that went through a template may arrive as a string. An integer setting therefore also
+        takes a string of digits, and a boolean setting also takes V(true), V(false), V(yes), V(no),
+        V(on) and V(off) as strings, in any case.
       - Secrets don't belong here; use O(oidc_client_secret), O(ldap_search_password) and
         O(uaa_client_secret), so they are never shown in the output.
       - Harbor only lets C(auth_mode) change while no user other than the admin exists, and
@@ -99,6 +102,8 @@ changed_settings:
   sample: [session_timeout]
 '''
 
+import re
+
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor import (
     harbor_argument_spec,
@@ -130,8 +135,34 @@ WRITE_ONLY = dict(oidc_client_secret='oidc_client_id', ldap_search_password='lda
 READABLE_SECRETS = ('uaa_client_secret',)
 TYPE_NAMES = {str: 'a string', bool: 'a boolean', int: 'an integer'}
 
+BOOL_WORDS = dict(true=True, yes=True, on=True, false=False, no=False, off=False)
+
+
+def coerce(value, wanted):
+    """`value` as the setting's type, or None when it can't be read as one.
+
+    Values that went through a template may arrive as strings ("60",
+    "true"), depending on the ansible-core version.
+    """
+    if wanted is bool:
+        if isinstance(value, bool):
+            return value
+        return BOOL_WORDS.get(value.strip().lower()) if isinstance(value, str) else None
+    if wanted is int:
+        # bool is a subclass of int: an integer setting must not take true/false.
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, int):
+            return value
+        if isinstance(value, str) and re.match(r'^[+-]?\d+$', value.strip()):
+            return int(value.strip())
+        return None
+    return value if isinstance(value, str) else None
+
 
 def validate(settings):
+    """The settings with every value in its setting's type; fails on anything Harbor would not take."""
+    out = {}
     for key, value in settings.items():
         if key in WRITE_ONLY or key in READABLE_SECRETS:
             raise ValueError('%s is a secret; set it with the %s option instead of in settings, so it '
@@ -142,9 +173,11 @@ def validate(settings):
         if wanted is None:
             raise ValueError('Unknown setting %r. Harbor would ignore it silently. Known settings: %s.'
                              % (key, ', '.join(sorted(SETTING_TYPES))))
-        # bool is a subclass of int: an integer setting must not take true/false.
-        if not isinstance(value, wanted) or (wanted is int and isinstance(value, bool)):
+        coerced = coerce(value, wanted)
+        if coerced is None:
             raise ValueError('Setting %s must be %s, not %r.' % (key, TYPE_NAMES[wanted], value))
+        out[key] = coerced
+    return out
 
 
 def flat(configurations):
@@ -159,8 +192,7 @@ def flat(configurations):
 
 def ensure(module, client):
     params = module.params
-    settings = params['settings'] or {}
-    validate(settings)
+    settings = validate(params['settings'] or {})
     client.warn_if_untested()
 
     raw = client.get('/configurations') or {}

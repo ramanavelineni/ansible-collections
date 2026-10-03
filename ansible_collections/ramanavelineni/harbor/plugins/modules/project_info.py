@@ -9,6 +9,8 @@ version_added: 0.1.0
 description:
   - Lists the projects the user can see, optionally only the one with a given name, with their
     visibility, metadata, proxy-cache registry and storage quota.
+  - Registries and quotas are system-level in Harbor. For a user who is not an administrator, every
+    project's quota and proxy-cache registry name are returned as V(null).
 author:
   - ramanavelineni (@ramanavelineni)
 extends_documentation_fragment:
@@ -50,22 +52,48 @@ projects:
       registry_id: null
       quota_gb: -1
       repo_count: 0
+  contains:
+    proxy_registry:
+      description:
+        - Name of the registry a proxy-cache project is bound to.
+        - Also V(null) when the login user is not an administrator and may not read the registries.
+      type: str
+    quota_gb:
+      description:
+        - Storage quota in GiB, V(-1) for unlimited.
+        - V(null) when the login user is not an administrator and may not read the quotas.
+      type: int
 '''
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor import (
+    HarborError,
     harbor_argument_spec,
     project_view,
     run_module,
 )
 
 
+def admin_list(client, path, params=None):
+    """A system-level list, or [] when the login user is not an administrator (HTTP 401 or 403)."""
+    try:
+        return client.list(path, params=params)
+    except HarborError as e:
+        if e.status not in (401, 403):
+            raise
+        return []
+
+
 def list_projects(module, client):
     client.warn_if_untested()
     projects = [p for p in client.list('/projects')
                 if module.params['name'] is None or p.get('name') == module.params['name']]
-    registries = dict((r['id'], r['name']) for r in client.list('/registries')) if projects else {}
-    quotas = dict((q.get('ref', {}).get('id'), q) for q in client.list('/quotas', params=dict(reference='project')))
+    registries = {}
+    if any(p.get('registry_id') for p in projects):
+        registries = dict((r['id'], r['name']) for r in admin_list(client, '/registries'))
+    quotas = {}
+    if projects:
+        quotas = dict((q.get('ref', {}).get('id'), q) for q in admin_list(client, '/quotas', dict(reference='project')))
     out = [project_view(p, quotas.get(p.get('project_id')), registries) for p in projects]
     return dict(changed=False, projects=sorted(out, key=lambda p: (p['name'] or '', p['project_id'] or 0)))
 
