@@ -11,13 +11,24 @@ name: CI
 # "CI result" always runs and fails when any job failed, so it is the one check
 # a branch ruleset has to require.
 #
+# Once a week everything runs for both collections, whatever changed, so a new
+# ansible-core patch release that breaks something is noticed without a push.
+#
+# "Units (..., devel)" runs the unit tests on ansible-core's development
+# branch, as an early warning: the test harness uses private ansible-core names
+# that a new version may change. It is not part of "CI result" and never blocks
+# a merge; only the weekly run turns red when it fails.
+#
 # The release workflow calls this one with a collection name. Then nothing is
 # compared: that collection's 9 jobs run at the tagged commit, because the last
-# push to main may not have touched it and so may not have tested it.
+# push to main may not have touched it and so may not have tested it. The
+# devel job is left out there: a release is decided by the supported versions.
 on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "17 5 * * 1"  # Mondays, 05:17 UTC
   workflow_call:
     inputs:
       collection:
@@ -33,7 +44,8 @@ permissions:
 # leave that push untested. That takes a group per commit: in a shared group a
 # run that is still waiting is cancelled by the next one, whatever
 # cancel-in-progress says. Called from the release workflow, github.workflow
-# and github.ref are the caller's, so the group is that tag's alone.
+# and github.ref are the caller's, so the group is that tag's alone. The weekly
+# run has the branch's ref as its group, which no push or pull request uses.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.ref_type == 'branch' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -67,13 +79,15 @@ jobs:
           # A pull request is checked out as its merge into the base branch, so
           # the first parent is the base. A push is compared with the commit
           # the branch was at before; when that is gone (force push) or there
-          # was none, everything runs.
+          # was none, everything runs. The weekly run compares nothing.
           if [ "${EVENT}" = pull_request ]; then
             base="HEAD^1"
-          else
+          elif [ "${EVENT}" = push ]; then
             base="${BEFORE}"
+          else
+            base=""
           fi
-          if git cat-file -e "${base}^{commit}" 2>/dev/null; then
+          if [ -n "${base}" ] && git cat-file -e "${base}^{commit}" 2>/dev/null; then
             git diff --name-only "${base}" HEAD | .github/scripts/ci-changes.sh | tee -a "${GITHUB_OUTPUT}"
           else
             .github/scripts/ci-changes.sh all </dev/null | tee -a "${GITHUB_OUTPUT}"
@@ -130,6 +144,29 @@ jobs:
           ansible-core-version: ${{ matrix.ansible }}
           collection-root: ansible_collections/ramanavelineni/${{ matrix.collection }}
           testing-type: units
+
+  # Early warning only. Not in the needs of "CI result", so a failure here
+  # cannot block a merge. continue-on-error keeps a failure from turning a push
+  # or pull request run red; the weekly run is left to fail, because a red
+  # scheduled run is the warning. Units only: sanity on devel would need a
+  # tests/sanity/ignore-<version>.txt that exists only for released versions.
+  devel:
+    name: Units (${{ matrix.collection }}, devel)
+    needs: changes
+    if: needs.changes.outputs.collections != '[]' && !inputs.collection
+    continue-on-error: ${{ github.event_name != 'schedule' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        collection: ${{ fromJSON(needs.changes.outputs.collections) }}
+    steps:
+      - uses: ansible-community/ansible-test-gh-action@v1.18.0
+        with:
+          ansible-core-version: devel
+          collection-root: ansible_collections/ramanavelineni/${{ matrix.collection }}
+          testing-type: units
+          coverage: never
 
   tools:
     name: Recorder tests
