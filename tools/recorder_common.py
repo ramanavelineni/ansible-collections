@@ -8,8 +8,10 @@ pointed at, and what they write ends up in a public repository. So they
 
 - refuse a server that is not on this machine, unless told otherwise
   (require_throwaway),
-- keep only their own objects from every listing (keep), and
-- look through a recording for secrets before it is written (write_fixture).
+- keep only their own objects from every listing (keep),
+- look through a recording for secrets before it is written (write_fixture), and
+- take their own objects off the server again, before an area is recorded and
+  after it, whether it worked or not (run_area).
 """
 
 import ipaddress
@@ -21,6 +23,8 @@ import sys
 import urllib.parse
 
 ALLOW_REMOTE = '--allow-remote'
+# Seconds one request may take. A recorder that hangs keeps its objects on the server.
+TIMEOUT = 30
 
 
 def parse_args(argv, areas):
@@ -59,6 +63,27 @@ def require_throwaway(url, allow_remote, resolve=socket.getaddrinfo):
     sys.exit('%s is not on this machine. The recorder creates, changes and deletes objects, and writes\n'
              'what the server answers into the repository, so it only records from a throwaway server.\n'
              'If this one is throwaway too, pass %s.' % (url, ALLOW_REMOTE))
+
+
+def run_area(area, record, sweep, srv, out):
+    """Record one area into out, with the area's own objects swept off the server before and after.
+
+    sweep(srv) removes what the area creates, and nothing else: it goes by the
+    names the area gives its objects. Before the recording it clears what an
+    earlier run that died left behind; after it, it clears what this run left,
+    also when the recording failed. The failure of the recording is what is
+    reported then, not a failure of the sweep that follows it.
+    """
+    sweep(srv)
+    try:
+        record(srv, out)
+    except BaseException:
+        try:
+            sweep(srv)
+        except (Exception, SystemExit) as e:
+            print('%s: cleaning up after the failure failed as well: %s' % (area, e), file=sys.stderr)
+        raise
+    sweep(srv)
 
 
 def keep(result, wanted):

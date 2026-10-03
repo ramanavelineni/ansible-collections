@@ -24,9 +24,16 @@ load all area files of a version as one set, so response names must be
 unique across areas.
 
 The "core" area must run on a server with no projects: it records empty
-lists. Every other area has to work next to other projects, so areas can be
-recorded one at a time or by several people at once: create what the area
-needs in a project of its own (named "fixtures-<area>"), and delete it again.
+lists. Every other area has to work next to other projects, so different
+areas can be recorded one at a time or by several people at once: create what
+the area needs in a project of its own (named "fixtures-<area>"), and delete
+it again.
+
+Every area has a sweep (see SWEEPS at the bottom) that takes the area's own
+objects off the server, found by the fixed names the area gives them. It runs
+before the area is recorded, so what a run that died left behind is no
+obstacle, and after it, also when the recording failed. A request that gets
+no answer within 30 seconds fails.
 
 What is written goes into a public repository. Listings are cut down to the
 objects the area created, the runner registration token is replaced by a
@@ -44,7 +51,7 @@ import urllib.error
 import urllib.request
 from http.cookiejar import CookieJar
 
-from recorder_common import keep, parse_args, require_throwaway, write_fixture
+from recorder_common import TIMEOUT, keep, parse_args, require_throwaway, run_area, write_fixture
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FIXTURES = os.path.join(HERE, '..', 'ansible_collections', 'ramanavelineni', 'semaphoreui',
@@ -71,7 +78,7 @@ class Server(object):
         if token:
             req.add_header('Authorization', 'Bearer ' + token)
         try:
-            with self.opener.open(req) as resp:
+            with self.opener.open(req, timeout=TIMEOUT) as resp:
                 status, raw = resp.status, resp.read().decode()
         except urllib.error.HTTPError as e:
             status, raw = e.code, e.read().decode()
@@ -86,6 +93,55 @@ def expect(result, status, what):
     if result['status'] != status:
         sys.exit('%s: expected HTTP %s, got %s: %s' % (what, status, result['status'], result['body']))
     return result
+
+
+def delete_projects(srv, *names):
+    """Delete the projects with exactly these names."""
+    for project in expect(srv.call('GET', '/projects'), 200, 'projects')['body'] or []:
+        if project['name'] in names:
+            expect(srv.call('DELETE', '/project/%d' % project['id']), 204, 'delete leftover project %s' % project['name'])
+
+
+# The core area's project, and what the area puts into it: (list path, name
+# field, the area's names), in an order in which they can be deleted.
+CORE_PROJECT = 'homelab'
+CORE_CONTENTS = (
+    ('integrations', 'name', ('gh',)),
+    ('schedules', 'name', ('nightly', 'on-push')),
+    ('templates', 'name', ('site', 'infra', 'surveyed')),
+    ('inventory', 'name', ('homelab', 'abs')),
+    ('environment', 'name', ('empty', 'harbor')),
+    ('repositories', 'name', ('ansible',)),
+    ('keys', 'name', ('deploy',)),
+)
+
+
+def sweep_core(srv):
+    """Delete a project homelab that an earlier recording left behind.
+
+    "homelab" is also what a real project may be called, so the name alone is
+    not enough: the project is only deleted when everything in it carries a
+    name the core area uses. Anything else in it stops the run.
+    """
+    for project in expect(srv.call('GET', '/projects'), 200, 'projects')['body'] or []:
+        if project['name'] != CORE_PROJECT:
+            continue
+        base = '/project/%d' % project['id']
+        own, foreign = [], []
+        for path, field, names in CORE_CONTENTS:
+            for item in expect(srv.call('GET', '%s/%s' % (base, path)), 200, path)['body'] or []:
+                if item[field] in names:
+                    own.append('%s/%s/%d' % (base, path, item['id']))
+                else:
+                    foreign.append('%s "%s"' % (path, item[field]))
+        if foreign:
+            sys.exit('Project %s holds things the recorder does not make (%s), so it is not what an earlier '
+                     'recording left behind. Record the core area on a fresh throwaway server.'
+                     % (CORE_PROJECT, ', '.join(foreign)))
+        # Not checked one by one: some go with the object that owns them. Deleting the project is the check.
+        for path in own:
+            srv.call('DELETE', path)
+        expect(srv.call('DELETE', base), 204, 'delete leftover project %s' % CORE_PROJECT)
 
 
 def record_core(srv, out):
@@ -106,6 +162,8 @@ def record_core(srv, out):
     out['project_create'] = created
     pid = created['body']['id']
     out['projects_one'] = expect(srv.call('GET', '/projects'), 200, 'projects')
+    # What the modules read when a task names the project by id (project_id).
+    out['project_get'] = expect(srv.call('GET', '/project/%d' % pid), 200, 'project')
 
     out['project_update_id_mismatch'] = srv.call(
         'PUT', '/project/%d' % pid, {'id': pid + 1000, 'name': 'homelab'})
@@ -118,8 +176,11 @@ def record_core(srv, out):
     # API token auth, checked here so the recording fails if it ever breaks.
     token = expect(srv.call('POST', '/user/tokens'), 201, 'create token')['body']['id']
     srv.secrets.append(token)
-    expect(srv.call('GET', '/info', token=token), 200, 'info with token')
-    expect(srv.call('DELETE', '/user/tokens/%s' % token), 204, 'delete token')
+    try:
+        expect(srv.call('GET', '/info', token=token), 200, 'info with token')
+    finally:
+        # The sweep cannot tell this token from the account's other ones, so it goes here.
+        expect(srv.call('DELETE', '/user/tokens/%s' % token), 204, 'delete token')
 
     # Key Store and repositories, inside the project above.
     base = '/project/%d' % pid
@@ -249,6 +310,22 @@ def record_core(srv, out):
                                             200, 'workspace inventory')
     expect(srv.call('DELETE', '%s/templates/%d' % (base, tofu['body']['id'])), 204, 'delete tofu template')
     out['template_delete'] = expect(srv.call('DELETE', '%s/templates/%d' % (base, tid)), 204, 'delete template')
+
+    # A survey variable with `target`, which Semaphore 2.19 has ('' or 'env') and 2.18 does not know.
+    # Not checked with expect(): what each version answers is what the recording is for.
+    surveyed = srv.call('POST', base + '/templates', {
+        'project_id': pid, 'name': 'surveyed', 'app': 'ansible', 'playbook': 'site.yml', 'repository_id': rid,
+        'inventory_id': iid, 'environment_id': env['id'], 'environment_ids': [env['id']],
+        'survey_vars': [{'name': 'region', 'title': 'Region', 'type': '', 'target': 'env'}]})
+    out['template_create_survey_target'] = surveyed
+    if surveyed['status'] == 201:
+        spath = '%s/templates/%d' % (base, surveyed['body']['id'])
+        out['template_get_survey_target'] = expect(srv.call('GET', spath), 200, 'template with survey target')
+        # The template goes back as it was read, with only the description changed.
+        out['template_update_survey_target'] = srv.call(
+            'PUT', spath, dict(out['template_get_survey_target']['body'], description='updated'))
+        out['template_get_survey_target_updated'] = expect(srv.call('GET', spath), 200, 'template with survey target')
+        expect(srv.call('DELETE', spath), 204, 'delete template with survey target')
     expect(srv.call('DELETE', '%s/environment/%d' % (base, env['id'])), 204, 'delete environment')
     out['view_delete'] = expect(srv.call('DELETE', '%s/views/%d' % (base, vid)), 204, 'delete view')
 
@@ -289,25 +366,29 @@ def record_core(srv, out):
     out['key_delete'] = expect(srv.call('DELETE', '%s/keys/%d' % (base, kid)), 204, 'delete key')
 
     out['project_delete'] = expect(srv.call('DELETE', '/project/%d' % pid), 204, 'delete project')
+    # What a task that names a project by an id that is gone gets. Not checked: the answer is the recording.
+    out['project_get_deleted'] = srv.call('GET', '/project/%d' % pid)
     out['logout'] = expect(srv.call('POST', '/auth/logout'), 204, 'logout')
     # Log in again, so areas recorded after this one keep a session.
     expect(srv.call('POST', '/auth/login', {'auth': srv.username, 'password': srv.password}), 204, 'login')
 
 
+TEAM_PROJECT = 'fixtures-team'
+TEAM_USERS = ('tm-fixture-a', 'tm-fixture-b')
+
+
+def sweep_team(srv):
+    """Delete project fixtures-team and the two users of the team area."""
+    delete_projects(srv, TEAM_PROJECT)
+    for user in expect(srv.call('GET', '/users'), 200, 'users')['body'] or []:
+        if user['username'] in TEAM_USERS:
+            expect(srv.call('DELETE', '/users/%d' % user['id']), 204, 'delete leftover user %s' % user['username'])
+
+
 def record_team(srv, out):
     """Project membership, in project fixtures-team with two throwaway users."""
-    project_name = 'fixtures-team'
-    usernames = ('tm-fixture-a', 'tm-fixture-b')
-
-    def cleanup():
-        for p in expect(srv.call('GET', '/projects'), 200, 'projects')['body'] or []:
-            if p['name'] == project_name:
-                expect(srv.call('DELETE', '/project/%d' % p['id']), 204, 'delete leftover project')
-        for u in expect(srv.call('GET', '/users'), 200, 'users')['body'] or []:
-            if u['username'] in usernames:
-                expect(srv.call('DELETE', '/users/%d' % u['id']), 204, 'delete leftover user')
-
-    cleanup()
+    project_name = TEAM_PROJECT
+    usernames = TEAM_USERS
     users = {}
     for name in usernames:
         users[name] = expect(srv.call('POST', '/users', {
@@ -336,12 +417,23 @@ def record_team(srv, out):
     out['team_members_updated'] = expect(srv.call('GET', base), 200, 'members')
     out['team_member_remove'] = expect(srv.call('DELETE', '%s/%d' % (base, a)), 204, 'remove member')
     out['team_members_after_remove'] = expect(srv.call('GET', base), 200, 'members')
-    cleanup()
 
 
 # Placeholder for the one-time registration token Semaphore hands out: the
 # real one is a live credential until it expires, so it is never written.
 RECORDED_TOKEN = 'smrs_recorded-registration-token'
+
+
+RUNNER_PREFIX = 'rn-fixture'
+RUNNER_PROJECT = 'rn-fixtures'
+
+
+def sweep_runner(srv):
+    """Delete the runners named rn-fixture* and project rn-fixtures."""
+    for runner in expect(srv.call('GET', '/runners'), 200, 'runners')['body'] or []:
+        if runner['name'].startswith(RUNNER_PREFIX):
+            expect(srv.call('DELETE', '/runners/%d' % runner['id']), 204, 'delete leftover runner %s' % runner['name'])
+    delete_projects(srv, RUNNER_PROJECT)
 
 
 def record_runner(srv, out):
@@ -350,9 +442,6 @@ def record_runner(srv, out):
     Runners are global objects, so this only touches runners named rn-fixture*
     and a project named rn-fixtures, and works next to anything else.
     """
-    for runner in expect(srv.call('GET', '/runners'), 200, 'runners')['body'] or []:
-        if runner['name'].startswith('rn-fixture'):
-            expect(srv.call('DELETE', '/runners/%d' % runner['id']), 204, 'delete leftover runner')
     out['runner_create'] = expect(srv.call('POST', '/runners', {
         'name': 'rn-fixture', 'max_parallel_tasks': 2, 'webhook': '', 'active': True, 'is_default': False,
         'tags': ['b', 'a']}), 201, 'create runner')
@@ -377,15 +466,22 @@ def record_runner(srv, out):
     out['runner_delete'] = expect(srv.call('DELETE', '/runners/%d' % rid), 204, 'delete runner')
     out['runner_get_deleted'] = srv.call('GET', '/runners/%d' % rid)
 
-    for project in expect(srv.call('GET', '/projects'), 200, 'projects')['body'] or []:
-        if project['name'] == 'rn-fixtures':
-            expect(srv.call('DELETE', '/project/%d' % project['id']), 204, 'delete leftover project')
-    pid = expect(srv.call('POST', '/projects', {'name': 'rn-fixtures'}), 201, 'create project')['body']['id']
+    pid = expect(srv.call('POST', '/projects', {'name': RUNNER_PROJECT}), 201, 'create project')['body']['id']
     # Project runners are a Pro feature; a Community server answers 404.
     out['runner_project_list_community'] = srv.call('GET', '/project/%d/runners' % pid)
     out['runner_project_create_community'] = srv.call('POST', '/project/%d/runners' % pid, {
         'name': 'rn-fixture', 'project_id': pid})
     expect(srv.call('DELETE', '/project/%d' % pid), 204, 'delete project')
+
+
+USER_PREFIX = 'us-fixture-'
+
+
+def sweep_user(srv):
+    """Delete the users named us-fixture-*, whichever run made them."""
+    for user in expect(srv.call('GET', '/users'), 200, 'users')['body'] or []:
+        if user['username'].startswith(USER_PREFIX):
+            expect(srv.call('DELETE', '/users/%d' % user['id']), 204, 'delete leftover user %s' % user['username'])
 
 
 def record_user(srv, out):
@@ -396,7 +492,7 @@ def record_user(srv, out):
     cannot delete a user who has a session.
     """
     stamp = str(os.getpid())
-    login, ext = 'us-fixture-' + stamp, 'us-fixture-ext-' + stamp
+    login, ext = USER_PREFIX + stamp, USER_PREFIX + 'ext-' + stamp
     out['user_me'] = expect(srv.call('GET', '/user'), 200, 'current user')
     out['user_create'] = expect(srv.call('POST', '/users', {
         'username': login, 'name': 'Fixture', 'email': login + '@example.com', 'admin': False, 'alert': False,
@@ -432,6 +528,13 @@ AREAS = {
     'runner': record_runner,
     'user': record_user,
 }
+# Area name -> what takes the area's own objects off the server (see run_area).
+SWEEPS = {
+    'core': sweep_core,
+    'team': sweep_team,
+    'runner': sweep_runner,
+    'user': sweep_user,
+}
 
 
 def main():
@@ -454,7 +557,7 @@ def main():
         out = {}
         if area == 'core':
             out.update(login_bad_password=bad_login, login=login)
-        AREAS[area](srv, out)
+        run_area(area, AREAS[area], SWEEPS[area], srv, out)
         path = os.path.normpath(os.path.join(FIXTURES, minor, '%s.json' % area))
         write_fixture(path, version, out, srv.secrets, placeholders=(RECORDED_TOKEN,))
 

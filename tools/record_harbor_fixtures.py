@@ -19,10 +19,25 @@ reads (Location, X-Total-Count), exactly as the server sent them. Without
 AREA arguments every area is recorded. The unit tests load all area files of
 a version as one set, so response names must be unique across areas.
 
-Areas must work next to whatever else is on the server, so they can be
-recorded one at a time or by several people at once: create what the area
-needs under names of its own (starting with "fixtures-<area>"), and delete
-it again.
+To start a throwaway Harbor, see tools/harbor_up.sh.
+
+Areas must work next to whatever else is on the server, so different areas
+can be recorded one at a time or by several people at once: create what the
+area needs under names of its own (starting with "fixtures-<area>"), and
+delete it again.
+
+Every area has a sweep (see SWEEPS at the bottom) that takes the area's own
+objects off the server, found by the fixed names the area gives them. It runs
+before the area is recorded, so what a run that died left behind is no
+obstacle, and after it, also when the recording failed. A request that gets
+no answer within 30 seconds fails.
+
+Harbor locks a user for 1.5 s after a failed login and answers anonymously
+meanwhile. The recorder sends two requests with a wrong password on purpose;
+it waits the lock out after each, repeats a request that is answered 401, and
+checks before every area that Harbor answers it as the login user. Someone
+else's failed login for the same user in the middle of an area can still get
+an anonymous answer recorded: read the diff of a new recording.
 
 What is written goes into a public repository. Listings are cut down to the
 objects the area created (plus Harbor's built-in "library" project), generated
@@ -45,12 +60,16 @@ import time
 import urllib.error
 import urllib.request
 
-from recorder_common import keep, parse_args, require_throwaway, write_fixture
+from recorder_common import TIMEOUT, keep, parse_args, require_throwaway, run_area, write_fixture
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FIXTURES = os.path.join(HERE, '..', 'ansible_collections', 'ramanavelineni', 'harbor',
                         'tests', 'unit', 'plugins', 'fixtures')
 KEPT_HEADERS = ('location', 'x-total-count')
+# Harbor locks a user for 1.5 s after a failed login. This is how long the
+# recorder waits before it expects to be let in again, and how often it tries.
+LOCK_WAIT = 2
+LOCK_TRIES = 10
 
 
 class Server(object):
@@ -62,17 +81,57 @@ class Server(object):
         self.password = password
         # Live secrets of this run; a recording that holds one is not written.
         self.secrets = [password]
+        self.sleep = time.sleep
+        self.clock = time.monotonic
+        # Until when the recorder's own last wrong-password request keeps the user locked.
+        self.locked_until = 0
 
     def call(self, method, path, body=None, password=None):
+        """One request as the login user; with password, one request with that (wrong) password.
+
+        A request as the login user waits out the lock a wrong-password
+        request of this run caused, and is sent again while Harbor answers
+        401: that is the lock someone else's failed login caused. No area
+        records a 401 for the right password, so nothing recorded is lost.
+        """
+        if password is not None:
+            result = self.send(method, path, body, password)
+            self.locked_until = self.clock() + LOCK_WAIT
+            return result
+        wait = self.locked_until - self.clock()
+        if wait > 0:
+            self.sleep(wait)
+        for dummy in range(LOCK_TRIES):
+            result = self.send(method, path, body, self.password)
+            if result['status'] != 401:
+                break
+            self.sleep(LOCK_WAIT)
+        return result
+
+    def require_login(self):
+        """Harbor's answer to /systeminfo as the login user; exits when it keeps answering anonymously.
+
+        An anonymous answer is a 200 as well, only without harbor_version, so
+        the status alone doesn't tell.
+        """
+        for dummy in range(LOCK_TRIES):
+            info = self.call('GET', '/systeminfo')
+            if info['status'] == 200 and isinstance(info['body'], dict) and info['body'].get('harbor_version'):
+                return info
+            self.sleep(LOCK_WAIT)
+        sys.exit('Harbor does not accept the credentials: /systeminfo answers HTTP %s without harbor_version. '
+                 'A wrong password, or another client keeps failing to log in as %s.' % (info['status'], self.username))
+
+    def send(self, method, path, body, password):
         data = json.dumps(body).encode() if body is not None else None
         req = urllib.request.Request(self.url + '/api/v2.0' + path, data=data, method=method)
-        creds = '%s:%s' % (self.username, self.password if password is None else password)
+        creds = '%s:%s' % (self.username, password)
         req.add_header('Authorization', 'Basic ' + base64.b64encode(creds.encode()).decode())
         req.add_header('Accept', 'application/json')
         if data is not None:
             req.add_header('Content-Type', 'application/json')
         try:
-            with urllib.request.urlopen(req) as resp:
+            with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
                 status, raw, headers = resp.status, resp.read().decode(), resp.headers
         except urllib.error.HTTPError as e:
             status, raw, headers = e.code, e.read().decode(), e.headers
@@ -108,16 +167,43 @@ def named_like(prefix):
     return lambda item: item['name'].startswith(prefix)
 
 
+def projects_named(srv, name):
+    """The projects with exactly this name (?name= also finds names that merely contain it)."""
+    listed = expect(srv.call('GET', '/projects?name=%s&page=1&page_size=100' % name), 200, 'projects named %s' % name)
+    return [p for p in listed['body'] or [] if p['name'] == name]
+
+
+def delete_projects(srv, *names):
+    """Delete the projects with exactly these names."""
+    for name in names:
+        for project in projects_named(srv, name):
+            expect(srv.call('DELETE', '/projects/%d' % project['project_id']), 200, 'delete leftover project %s' % name)
+
+
+def delete_named_like(srv, path, prefix):
+    """Delete the registries or replication rules (path) whose name starts with the prefix."""
+    for item in expect(srv.call('GET', path + '?page=1&page_size=100'), 200, path)['body'] or []:
+        if item['name'].startswith(prefix):
+            expect(srv.call('DELETE', '%s/%d' % (path, item['id'])), 200, 'delete leftover %s' % item['name'])
+
+
+CORE_PROJECTS = ('fixtures-core-proxy', 'fixtures-core')
+CORE_PREFIX = 'fixtures-core'
+
+
+def sweep_core(srv):
+    """Delete the two projects of the core area and its registry endpoint."""
+    # The proxy-cache project first: its endpoint can't go while the project uses it.
+    delete_projects(srv, *CORE_PROJECTS)
+    delete_named_like(srv, '/registries', CORE_PREFIX)
+
+
 def record_core(srv, out):
     """System info, projects, quotas and a proxy-cache project."""
-    own_projects = named('fixtures-core', 'fixtures-core-proxy', BUILT_IN_PROJECT)
-    own_registries = named_like('fixtures-core')
-    out['systeminfo'] = expect(srv.call('GET', '/systeminfo'), 200, 'systeminfo')
+    own_projects = named(BUILT_IN_PROJECT, *CORE_PROJECTS)
+    own_registries = named_like(CORE_PREFIX)
+    out['systeminfo'] = srv.require_login()
     out['systeminfo_anonymous'] = expect(srv.call('GET', '/systeminfo', password='wrong'), 200, 'systeminfo bad password')
-    for name in ('fixtures-core', 'fixtures-core-proxy'):
-        found = [p for p in srv.call('GET', '/projects?name=%s' % name)['body'] or [] if p['name'] == name]
-        if found:
-            sys.exit('project %s exists from an earlier run; delete it first' % name)
 
     out['projects_before'] = keep(expect(srv.call('GET', '/projects?page=1&page_size=100'), 200, 'projects'), own_projects)
     out['registries_empty'] = keep(expect(srv.call('GET', '/registries?page=1&page_size=100'), 200, 'registries'),
@@ -177,17 +263,24 @@ def without_secret(result):
     return result
 
 
+ROBOT_PROJECT = 'fixtures-robot'
+
+
+def sweep_robot(srv):
+    """Delete the system robots named *fixtures-robot*, and project fixtures-robot with its robots."""
+    for robot in expect(srv.call('GET', '/robots?q=name%3D~fixtures-robot&page=1&page_size=100'), 200, 'robots')['body'] or []:
+        expect(srv.call('DELETE', '/robots/%d' % robot['id']), 200, 'delete leftover robot')
+    for project in projects_named(srv, ROBOT_PROJECT):
+        robots = expect(srv.call('GET', '/robots?q=Level%%3Dproject%%2CProjectID%%3D%d&page=1&page_size=100'
+                                 % project['project_id']), 200, 'project robots')
+        for robot in robots['body'] or []:
+            expect(srv.call('DELETE', '/robots/%d' % robot['id']), 200, 'delete leftover project robot')
+    delete_projects(srv, ROBOT_PROJECT)
+
+
 def record_robot(srv, out):
     """System and project robot accounts, in project fixtures-robot."""
-    project_name = 'fixtures-robot'
-    for robot in srv.call('GET', '/robots?q=name%3D~fixtures-robot&page=1&page_size=100')['body'] or []:
-        expect(srv.call('DELETE', '/robots/%d' % robot['id']), 200, 'delete leftover robot')
-    for p in srv.call('GET', '/projects?name=%s' % project_name)['body'] or []:
-        if p['name'] == project_name:
-            for robot in srv.call('GET', '/robots?q=Level%%3Dproject%%2CProjectID%%3D%d' % p['project_id'])['body'] or []:
-                expect(srv.call('DELETE', '/robots/%d' % robot['id']), 200, 'delete leftover project robot')
-            expect(srv.call('DELETE', '/projects/%d' % p['project_id']), 200, 'delete leftover project')
-
+    project_name = ROBOT_PROJECT
     config = expect(srv.call('GET', '/configurations'), 200, 'configurations')
     # Only the setting the modules read; the rest of the configuration is
     # not the robot area's business.
@@ -242,15 +335,21 @@ def record_robot(srv, out):
     out['robot_get_deleted'] = srv.call('GET', '/robots/%d' % rid)
 
 
+WEBHOOK_PROJECT = 'fixtures-webhook'
+
+
+def sweep_webhook(srv):
+    """Delete project fixtures-webhook and its webhook policies."""
+    for project in projects_named(srv, WEBHOOK_PROJECT):
+        base = '/projects/%d/webhook/policies' % project['project_id']
+        for policy in expect(srv.call('GET', base + '?page=1&page_size=100'), 200, 'webhooks')['body'] or []:
+            expect(srv.call('DELETE', '%s/%d' % (base, policy['id'])), 200, 'delete leftover webhook')
+    delete_projects(srv, WEBHOOK_PROJECT)
+
+
 def record_webhook(srv, out):
     """Webhook policies of project fixtures-webhook (dummy endpoints nothing listens on)."""
-    name = 'fixtures-webhook'
-    for p in srv.call('GET', '/projects?name=%s' % name)['body'] or []:
-        if p['name'] == name:
-            for pol in srv.call('GET', '/projects/%d/webhook/policies' % p['project_id'])['body'] or []:
-                expect(srv.call('DELETE', '/projects/%d/webhook/policies/%d' % (p['project_id'], pol['id'])),
-                       200, 'delete leftover webhook')
-            expect(srv.call('DELETE', '/projects/%d' % p['project_id']), 200, 'delete leftover project')
+    name = WEBHOOK_PROJECT
     pid = project_id_of(expect(srv.call('POST', '/projects', {'project_name': name, 'metadata': {'public': 'false'}}),
                                201, 'create project'))
     out['webhook_projects'] = keep(expect(srv.call('GET', '/projects?name=%s&page=1&page_size=100' % name), 200, 'projects'),
@@ -281,6 +380,16 @@ def record_webhook(srv, out):
     expect(srv.call('DELETE', '/projects/%d' % pid), 200, 'delete project')
 
 
+REGISTRY_PREFIX = 'rr-fixtures'
+
+
+def sweep_registry(srv):
+    """Delete the replication rules and registry endpoints named rr-fixtures*."""
+    # Rules first: an endpoint can't go while a rule uses it.
+    delete_named_like(srv, '/replication/policies', REGISTRY_PREFIX)
+    delete_named_like(srv, '/registries', REGISTRY_PREFIX)
+
+
 def record_registry(srv, out):
     """Registry endpoints and replication rules (objects named rr-fixtures-*).
 
@@ -290,19 +399,11 @@ def record_registry(srv, out):
     so nothing runs.
     """
     pw = srv.password
-
-    def cleanup():
-        for rule in srv.call('GET', '/replication/policies?page=1&page_size=100')['body'] or []:
-            if rule['name'].startswith('rr-fixtures'):
-                expect(srv.call('DELETE', '/replication/policies/%d' % rule['id']), 200, 'delete leftover rule')
-        for reg in srv.call('GET', '/registries?page=1&page_size=100')['body'] or []:
-            if reg['name'].startswith('rr-fixtures'):
-                expect(srv.call('DELETE', '/registries/%d' % reg['id']), 200, 'delete leftover registry')
-
     # Endpoints and rules are global; other people's stay out of the recording.
-    own = named_like('rr-fixtures')
+    own = named_like(REGISTRY_PREFIX)
 
-    cleanup()
+    # The registry types this Harbor can replicate with: what a module would check a type against.
+    out['registry_replication_adapters'] = expect(srv.call('GET', '/replication/adapters'), 200, 'replication adapters')
     out['registry_list_before'] = keep(expect(srv.call('GET', '/registries?page=1&page_size=100'), 200, 'registries'), own)
     created = expect(srv.call('POST', '/registries', {
         'name': 'rr-fixtures-self', 'type': 'harbor', 'url': 'http://proxy:8080', 'insecure': True}),
@@ -348,33 +449,29 @@ def record_registry(srv, out):
     out['registry_replication_delete'] = expect(srv.call('DELETE', '/replication/policies/%d' % pid), 200, 'delete rule')
     out['registry_delete'] = expect(srv.call('DELETE', '/registries/%d' % rid), 200, 'delete registry')
     expect(srv.call('DELETE', '/registries/%d' % aid), 200, 'delete registry with credential')
-    cleanup()
 
 
-def call_unlocked(srv, method, path, body=None):
-    """srv.call, retried while Harbor has the user locked.
+TAG_POLICY_PROJECT = 'fixtures-tag-policy'
 
-    Harbor locks a user for 1.5 s after any failed login, and answers that
-    user's correct credentials with 401 meanwhile. On a server shared with
-    other recordings or tests, that can hit any request.
-    """
-    for dummy in range(10):
-        result = srv.call(method, path, body)
-        if result['status'] != 401:
-            return result
-        time.sleep(2)
-    return result
+
+def sweep_tag_policy(srv):
+    """Delete project fixtures-tag-policy with its retention policy and immutability rules."""
+    for project in projects_named(srv, TAG_POLICY_PROJECT):
+        pid = project['project_id']
+        retention = (project.get('metadata') or {}).get('retention_id')
+        if retention:
+            # Not checked: a policy that is already gone is as good.
+            srv.call('DELETE', '/retentions/%s' % retention)
+        base = '/projects/%d/immutabletagrules' % pid
+        for rule in expect(srv.call('GET', base + '?page=1&page_size=100'), 200, 'immutable rules')['body'] or []:
+            expect(srv.call('DELETE', '%s/%d' % (base, rule['id'])), 200, 'delete leftover immutable rule')
+    delete_projects(srv, TAG_POLICY_PROJECT)
 
 
 def record_tag_policy(srv, out):
     """Tag retention and tag immutability, in project fixtures-tag-policy."""
-    def call(method, path, body=None):
-        return call_unlocked(srv, method, path, body)
-
-    name = 'fixtures-tag-policy'
-    for p in call('GET', '/projects?name=%s' % name)['body'] or []:
-        if p['name'] == name:
-            sys.exit('project %s exists from an earlier run; delete it first' % name)
+    call = srv.call
+    name = TAG_POLICY_PROJECT
     created = expect(call('POST', '/projects', {'project_name': name, 'metadata': {'public': 'false'}}),
                      201, 'create project')
     out['tag_project_create'] = created
@@ -429,7 +526,6 @@ def record_tag_policy(srv, out):
     out['tag_immutability_list_disabled'] = expect(call('GET', base + '?page=1&page_size=100'), 200, 'immutable rules')
     out['tag_immutability_delete'] = expect(call('DELETE', '%s/%d' % (base, iid)), 200, 'delete immutable rule')
     out['tag_immutability_delete_missing'] = call('DELETE', '%s/%d' % (base, iid))
-    expect(call('DELETE', '/projects/%d' % pid), 200, 'delete project')
 
 
 # Settings that describe how a site logs its users in and where it sends its
@@ -453,6 +549,38 @@ def without_site_settings(result):
     return dict(result, body=body)
 
 
+# What the system area sets, which is how its sweep knows them again, and what
+# an untouched Harbor 2.14 or 2.15 holds in the two settings.
+SYSTEM_BANNER = 'fixtures-system'
+SYSTEM_SETTING_DEFAULTS = dict(banner_message='', session_timeout=60)
+SYSTEM_GC_CRON = '0 0 4 * * 0'
+SYSTEM_PURGE_CRON = '0 0 6 * * *'
+NO_GC_SCHEDULE = {'schedule': {'type': 'None'}}
+NO_PURGE_SCHEDULE = {'schedule': {'type': 'None'}, 'parameters': {'audit_retention_hour': 720, 'include_event_types': ''}}
+
+
+def schedule_cron(result):
+    """The cron expression of a recorded schedule, or None when no schedule is set."""
+    return ((result['body'] or {}).get('schedule') or {}).get('cron')
+
+
+def sweep_system(srv):
+    """Take back what a system recording that died left: its banner and its two schedules.
+
+    Only what carries the area's own values is touched: the banner text it
+    sets, and a GC or log rotation schedule with exactly its cron expression.
+    The settings go back to Harbor's defaults then, because what they were
+    before that run is not known any more.
+    """
+    config = expect(srv.call('GET', '/configurations'), 200, 'configurations')
+    if (config['body'].get('banner_message') or {}).get('value') == SYSTEM_BANNER:
+        expect(srv.call('PUT', '/configurations', SYSTEM_SETTING_DEFAULTS), 200, 'reset the settings of an earlier run')
+    if schedule_cron(expect(srv.call('GET', '/system/gc/schedule'), 200, 'gc schedule')) == SYSTEM_GC_CRON:
+        expect(srv.call('PUT', '/system/gc/schedule', NO_GC_SCHEDULE), 200, 'remove leftover gc schedule')
+    if schedule_cron(expect(srv.call('GET', '/system/purgeaudit/schedule'), 200, 'purge schedule')) == SYSTEM_PURGE_CRON:
+        expect(srv.call('PUT', '/system/purgeaudit/schedule', NO_PURGE_SCHEDULE), 200, 'remove leftover purge schedule')
+
+
 def record_system(srv, out):
     """Configuration and the GC / Scan All / log rotation schedules.
 
@@ -470,20 +598,23 @@ def record_system(srv, out):
         sys.exit('the GC or log rotation schedule is set; record the system area on a server without them')
 
     out['system_configurations'] = without_site_settings(config)
-    out['system_configurations_update'] = expect(srv.call('PUT', '/configurations', {
-        'banner_message': 'fixtures-system', 'session_timeout': 45}), 200, 'update configurations')
-    out['system_configurations_updated'] = without_site_settings(
-        expect(srv.call('GET', '/configurations'), 200, 'configurations'))
-    out['system_configurations_bad_value'] = srv.call('PUT', '/configurations', {'session_timeout': 0})
-    out['system_configurations_bad_type'] = srv.call('PUT', '/configurations', {'session_timeout': 'abc'})
-    expect(srv.call('PUT', '/configurations', {'banner_message': banner, 'session_timeout': session}),
-           200, 'restore configurations')
+    try:
+        out['system_configurations_update'] = expect(srv.call('PUT', '/configurations', {
+            'banner_message': SYSTEM_BANNER, 'session_timeout': 45}), 200, 'update configurations')
+        out['system_configurations_updated'] = without_site_settings(
+            expect(srv.call('GET', '/configurations'), 200, 'configurations'))
+        out['system_configurations_bad_value'] = srv.call('PUT', '/configurations', {'session_timeout': 0})
+        out['system_configurations_bad_type'] = srv.call('PUT', '/configurations', {'session_timeout': 'abc'})
+    finally:
+        # Here and not in the sweep, which only knows Harbor's defaults: this puts back what the server had.
+        expect(srv.call('PUT', '/configurations', {'banner_message': banner, 'session_timeout': session}),
+               200, 'restore configurations')
     out['system_event_types'] = expect(srv.call('GET', '/auditlog-exts/events'), 200, 'audit event types')
 
     try:
         out['system_gc_schedule_none'] = gc_before
         out['system_gc_schedule_update'] = expect(srv.call('PUT', '/system/gc/schedule', {
-            'schedule': {'type': 'Custom', 'cron': '0 0 4 * * 0'},
+            'schedule': {'type': 'Custom', 'cron': SYSTEM_GC_CRON},
             'parameters': {'delete_untagged': True, 'workers': 2}}), 200, 'set gc schedule')
         out['system_gc_schedule_custom'] = expect(srv.call('GET', '/system/gc/schedule'), 200, 'gc schedule')
         out['system_gc_schedule_bad_cron'] = srv.call('PUT', '/system/gc/schedule', {
@@ -492,9 +623,9 @@ def record_system(srv, out):
                                           200, 'gc history')
         out['system_purge_schedule_none'] = purge_before
         out['system_purge_schedule_no_parameters'] = srv.call('PUT', '/system/purgeaudit/schedule', {
-            'schedule': {'type': 'Custom', 'cron': '0 0 6 * * *'}})
+            'schedule': {'type': 'Custom', 'cron': SYSTEM_PURGE_CRON}})
         out['system_purge_schedule_update'] = expect(srv.call('PUT', '/system/purgeaudit/schedule', {
-            'schedule': {'type': 'Custom', 'cron': '0 0 6 * * *'},
+            'schedule': {'type': 'Custom', 'cron': SYSTEM_PURGE_CRON},
             'parameters': {'audit_retention_hour': 720, 'include_event_types': 'create_artifact,delete_artifact'}}),
             200, 'set purge schedule')
         out['system_purge_schedule_custom'] = expect(srv.call('GET', '/system/purgeaudit/schedule'), 200, 'purge schedule')
@@ -502,10 +633,8 @@ def record_system(srv, out):
                                              200, 'purge history')
         out['system_scan_all_no_scanner'] = srv.call('GET', '/system/scanAll/schedule')
     finally:
-        expect(srv.call('PUT', '/system/gc/schedule', {'schedule': {'type': 'None'}}), 200, 'remove gc schedule')
-        expect(srv.call('PUT', '/system/purgeaudit/schedule', {
-            'schedule': {'type': 'None'},
-            'parameters': {'audit_retention_hour': 720, 'include_event_types': ''}}), 200, 'remove purge schedule')
+        expect(srv.call('PUT', '/system/gc/schedule', NO_GC_SCHEDULE), 200, 'remove gc schedule')
+        expect(srv.call('PUT', '/system/purgeaudit/schedule', NO_PURGE_SCHEDULE), 200, 'remove purge schedule')
 
 
 # Area name -> recorder. Each writes fixtures/<major.minor>/<area>.json.
@@ -517,6 +646,15 @@ AREAS = {
     'tag_policy': record_tag_policy,
     'system': record_system,
 }
+# Area name -> what takes the area's own objects off the server (see run_area).
+SWEEPS = {
+    'core': sweep_core,
+    'robot': sweep_robot,
+    'registry': sweep_registry,
+    'webhook': sweep_webhook,
+    'tag_policy': sweep_tag_policy,
+    'system': sweep_system,
+}
 
 
 def main():
@@ -526,14 +664,14 @@ def main():
     if not password:
         sys.exit('set HARBOR_PASSWORD to the admin password')
     srv = Server(url, os.environ.get('HARBOR_USERNAME', 'admin'), password)
-    version = expect(srv.call('GET', '/systeminfo'), 200, 'systeminfo')['body'].get('harbor_version')
-    if not version:
-        sys.exit('Harbor did not accept the credentials (no harbor_version in /systeminfo)')
+    version = srv.require_login()['body']['harbor_version']
     minor = re.match(r'^v?(\d+\.\d+)', version).group(1)
 
     for area in areas:
         out = {}
-        AREAS[area](srv, out)
+        # Each area starts from a request that is known to be answered as the login user.
+        srv.require_login()
+        run_area(area, AREAS[area], SWEEPS[area], srv, out)
         path = os.path.normpath(os.path.join(FIXTURES, minor, '%s.json' % area))
         write_fixture(path, version, out, srv.secrets, placeholders=(RECORDED_SECRET,), secret_key=SECRET_KEY)
 
