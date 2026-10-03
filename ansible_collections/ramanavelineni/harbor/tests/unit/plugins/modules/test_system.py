@@ -641,10 +641,18 @@ def test_lr_remove_sends_parameters(server, run_module):
 
 
 def test_lr_server_needs_parameters(server, run_module):
-    # What Harbor says when parameters are missing: the reason the module always sends them.
-    rejected = server.fixtures['system_purge_schedule_no_parameters']
-    assert rejected['status'] == 400
-    assert 'parameter' in json.dumps(rejected['body'])
+    # What Harbor says when parameters are missing: the reason the module always
+    # sends them, removing the schedule included. Should Harbor still refuse a
+    # write, the task reports that answer.
+    server.route('GET', PURGE, 'system_purge_schedule_custom')
+    server.route('PUT', PURGE, 'system_purge_schedule_no_parameters')
+    result = run_module(log_rotation.main, dict(schedule='none'))
+    assert result['failed'] is True
+    assert 'HTTP 400' in result['msg']
+    assert server.fixtures['system_purge_schedule_no_parameters']['body']['errors'][0]['message'] in result['msg']
+    sent = server.calls('PUT', PURGE)
+    assert len(sent) == 1
+    assert sorted(sent[0]['body']['parameters']) == ['audit_retention_hour', 'include_event_types']
 
 
 def test_lr_info(server, run_module):
@@ -656,6 +664,9 @@ def test_lr_info(server, run_module):
 
 
 # -- scan all ----------------------------------------------------------------------
+# Only the refusal without a scanner is recorded (system_scan_all_no_scanner).
+# Every success path below runs on hand-written answers (scan_all_schedule and
+# ok): Scan All has never been checked against a server with a scanner.
 
 def test_scan_all_without_scanner(server, run_module):
     server.route('GET', SCAN_ALL, 'system_scan_all_no_scanner')

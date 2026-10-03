@@ -23,10 +23,6 @@ def wid(server):
     return server.fixtures['webhook_get']['body']['id']
 
 
-def ok(status=200):
-    return dict(status=status, body=None, headers={})
-
-
 def stored(server, fixture='webhook_get_updated', target=None, **fields):
     """A recorded single-webhook answer, for the read after an update.
 
@@ -45,7 +41,7 @@ def stored(server, fixture='webhook_get_updated', target=None, **fields):
 
 
 def updating(server, project, answer='webhook_get_updated'):
-    server.route('PUT', '%s/%d' % (project, wid(server)), ok())
+    server.route('PUT', '%s/%d' % (project, wid(server)), 'webhook_update')
     server.route('GET', '%s/%d' % (project, wid(server)), answer)
 
 
