@@ -112,3 +112,161 @@ releases:
     - quota-robot-prefix.yml
     - secret-redaction-license.yml
     release_date: '2026-10-03'
+  0.3.0:
+    changes:
+      bugfixes:
+      - 'all modules - ``timeout`` below 1 and a negative ``retries`` or ``retry_delay``
+        fail before a request is sent. ``timeout: 0`` used to fail with "Operation
+        now in progress", and a negative ``retries`` or ``retry_delay`` was silently
+        read as 0.'
+      - all modules - a ``url`` without ``http://`` or ``https://``, with another
+        scheme or without a host fails before a request is sent, with a message showing
+        the expected form. It used to fail with urllib's ``unknown url type`` and
+        no hint.
+      - 'all modules - a failure that asking again cannot cure is no longer retried:
+        a certificate that does not verify, a ``ca_path`` file that does not exist
+        and a host name that does not resolve now fail at once instead of after ``retries``
+        times ``retry_delay`` seconds. A refused or reset connection and a timeout
+        are retried as before.'
+      - all modules - a list endpoint that ignores the page number and answers with
+        the same full page each time is now read once instead of for ever, and a list
+        that still has not ended after 1000 pages fails the task.
+      - 'all modules - a list is read to its end when a server or proxy answers with
+        pages shorter than the 100 items asked for: the ``X-Total-Count`` header now
+        decides when it is present. Before, the first short page ended the list, so
+        objects past it were not seen.'
+      - all modules - a redirect (HTTP 301, 302, 307, 308) is reported with the address
+        it points to and a hint to set ``url`` to the address the Harbor server itself
+        answers on. The target is also returned as ``request_details.location``. Redirects
+        are still not followed.
+      - all modules - an answer that is cut short or is not HTTP at all is now reported,
+        and for reads retried, like any other connection failure, instead of ending
+        in a Python traceback.
+      - all modules - an answer the module does not expect, such as a create answered
+        with an empty body or without a ``Location`` header, now fails the task with
+        a message that starts with ``Unexpected`` and names the error, instead of
+        a Python traceback. The traceback is still shown with ``-vvv``.
+      - 'configuration - ``settings`` values that arrive as strings after templating
+        are accepted: a string of digits for an integer setting, and ``true``, ``false``,
+        ``yes``, ``no``, ``on`` or ``off`` for a boolean one.'
+      - configuration - changing a setting that Harbor reports as not editable, such
+        as ``auth_mode`` once a second user exists, now fails before anything is sent,
+        with the names of those settings. A declared value that is already in place
+        is still not a change.
+      - garbage_collection - ``delete_tag`` on a server whose version cannot be read
+        is now sent, and Harbor decides, as ``project`` and ``registry`` already did
+        for their options that need Harbor 2.15. Before, the task failed with "delete_tag
+        needs Harbor 2.15 or newer".
+      - garbage_collection, log_rotation - a change no longer drops the schedule settings
+        the module has no option for. Harbor replaces a schedule's settings as a whole,
+        so a garbage collection schedule created through the API with ``dry_run``
+        lost it, and became a real garbage collection, on any change made by the module.
+      - garbage_collection, log_rotation - a schedule of a type other than ``none``,
+        ``hourly``, ``daily``, ``weekly`` or ``custom`` no longer ends in a ``KeyError``
+        when a task changes only its settings. The task fails with a message that
+        names the type and says to set ``schedule``. The ``_info`` modules return
+        such a schedule with its type as Harbor reports it, in lower case.
+      - garbage_collection_info, log_rotation_info - ``runs`` above 100 no longer
+        returns only 100 runs. Harbor returns at most 100 per request, so more than
+        that are now read in several requests.
+      - 'project - a project is no longer taken for missing on the word of an anonymous
+        answer. Harbor answers anonymously for a moment after another client failed
+        to log in as the same user, and its project list then leaves out private projects
+        without saying so. ``state: absent`` reported no change for a private project
+        that exists, and ``state: present`` tried to create it and failed with HTTP
+        409. The login is now checked again before a project that is not in the list
+        is treated as missing, and the list is read again when Harbor was in such
+        a lock. A project that is found costs no request more.'
+      - project, project_info - a user who is not a Harbor administrator can now use
+        them. Registries are read only for ``proxy_registry`` and proxy-cache projects,
+        and a quota or registry the user may not read (HTTP 401 or 403) is returned
+        as ``null``. Setting ``quota_gb`` or ``proxy_registry`` as such a user fails
+        with an explanation.
+      - 'project, registry, replication, webhook, tag_retention - the object an update
+        returns, and the ``after`` of its diff, are now read back from Harbor after
+        the write instead of being worked out from the options. They show what Harbor
+        stored: a ``registry`` update returns the ``status`` of the check Harbor makes
+        on that write, where it returned the status from before. ``tag_retention``
+        reads the policy back after a create too. Each update costs one read more,
+        and a ``project`` update that sets ``quota_gb`` two.'
+      - project, registry, replication, webhook, tag_retention - when Harbor stored
+        a value differently from what the task sent, the task now warns and names
+        the fields, because the next run will find the difference and report a change
+        again. Before, the result showed the value the task sent.
+      - project_info - the list of projects is no longer returned without its private
+        projects while Harbor answers anonymously. The login is checked again after
+        the list is read, which is one more request for each task that does not name
+        a project that exists.
+      - registry - an ``access_key`` set on an endpoint that has no credential type
+        yet is now sent with ``credential_type`` ``basic`` (or the declared one).
+        It was sent with an empty type before, unless ``access_secret`` was sent too.
+      - replication - a ``tag`` or ``label`` filter without a ``decoration`` and one
+        with ``matches`` are the same filter and no longer compare as different, which
+        rewrote the rule once. Such a filter is now sent and returned with ``decoration``
+        ``matches``.
+      - robot_account - in check mode, creating a robot account with a declared ``secret``
+        now reports ``secret_updated`` as ``true``, as the real run does.
+      - robot_account - when a new robot account's declared ``secret`` cannot be set,
+        the robot account is deleted again and the task fails, instead of leaving
+        a robot whose secret nobody knows.
+      - robot_account, robot_account_info, webhook, webhook_info, tag_retention, tag_retention_info,
+        tag_immutability, tag_immutability_info - "Project does not exist" is no longer
+        reported for a private project that Harbor left out of an anonymous answer.
+        When Harbor stays anonymous, or is in a lock every time the project is looked
+        up, the task fails and says that, instead of acting on what it was shown.
+      - tag_retention - a create answered without a ``Location`` header now finds
+        the new policy through the project and returns its ``id``, where ``id`` was
+        null.
+      - tag_retention, tag_retention_info, tag_immutability, tag_immutability_info
+        - the project is looked up by name (``GET /projects?name=``) as the other
+        modules do, instead of reading every project.
+      - webhook - ``event_types`` no longer has a fixed list of choices, so an event
+        a newer Harbor adds can be used. An event other than the ten of Harbor 2.14
+        and 2.15 is checked against the events the server offers for the project.
+        One the server does not offer fails with ``Unknown event types``, or is a
+        warning in check mode.
+      minor_changes:
+      - all modules - new connection option ``use_proxy`` (default ``true``, or ``HARBOR_USE_PROXY``).
+        ``false`` reaches the server directly even when ``http_proxy`` or ``https_proxy``
+        is set in the environment. Until now the proxy from the environment was always
+        used.
+      - all modules - new connection option ``warn_untested_version`` (environment
+        variable ``HARBOR_WARN_UNTESTED_VERSION``). Set it to ``false`` to stop the
+        warning that every task prints on a Harbor version the collection is not tested
+        with. The default, ``true``, keeps the warning.
+      - all modules - new connection options ``client_cert`` and ``client_key`` present
+        a TLS client certificate to a server that asks for one (mutual TLS). They
+        can also come from ``HARBOR_CLIENT_CERT`` and ``HARBOR_CLIENT_KEY``. A path
+        that is not a file, and a ``client_key`` without a ``client_cert``, fail before
+        a request is sent.
+      - registry - ``credential_type`` now takes ``basic`` or ``oauth`` only, and
+        anything else fails before a request is sent.
+      - 'robot_account - ``level`` ``project`` without ``project`` is now refused
+        by the argument check, before the login, with ``level is project but all of
+        the following are missing: project``.'
+      release_summary: 'New connection options (``client_cert``, ``client_key``, ``use_proxy``,
+        ``warn_untested_version``), modules that work for users who are not administrators,
+        and a round of bug fixes. Some checks are stricter than
+        in 0.2.0 and can make a task fail that ran before: ``configuration`` refuses
+        to change a setting Harbor reports as not editable, ``registry`` takes only
+        ``basic`` or ``oauth`` as ``credential_type``, and negative ``retries`` or
+        ``retry_delay`` are refused. Run with ``--check`` once after upgrading.'
+      security_fixes:
+      - configuration, configuration_info - a key that Harbor returns and these modules
+        have no name for is left out of ``configuration`` when its name contains ``secret``,
+        ``password``, ``passwd``, ``token``, ``credential`` or ``private_key``. The
+        secrets were recognised by a fixed list of names, so a readable secret added
+        by a newer Harbor would have been returned in clear text. No Harbor version
+        tested so far returns such a key.
+    fragments:
+    - 0.3.0.yml
+    - anonymous-reads-project-lookup.yml
+    - client-retries-paging.yml
+    - configuration-editable-secrets.yml
+    - connection-options.yml
+    - non-admin-types-robot-create.yml
+    - registry-replication-webhook-robot.yml
+    - reread-after-write.yml
+    - schedule-parameters.yml
+    - unexpected-exceptions.yml
+    release_date: '2026-10-03'

@@ -143,3 +143,128 @@ releases:
     - 0.2.1.yml
     - check-mode-missing-parents.yml
     release_date: '2026-10-03'
+  0.3.0:
+    changes:
+      bugfixes:
+      - all modules - ``SEMAPHORE_API_TOKEN`` in the environment no longer makes a
+        task that sets ``username`` and ``password`` fail with "parameters are mutually
+        exclusive", and ``SEMAPHORE_USERNAME`` or ``SEMAPHORE_PASSWORD`` no longer
+        does that to a task that sets ``api_token``. What the task sets wins; the
+        environment is read only for what the task leaves out. With nothing set in
+        the task and both kinds in the environment, the token is used, where this
+        failed before.
+      - 'all modules - ``timeout`` below 1 and a negative ``retries`` or ``retry_delay``
+        fail before any request. ``timeout: 0`` used to fail with "Operation now in
+        progress", and negative ``retries`` and ``retry_delay`` were silently read
+        as 0.'
+      - all modules - a ``url`` that does not start with ``http://`` or ``https://``
+        fails before any request with a message showing the expected form, instead
+        of ``unknown url type``.
+      - all modules - a failure message quotes at most 500 characters of the server's
+        answer and says how much it left out. A proxy's error page used to make the
+        message thousands of characters long. The whole answer is still returned in
+        ``request_details.response``.
+      - all modules - when the server answers with a redirect, the message names the
+        address it points to and says to set ``url`` to the address the server answers
+        on. The address is also returned as ``request_details.location``. Redirects
+        are still not followed.
+      - inventory, integration, template, variable_group - with ``state=absent`` the
+        diff's ``before`` is the whole object, in the shape an update shows, instead
+        of only ``id`` and ``name``. The other modules already did this.
+      - repository - with ``state=absent`` the diff's ``before`` has the name of the
+        SSH key in ``ssh_key`` instead of ``null``.
+      - 'runner - check mode with ``regenerate_token: true`` on a registered runner
+        now returns ``registered: false`` in ``runner`` and in the diff, as the real
+        run does.'
+      - runner - the request for a registration token is repeated on a transient failure,
+        like the read requests (see ``retries``). It was sent once, so a gateway error
+        right after the create left a runner without a token while the task failed,
+        and the next run found the runner and returned no token.
+      - 'runner - when the token of a new runner still cannot be fetched, the module
+        deletes the runner again and says so, so the next run starts over. If the
+        delete fails too, the message points to ``regenerate_token: true``.'
+      - schedule - ``run_at`` is sent to Semaphore in UTC (``2026-10-01T03:00:00Z``)
+        instead of exactly as typed, so a value YAML read as a timestamp no longer
+        goes out with a space in place of the ``T``. A value that is not a date and
+        time, or names no time zone, now fails before anything is changed, with an
+        example of an accepted value.
+      - schedule - the template lists are no longer read when the project's schedule
+        list already has the schedule of that name, which saves one request per template
+        on every such task. They are still read for a commit poller and for a schedule
+        that does not exist yet.
+      - schedule, schedule_info - a schedule that both the project list and a template
+        list return is counted once. It used to fail with "More than one schedule
+        is named".
+      - template - ``app`` no longer has a fixed list of choices, so a template can
+        use an app an administrator registered on the Semaphore server. Such an app
+        is checked against the server's app list (a warning instead of a failure in
+        check mode), and its ``task_params`` are sent without checking the keys. The
+        apps Semaphore ships with behave as before.
+      - template - ``arguments`` the task did not change go back as stored. A stored
+        value that is not a JSON list, such as ``-v --diff``, was rewritten as ``["-v
+        --diff"]`` by any other change.
+      - template - ``start_version`` on a template that is not of type ``build``,
+        and ``build_template`` on one that is not of type ``deploy``, now fail with
+        a message naming the option and the type. Semaphore does not store them for
+        other types, so the task reported a change on every run while nothing was
+        written. An empty value is still accepted for every type.
+      - template - a template or survey variable whose type this module does not know
+        no longer makes every update fail with a ``KeyError``.
+      - template - after an update that changes ``type``, the returned template no
+        longer shows a ``start_version`` or ``build_template`` that the new type does
+        not keep.
+      - template - an update no longer rewrites the survey variables the task did
+        not change. They go back to the server as stored, so fields this module has
+        no option for, such as the ``target`` of Semaphore 2.19, are kept. When the
+        task does change ``survey_vars``, a variable that keeps its name keeps those
+        fields too.
+      - variable_group - a stored ``json`` or ``env`` value that is not valid JSON
+        no longer blocks the task that replaces it, nor the deletion of the group.
+        The diff shows the stored text as ``before``. A task that leaves the broken
+        field alone still fails, as an update would write it back.
+      minor_changes:
+      - all modules - new connection option ``use_proxy`` (default ``true``, or ``SEMAPHORE_USE_PROXY``).
+        ``false`` reaches the server directly even when ``http_proxy`` or ``https_proxy``
+        is set in the environment. Until now the proxy from the environment was always
+        used.
+      - all modules - new connection options ``client_cert`` and ``client_key`` present
+        a TLS client certificate to a server that asks for one (mutual TLS). They
+        can also come from ``SEMAPHORE_CLIENT_CERT`` and ``SEMAPHORE_CLIENT_KEY``.
+        A path that is not a file, and a ``client_key`` without a ``client_cert``,
+        fail before a request is sent.
+      - integration, inventory, key_store, repository, runner, schedule, team_member,
+        template, variable_group, view and their ``_info`` modules - new option ``project_id``
+        names the project by its id instead of by name with ``project``. The list
+        of projects is not read then, only that one project, so these modules work
+        on a server with 200 or more projects, where Semaphore cuts the list off and
+        a lookup by name is refused. ``project`` and ``project_id`` exclude each other.
+      - 'integration, inventory, key_store, repository, schedule, team_member, template,
+        variable_group, view and their ``_info`` modules - a task that names no project
+        now fails with ``one of the following is required: project, project_id`` instead
+        of ``missing required arguments: project``.'
+      - 'key_store, schedule, team_member - the rules between options that the argument
+        spec can express are now part of it: ``type`` and ``role`` are required with
+        ``state=present``, and ``cron`` and ``run_at`` exclude each other. A task
+        that breaks one fails during argument validation, before the module logs in,
+        with Ansible''s own wording (``state is present but all of the following are
+        missing: type``, ``parameters are mutually exclusive: cron|run_at``) instead
+        of the module''s.'
+      release_summary: 'New connection options (``client_cert``, ``client_key``, ``use_proxy``),
+        ``project_id`` as an alternative to the project name, custom apps in ``template``,
+        and a round of bug fixes. Some checks are stricter than
+        in 0.2.1 and can make a task fail that ran before: ``template`` refuses ``start_version``
+        and ``build_template`` on a template type that does not take them, ``schedule``
+        refuses a ``run_at`` without a time zone, and negative ``retries`` or ``retry_delay``
+        are refused. Run with ``--check`` once after upgrading.'
+    fragments:
+    - 0.3.0.yml
+    - client-messages-validation.yml
+    - connection-options.yml
+    - delete-diff-invalid-json.yml
+    - module-constraints.yml
+    - project-id.yml
+    - runner-token.yml
+    - schedule-run-at-listing.yml
+    - survey-vars-env-credentials.yml
+    - template-type-options-custom-apps.yml
+    release_date: '2026-10-03'
