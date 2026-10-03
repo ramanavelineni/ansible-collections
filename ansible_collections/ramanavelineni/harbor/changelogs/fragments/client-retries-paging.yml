@@ -1,0 +1,23 @@
+---
+minor_changes:
+  - >-
+    all modules - new connection option ``warn_untested_version`` (environment variable
+    ``HARBOR_WARN_UNTESTED_VERSION``). Set it to ``false`` to stop the warning that every task prints on a Harbor
+    version the collection is not tested with. The default, ``true``, keeps the warning.
+bugfixes:
+  - >-
+    all modules - a failure that asking again cannot cure is no longer retried: a certificate that does not
+    verify, a ``ca_path`` file that does not exist and a host name that does not resolve now fail at once instead
+    of after ``retries`` times ``retry_delay`` seconds. A refused or reset connection and a timeout are retried as
+    before.
+  - >-
+    all modules - a list is read to its end when a server or proxy answers with pages shorter than the 100 items
+    asked for: the ``X-Total-Count`` header now decides when it is present. Before, the first short page ended
+    the list, so objects past it were not seen.
+  - >-
+    all modules - a list endpoint that ignores the page number and answers with the same full page each time is
+    now read once instead of for ever, and a list that still has not ended after 1000 pages fails the task.
+  - >-
+    garbage_collection - ``delete_tag`` on a server whose version cannot be read is now sent, and Harbor decides,
+    as ``project`` and ``registry`` already did for their options that need Harbor 2.15. Before, the task failed
+    with "delete_tag needs Harbor 2.15 or newer".

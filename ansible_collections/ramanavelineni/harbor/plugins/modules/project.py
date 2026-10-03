@@ -133,6 +133,7 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     find_by_name,
     harbor_argument_spec,
     id_from_location,
+    older_than,
     project_view as view,
     run_module,
     server_minor,
@@ -175,7 +176,7 @@ def normalize_metadata(metadata, minor):
             raise ValueError('metadata.%s is not a Harbor project setting (known: %s).'
                              % (key, ', '.join(sorted(BOOL_KEYS + INT_KEYS + ('severity',)))))
         needs = NEWER_KEYS.get(key)
-        if needs and minor and minor < needs:
+        if needs and older_than(minor, needs):
             raise ValueError('metadata.%s needs Harbor %d.%d.' % ((key,) + needs))
         out[key] = value
     return out

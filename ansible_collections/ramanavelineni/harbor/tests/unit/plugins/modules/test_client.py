@@ -9,19 +9,24 @@ is in test_login_lock.py.
 """
 
 import base64
+import json
+import socket
+import ssl
 import time
+from urllib.error import URLError
 
 import pytest
 
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils import harbor
-from ansible_collections.ramanavelineni.harbor.plugins.modules import info, project
+from ansible_collections.ramanavelineni.harbor.plugins.modules import info, project, project_info
 from ansible_collections.ramanavelineni.harbor.tests.unit.plugins.conftest import (
     PATCH_TARGET,
     FakeResponse,
     transport_error,
 )
 
-CONNECTION_ENV = ('HARBOR_URL', 'HARBOR_USERNAME', 'HARBOR_PASSWORD', 'HARBOR_VALIDATE_CERTS', 'HARBOR_CA_PATH')
+CONNECTION_ENV = ('HARBOR_URL', 'HARBOR_USERNAME', 'HARBOR_PASSWORD', 'HARBOR_VALIDATE_CERTS', 'HARBOR_CA_PATH',
+                  'HARBOR_WARN_UNTESTED_VERSION')
 
 
 @pytest.fixture(autouse=True)
@@ -190,6 +195,65 @@ def test_no_retries(server, run_module, retries):
     assert waits() == []
 
 
+# What open_url raises for a setting that is wrong, built the way it arrives:
+# urllib wraps a failed handshake and a failed name lookup in a URLError, and
+# a ca_path that is not there comes straight from ssl.create_default_context.
+def cannot_verify():
+    return URLError(ssl.SSLCertVerificationError(
+        1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate'))
+
+
+def no_ca_file():
+    return FileNotFoundError(2, 'No such file or directory')
+
+
+def no_such_host():
+    return URLError(socket.gaierror(socket.EAI_NONAME, 'nodename nor servname provided, or not known'))
+
+
+def refused():
+    return URLError(ConnectionRefusedError(61, 'Connection refused'))
+
+
+def resolver_busy():
+    return URLError(socket.gaierror(socket.EAI_AGAIN, 'Temporary failure in name resolution'))
+
+
+@pytest.mark.parametrize('error, text', [
+    (cannot_verify, 'CERTIFICATE_VERIFY_FAILED'),
+    (no_ca_file, 'No such file or directory'),
+    (no_such_host, 'nodename nor servname provided'),
+], ids=['certificate', 'ca-file', 'host-name'])
+def test_a_wrong_setting_is_not_retried(server, run_module, error, text):
+    server.route('GET', '/systeminfo', error(), 'systeminfo')
+    result = run_module(info.main, {})
+    assert result['failed'] is True
+    assert 'without an HTTP response' in result['msg']
+    assert text in result['msg']
+    assert len(server.calls('GET', '/systeminfo')) == 1
+    assert waits() == []
+
+
+@pytest.mark.parametrize('error', [refused, resolver_busy, TimeoutError, transport_error],
+                         ids=['refused', 'resolver-busy', 'timeout', 'reset'])
+def test_a_passing_failure_is_retried(server, run_module, error):
+    server.route('GET', '/systeminfo', error(), 'systeminfo')
+    result = run_module(info.main, dict(retry_delay=5))
+    assert result.get('failed') is not True
+    assert len(server.calls('GET', '/systeminfo')) == 2
+    assert waits() == [5]
+
+
+def test_an_update_with_a_wrong_setting_is_not_retried(server, run_module):
+    existing(server)
+    path = '/projects/%d' % pid(server)
+    server.route('PUT', path, cannot_verify(), 'project_update')
+    result = run_module(project.main, dict(name='fixtures-core', public=True))
+    assert result['failed'] is True
+    assert len(server.calls('PUT', path)) == 1
+    assert waits() == []
+
+
 def test_updates_are_retried(server, run_module):
     # A PUT says what the object should be, so sending it twice ends the same.
     existing(server)
@@ -291,3 +355,134 @@ def test_ca_path_option_wins_over_the_environment(server, run_module, monkeypatc
     run_module(info.main, dict(ca_path='/etc/ssl/step-root.pem'))
     assert len(server.requests) == 1
     assert server.requests[0]['kwargs']['ca_path'] == '/etc/ssl/step-root.pem'
+
+
+# -- paged lists ---------------------------------------------------------------
+
+class StubModule(object):
+    """What HarborClient reads from a module, for calling list() on its own."""
+
+    no_log_values = set()
+
+    def __init__(self):
+        self.params = dict(url='https://harbor.example.com', username='admin', password='s3cret-pw',
+                           validate_certs=True, ca_path=None, timeout=30, retries=3, retry_delay=2,
+                           warn_untested_version=True)
+
+
+def page(count, total=None, first=0):
+    """A list answer of `count` items, hand-written: no recorded list is longer than two."""
+    headers = {} if total is None else {'x-total-count': str(total)}
+    return dict(status=200, body=[dict(id=first + n) for n in range(count)], headers=headers)
+
+
+def pages_asked(server, path):
+    return [call['query']['page'] for call in server.calls('GET', path)]
+
+
+def test_list_reads_one_page_when_it_holds_everything(server):
+    server.route('GET', '/projects', 'projects_with_created')
+    items = harbor.HarborClient(StubModule()).list('/projects')
+    assert items == server.fixtures['projects_with_created']['body']
+    assert pages_asked(server, '/projects') == [['1']]
+    assert server.calls('GET', '/projects')[0]['query']['page_size'] == ['100']
+
+
+def test_list_stops_at_a_full_page_that_is_the_total(server):
+    server.route('GET', '/things', page(100, total=100))
+    assert len(harbor.HarborClient(StubModule()).list('/things')) == 100
+    assert pages_asked(server, '/things') == [['1']]
+
+
+def test_list_follows_the_total_past_a_short_page(server):
+    # A proxy that caps the page size at 2: no page is full, the total says there is more.
+    server.route('GET', '/things', page(2, total=5), page(2, total=5, first=2), page(1, total=5, first=4))
+    items = harbor.HarborClient(StubModule()).list('/things')
+    assert [item['id'] for item in items] == [0, 1, 2, 3, 4]
+    assert pages_asked(server, '/things') == [['1'], ['2'], ['3']]
+
+
+def test_list_stops_at_an_empty_page_whatever_the_total_says(server):
+    server.route('GET', '/things', page(2, total=5), page(0, total=5))
+    assert len(harbor.HarborClient(StubModule()).list('/things')) == 2
+    assert pages_asked(server, '/things') == [['1'], ['2']]
+
+
+@pytest.mark.parametrize('total', [None, 'many'], ids=['no-header', 'not-a-number'])
+def test_list_without_a_usable_total_stops_at_a_short_page(server, total):
+    server.route('GET', '/things', page(100, total=total), page(3, total=total, first=100))
+    assert len(harbor.HarborClient(StubModule()).list('/things')) == 103
+    assert pages_asked(server, '/things') == [['1'], ['2']]
+
+
+@pytest.mark.parametrize('total', [None, 250], ids=['no-header', 'total-never-reached'])
+def test_list_ends_when_a_page_repeats(server, total):
+    # An endpoint that ignores `page`: the same page again adds nothing, and must not add duplicates.
+    server.route('GET', '/things', page(100, total=total))
+    items = harbor.HarborClient(StubModule()).list('/things')
+    assert [item['id'] for item in items] == list(range(100))
+    assert pages_asked(server, '/things') == [['1'], ['2']]
+
+
+def test_list_gives_up_after_the_page_limit(server, monkeypatch):
+    monkeypatch.setattr(harbor, 'MAX_PAGES', 3)
+    server.route('GET', '/things', *[page(100, first=100 * n) for n in range(5)])
+    with pytest.raises(ValueError, match='did not end after 3 pages'):
+        harbor.HarborClient(StubModule()).list('/things')
+    assert pages_asked(server, '/things') == [['1'], ['2'], ['3']]
+
+
+def test_a_list_that_does_not_end_fails_the_task(server, run_module, monkeypatch):
+    monkeypatch.setattr(harbor, 'MAX_PAGES', 2)
+    server.route('GET', '/projects', *[page(100, first=100 * n) for n in range(4)])
+    result = run_module(project_info.main, {})
+    assert result['failed'] is True
+    assert 'did not end after 2 pages' in result['msg']
+    assert 'exception' not in result
+
+
+# -- the warning about an untested version -------------------------------------
+
+def untested(server, version='v2.9.0-abc'):
+    answer = server.response('systeminfo')
+    answer['body']['harbor_version'] = version
+    server.route('GET', '/systeminfo', answer)
+    server.route('GET', '/projects', 'projects_before')
+    server.route('GET', '/quotas', 'quotas_all')
+
+
+def test_untested_version_warns_and_says_how_to_stop(server, run_module):
+    untested(server)
+    result = run_module(project_info.main, {})
+    assert result.get('failed') is not True
+    # A warning is a string up to ansible-core 2.18 and a structure after it.
+    assert len(result['warnings']) == 1
+    assert 'v2.9.0-abc' in json.dumps(result['warnings'])
+    assert 'warn_untested_version' in json.dumps(result['warnings'])
+
+
+def test_untested_version_warning_can_be_switched_off(server, run_module):
+    untested(server)
+    result = run_module(project_info.main, dict(warn_untested_version=False))
+    assert result.get('failed') is not True
+    assert not result.get('warnings')
+
+
+def test_tested_version_does_not_warn(server, run_module):
+    server.route('GET', '/projects', 'projects_before')
+    server.route('GET', '/quotas', 'quotas_all')
+    result = run_module(project_info.main, {})
+    assert not result.get('warnings')
+
+
+def test_warning_switch_from_the_environment(server, run_module, monkeypatch):
+    monkeypatch.setenv('HARBOR_WARN_UNTESTED_VERSION', 'false')
+    untested(server)
+    assert not run_module(project_info.main, {}).get('warnings')
+
+
+def test_warning_option_wins_over_the_environment(server, run_module, monkeypatch):
+    monkeypatch.setenv('HARBOR_WARN_UNTESTED_VERSION', 'false')
+    untested(server)
+    result = run_module(project_info.main, dict(warn_untested_version=True))
+    assert len(result['warnings']) == 1

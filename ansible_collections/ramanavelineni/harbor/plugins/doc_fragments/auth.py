@@ -45,8 +45,11 @@ options:
     default: 30
   retries:
     description:
-      - How many times to retry a request that failed without an HTTP response (connection reset, timeout)
-        or with HTTP 502, 503 or 504.
+      - How many times to retry a request that failed without an HTTP response (connection refused or reset,
+        timeout) or with HTTP 502, 503 or 504.
+      - A failure that asking again cannot cure is not retried, so that a wrong setting fails at once. That is
+        a certificate that does not verify, a O(ca_path) file that does not exist and a host name that does
+        not resolve.
       - Reads and updates are retried. Creates and deletes are never retried, because the server may already
         have acted.
       - Separately, any request answered with HTTP 401 is sent once more after 2 seconds, because Harbor
@@ -58,6 +61,17 @@ options:
       - Seconds to wait between retries.
     type: int
     default: 2
+  warn_untested_version:
+    description:
+      - Whether to warn when the server reports a Harbor version this collection is not tested with.
+      - Set it to V(false) once you know the modules you use work with your version, to stop every task
+        from printing the warning.
+      - If not set, the value of the E(HARBOR_WARN_UNTESTED_VERSION) environment variable is used.
+    type: bool
+    default: true
 notes:
-  - Supports Harbor 2.14 and 2.15. On another version the module warns and continues.
+  - Supports Harbor 2.14 and 2.15. On another version the module warns and continues, unless
+    O(warn_untested_version=false).
+  - An option that needs a newer Harbor than the server reports fails the task. When the reported version
+    cannot be read, the option is sent and Harbor decides.
 '''

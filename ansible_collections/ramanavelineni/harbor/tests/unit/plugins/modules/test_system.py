@@ -396,6 +396,18 @@ def test_gc_delete_tag_version(server, run_module):
         assert server.calls('PUT', GC)[0]['body']['parameters']['delete_tag'] is True
 
 
+def test_gc_delete_tag_is_sent_when_the_version_cannot_be_read(server, run_module):
+    # The same rule as project and registry: only a version known to be older refuses the option.
+    info = server.response('systeminfo')
+    info['body']['harbor_version'] = 'dev'
+    server.route('GET', '/systeminfo', info)
+    server.route('GET', GC, 'system_gc_schedule_custom')
+    server.route('PUT', GC, 'system_gc_schedule_update')
+    result = run_module(garbage_collection.main, dict(delete_tag=True))
+    assert result.get('failed') is not True
+    assert server.calls('PUT', GC)[0]['body']['parameters']['delete_tag'] is True
+
+
 def test_gc_hides_redis_url(server, run_module):
     leaky = server.response('system_gc_schedule_custom')
     params = json.loads(leaky['body']['job_parameters'])

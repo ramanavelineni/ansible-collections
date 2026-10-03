@@ -105,6 +105,7 @@ garbage_collection:
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor import (
     harbor_argument_spec,
+    older_than,
     run_module,
     server_minor,
 )
@@ -126,7 +127,7 @@ PARAMETERS = ('delete_untagged', 'workers', 'delete_tag')
 def ensure(module, client):
     params = module.params
     client.warn_if_untested()
-    if params['delete_tag'] is not None and (server_minor(client) or (0, 0)) < (2, 15):
+    if params['delete_tag'] is not None and older_than(server_minor(client), (2, 15)):
         raise ValueError('delete_tag needs Harbor 2.15 or newer; this server is %s.'
                          % client.info().get('harbor_version'))
     if params['workers'] is not None and not 1 <= params['workers'] <= 10:
