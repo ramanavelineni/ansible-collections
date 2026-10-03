@@ -172,11 +172,25 @@ def test_delete_in_use(server, project, run_module):
 
 
 def test_delete(server, project, run_module):
-    server.route('GET', project + '/templates', 'templates_one')
+    existing(server, project)
     server.route('GET', '%s/templates/%d/refs' % (project, tid(server)), 'template_refs_unused')
     server.route('DELETE', '%s/templates/%d' % (project, tid(server)), 'template_delete')
+    stored = run_module(template.main, dict(project='homelab', name='site'))['template']
     result = run_module(template.main, dict(project='homelab', name='site', state='absent'))
     assert result['changed'] is True
+    assert len(server.calls('DELETE')) == 1
+    # The diff shows what is deleted, in the shape an update shows it.
+    assert result['diff'] == dict(before=stored, after={})
+    assert stored['repository'] == 'ansible' and stored['vaults'][0]['key'] == 'deploy'
+
+
+def test_delete_check_mode(server, project, run_module):
+    existing(server, project)
+    server.route('GET', '%s/templates/%d/refs' % (project, tid(server)), 'template_refs_unused')
+    result = run_module(template.main, dict(project='homelab', name='site', state='absent'), check_mode=True)
+    assert result['changed'] is True
+    assert result['diff']['before']['playbook'] and result['diff']['after'] == {}
+    assert server.calls('DELETE') == []
 
 
 def test_result_has_no_secret_or_raw_ids_only(server, project, run_module):

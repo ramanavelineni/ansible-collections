@@ -142,16 +142,17 @@ def ensure(module, client):
     base = '/project/%d' % project_id
     current = find_by_name(client.list(base + '/inventory'), params['name'], 'inventory')
 
-    if params['state'] == 'absent':
-        if not current:
-            return dict(changed=False, inventory={}, diff=dict(before={}, after={}))
-        refuse_delete_if_used(client, '%s/inventory/%d' % (base, current['id']), 'inventory', params['name'])
-        if not module.check_mode:
-            client.delete('%s/inventory/%d' % (base, current['id']))
-        return dict(changed=True, inventory={}, diff=dict(before=dict(id=current['id'], name=current['name']), after={}))
+    if params['state'] == 'absent' and not current:
+        return dict(changed=False, inventory={}, diff=dict(before={}, after={}))
 
     lists = dict(keys=client.list(base + '/keys'), repositories=client.list(base + '/repositories'))
     names = dict((endpoint, dict((o['id'], o['name']) for o in items)) for endpoint, items in lists.items())
+
+    if params['state'] == 'absent':
+        refuse_delete_if_used(client, '%s/inventory/%d' % (base, current['id']), 'inventory', params['name'])
+        if not module.check_mode:
+            client.delete('%s/inventory/%d' % (base, current['id']))
+        return dict(changed=True, inventory={}, diff=dict(before=inventory_view(current, names), after={}))
 
     desired = dict(type=params['type'], inventory=params['inventory'])
     for option, (field, what, endpoint) in INVENTORY_REFERENCES.items():

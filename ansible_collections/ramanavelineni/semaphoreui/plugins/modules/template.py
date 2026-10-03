@@ -495,9 +495,11 @@ def ensure(module, client):
         if not found:
             return dict(changed=False, template={}, diff=dict(before={}, after={}))
         refuse_delete_if_used(client, '%s/templates/%d' % (base, found['id']), 'template', params['name'])
+        # The single read, as for an update: the list leaves out vaults.
+        before = template_view(client.get('%s/templates/%d' % (base, found['id'])) or found, lookups)
         if not module.check_mode:
             client.delete('%s/templates/%d' % (base, found['id']))
-        return dict(changed=True, template={}, diff=dict(before=dict(id=found['id'], name=found['name']), after={}))
+        return dict(changed=True, template={}, diff=dict(before=before, after={}))
 
     # The list leaves out vaults; the single read has everything.
     current_tpl = client.get('%s/templates/%d' % (base, found['id'])) if found else {}

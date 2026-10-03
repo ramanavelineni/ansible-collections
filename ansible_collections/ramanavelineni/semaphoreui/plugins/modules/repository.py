@@ -148,17 +148,18 @@ def ensure(module, client):
     base = '/project/%d' % project_id
     current = find_by_name(client.list(base + '/repositories'), params['name'], 'repository')
 
-    if params['state'] == 'absent':
-        if not current:
-            return dict(changed=False, repository={}, diff=dict(before={}, after={}))
-        before = repository_view(current, {})
-        refuse_delete_if_used(client, '%s/repositories/%d' % (base, current['id']), 'repository', params['name'])
-        if not module.check_mode:
-            client.delete('%s/repositories/%d' % (base, current['id']))
-        return dict(changed=True, repository={}, diff=dict(before=before, after={}))
+    if params['state'] == 'absent' and not current:
+        return dict(changed=False, repository={}, diff=dict(before={}, after={}))
 
     keys = client.list(base + '/keys')
     key_names = dict((k['id'], k['name']) for k in keys)
+
+    if params['state'] == 'absent':
+        refuse_delete_if_used(client, '%s/repositories/%d' % (base, current['id']), 'repository', params['name'])
+        if not module.check_mode:
+            client.delete('%s/repositories/%d' % (base, current['id']))
+        return dict(changed=True, repository={}, diff=dict(before=repository_view(current, key_names), after={}))
+
     ssh_key_id = None
     if params['ssh_key'] is not None:
         key = find_by_name(keys, params['ssh_key'], 'key')

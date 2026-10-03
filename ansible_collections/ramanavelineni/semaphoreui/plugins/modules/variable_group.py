@@ -46,11 +46,15 @@ options:
     description:
       - Extra variables passed to Ansible (C(--extra-vars)). Replaces the group's current extra
         variables as a whole.
+      - If the stored value is not valid JSON, setting this option replaces it, and the diff shows
+        the stored text. Without this option the task fails, because an update would write the
+        broken value back.
     type: dict
   env:
     description:
       - Environment variables for the task's process. Values must be scalars (strings, numbers,
         booleans). Replaces the group's current environment variables as a whole.
+      - A stored value that is not valid JSON is handled as for O(json).
     type: dict
   secrets:
     description:
@@ -213,6 +217,27 @@ def secrets_after(current, params, deleted):
     return remaining
 
 
+def stored_view(current, secrets, replaced):
+    """view() of the stored group that doesn't fail on the fields in `replaced`.
+
+    view() refuses stored json or env that is not valid JSON, because an update
+    sends an unmanaged field back as it is. A field the task replaces, and
+    everything on a delete, never goes back, so there it must not stand in the
+    way. Such a field is shown as the text Semaphore holds.
+    """
+    group = dict(current)
+    raw = {}
+    for field in replaced:
+        try:
+            json.loads(group.get(field) or '{}')
+        except ValueError:
+            raw[field] = group[field]
+            group[field] = ''
+    out = view(group, secrets)
+    out.update(raw)
+    return out
+
+
 def ensure(module, client):
     params = module.params
     validate(params)
@@ -231,9 +256,12 @@ def ensure(module, client):
             result.update(diff=dict(before={}, after={}))
             return result
         refuse_delete_if_used(client, '%s/environment/%d' % (base, found['id']), 'variable group', params['name'])
+        # The single read, as for an update: the list leaves secrets out.
+        current = client.get('%s/environment/%d' % (base, found['id'])) or found
+        before = stored_view(current, current.get('secrets') or [], ('json', 'env'))
         if not module.check_mode:
             client.delete('%s/environment/%d' % (base, found['id']))
-        result.update(changed=True, diff=dict(before=dict(id=found['id'], name=found['name']), after={}))
+        result.update(changed=True, diff=dict(before=before, after={}))
         return result
 
     if not found:
@@ -254,7 +282,7 @@ def ensure(module, client):
     # The list leaves secrets out; the single read has their ids and types.
     current = client.get('%s/environment/%d' % (base, found['id'])) or {}
     current_secrets = current.get('secrets') or []
-    before = view(current, current_secrets)
+    before = stored_view(current, current_secrets, [f for f in ('json', 'env') if params[f] is not None])
 
     ops, sent, deleted = plan_secrets(params, current_secrets)
     json_changed = params['json'] is not None and params['json'] != before['json']

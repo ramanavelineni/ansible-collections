@@ -97,9 +97,13 @@ def test_delete(server, project, run_module):
     server.route('GET', project + '/repositories', 'repositories_one')
     server.route('GET', '%s/repositories/%d/refs' % (project, repo_id), 'repository_refs_unused')
     server.route('DELETE', '%s/repositories/%d' % (project, repo_id), 'repository_delete')
+    stored = run_module(repository.main, dict(project='homelab', name='ansible'))['repository']
     result = run_module(repository.main, dict(project='homelab', name='ansible', state='absent'))
     assert result['changed'] is True
     assert len(server.calls('DELETE')) == 1
+    # The diff shows what is deleted, in the shape an update shows it: with the key's name.
+    assert result['diff'] == dict(before=stored, after={})
+    assert stored['ssh_key'] == 'deploy' and stored['git_url']
 
 
 def test_delete_in_use_lists_users(server, project, run_module):

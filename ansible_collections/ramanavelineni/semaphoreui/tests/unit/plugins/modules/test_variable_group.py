@@ -149,11 +149,70 @@ def test_rejected_update(server, project, run_module):
 
 
 def test_delete(server, project, run_module):
-    server.route('GET', project + '/environment', 'variable_groups_one')
+    existing(server, project)
+    server.route('GET', '%s/environment/%d/refs' % (project, group_id(server)), 'variable_group_refs_unused')
+    server.route('DELETE', '%s/environment/%d' % (project, group_id(server)), 'variable_group_delete')
+    stored = run_module(variable_group.main, dict(project='homelab', name='harbor'))['variable_group']
+    result = run_module(variable_group.main, dict(project='homelab', name='harbor', state='absent'))
+    assert result['changed'] is True
+    assert len(server.calls('DELETE')) == 1
+    # The diff shows what is deleted, in the shape an update shows it: secrets by name and type only.
+    assert result['diff'] == dict(before=stored, after={})
+    assert stored['json'] and sorted(s['name'] for s in stored['secrets']) == ['TOKEN', 'db_pw']
+    assert all(sorted(s) == ['name', 'type'] for s in stored['secrets'])
+
+
+# -- stored json or env that is not valid JSON ----------------------------------
+# Hand-made: the recorded group with one field broken, as a write that bypassed
+# the UI would leave it.
+
+def broken(server, project, field):
+    group = server.response('variable_group_get')
+    group['body'][field] = '{not json'
+    existing(server, project, fixture=group)
+    return group['body']
+
+
+def test_invalid_stored_json_is_replaced(server, project, run_module):
+    stored = broken(server, project, 'json')
+    result = run_module(variable_group.main, dict(project='homelab', name='harbor', json=dict(a=1)))
+    assert result['changed'] is True
+    body = server.calls('PUT')[0]['body']
+    assert json.loads(body['json']) == dict(a=1)
+    assert body['env'] == stored['env']
+    # The diff shows the text Semaphore held, since it can't be shown parsed.
+    assert result['diff']['before']['json'] == '{not json'
+    assert result['diff']['after']['json'] == dict(a=1)
+    assert result['variable_group']['json'] == dict(a=1)
+
+
+def test_invalid_stored_env_is_replaced_in_check_mode(server, project, run_module):
+    broken(server, project, 'env')
+    result = run_module(variable_group.main, dict(project='homelab', name='harbor', env=dict(TZ='UTC')), check_mode=True)
+    assert result['changed'] is True
+    assert result['diff']['before']['env'] == '{not json'
+    assert server.calls('PUT') == []
+
+
+@pytest.mark.parametrize('args', [dict(), dict(env=dict(TZ='UTC')), dict(secrets=[dict(name='TOKEN', type='env')])],
+                         ids=['nothing', 'other-field', 'secrets'])
+def test_invalid_stored_json_left_alone_still_fails(server, project, run_module, args):
+    # An update sends the field back as it is, so the module won't write around it.
+    broken(server, project, 'json')
+    result = run_module(variable_group.main, dict(project='homelab', name='harbor', **args))
+    assert result['failed'] is True
+    assert 'not valid JSON; fix them in Semaphore first' in result['msg']
+    assert server.calls('PUT') == []
+
+
+def test_invalid_stored_json_does_not_block_delete(server, project, run_module):
+    broken(server, project, 'json')
     server.route('GET', '%s/environment/%d/refs' % (project, group_id(server)), 'variable_group_refs_unused')
     server.route('DELETE', '%s/environment/%d' % (project, group_id(server)), 'variable_group_delete')
     result = run_module(variable_group.main, dict(project='homelab', name='harbor', state='absent'))
     assert result['changed'] is True
+    assert result['diff']['before']['json'] == '{not json'
+    assert len(server.calls('DELETE')) == 1
 
 
 def test_variable_group_info(server, project, run_module):
