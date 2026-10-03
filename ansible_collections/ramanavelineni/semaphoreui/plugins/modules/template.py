@@ -347,7 +347,9 @@ template:
           description: Path of the vault client script. Empty for V(password).
           type: str
     survey_vars:
-      description: Variables the user is asked for when starting a task.
+      description:
+        - Variables the user is asked for when starting a task.
+        - A variable of type V(enum) also has C(values), its choices, each with a C(name) and a C(value).
       type: list
       elements: dict
       contains:
@@ -369,10 +371,6 @@ template:
         default_value:
           description: Value filled in by default.
           type: str
-        values:
-          description: Choices for V(enum), each with a C(name) and a C(value).
-          type: list
-          elements: dict
     autorun:
       description: Whether a V(deploy) template runs after each successful build.
       type: bool
