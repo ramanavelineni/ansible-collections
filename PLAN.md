@@ -21,9 +21,7 @@ along the way. Each quirk is handled inside a module and covered by a test.
 - [ ] Switch the homelab `semaphore_config` role to the collection. The role
       keeps loading project files, validating, its version switch and its
       never-delete rule (it only passes `state: present`); its `uri` tasks and
-      name→id maps go away. Afterwards, the ansible repo's `THINGS_TO_CHECK.md`
-      entry about `ebdruplab.semaphoreui` can be replaced by a note about this
-      collection.
+      name→id maps go away.
 - [ ] Switch the homelab `harbor_config` role to the collection
 - [ ] Optional: publish to Ansible Galaxy from the release workflow (needs a
       Galaxy API token; the `ramanavelineni` namespace is created on first
