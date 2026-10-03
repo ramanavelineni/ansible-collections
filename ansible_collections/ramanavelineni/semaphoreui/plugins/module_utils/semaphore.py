@@ -58,6 +58,10 @@ def semaphore_argument_spec():
         password=dict(type='str', no_log=True),
         validate_certs=dict(type='bool', default=True, fallback=(env_fallback, ['SEMAPHORE_VALIDATE_CERTS'])),
         ca_path=dict(type='path', fallback=(env_fallback, ['SEMAPHORE_CA_PATH'])),
+        # client_key is the path of the key file, not the key: nothing to hide.
+        client_cert=dict(type='path', fallback=(env_fallback, ['SEMAPHORE_CLIENT_CERT'])),
+        client_key=dict(type='path', no_log=False, fallback=(env_fallback, ['SEMAPHORE_CLIENT_KEY'])),
+        use_proxy=dict(type='bool', default=True, fallback=(env_fallback, ['SEMAPHORE_USE_PROXY'])),
         timeout=dict(type='int', default=30),
         retries=dict(type='int', default=3),
         retry_delay=dict(type='int', default=2),
@@ -137,6 +141,14 @@ def validate_connection(module):
     for name in ('retries', 'retry_delay'):
         if params[name] < 0:
             module.fail_json(msg='%s must be 0 or more. Got %d.' % (name, params[name]))
+    if params.get('client_key') and not params.get('client_cert'):
+        module.fail_json(msg='client_key needs client_cert: a key alone cannot identify the client.')
+    # A missing file would otherwise surface as an error from deep inside the
+    # TLS setup. Only the path is named, never what a file holds.
+    for name in ('client_cert', 'client_key'):
+        path = params.get(name)
+        if path and not os.path.isfile(path):
+            module.fail_json(msg='%s %r is not a file on the host this module runs on.' % (name, path))
 
 
 def base_url(url):
@@ -243,6 +255,9 @@ class SemaphoreClient(object):
         self.api_token, self.username, self.password = resolve_credentials(module)
         self.validate_certs = params['validate_certs']
         self.ca_path = params.get('ca_path')
+        self.client_cert = params.get('client_cert')
+        self.client_key = params.get('client_key')
+        self.use_proxy = params['use_proxy']
         self.timeout = params['timeout']
         self.retries = params['retries']
         self.retry_delay = params['retry_delay']
@@ -315,9 +330,11 @@ class SemaphoreClient(object):
                     timeout=self.timeout,
                     validate_certs=self.validate_certs,
                     ca_path=self.ca_path,
+                    client_cert=self.client_cert,
+                    client_key=self.client_key,
                     cookies=self.cookies,
                     follow_redirects='none',
-                    use_proxy=True,
+                    use_proxy=self.use_proxy,
                     use_netrc=False,
                 )
                 status = response.getcode()

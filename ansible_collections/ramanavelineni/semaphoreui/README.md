@@ -138,6 +138,8 @@ environment variables:
 | `api_token` | `SEMAPHORE_API_TOKEN` |
 | `username` / `password` | `SEMAPHORE_USERNAME` / `SEMAPHORE_PASSWORD` |
 | `validate_certs` / `ca_path` | `SEMAPHORE_VALIDATE_CERTS` / `SEMAPHORE_CA_PATH` |
+| `client_cert` / `client_key` | `SEMAPHORE_CLIENT_CERT` / `SEMAPHORE_CLIENT_KEY` |
+| `use_proxy` | `SEMAPHORE_USE_PROXY` |
 
 Credentials a task sets win over the environment as a whole: a task with
 `username` and `password` ignores `SEMAPHORE_API_TOKEN`, and a task with
@@ -147,6 +149,14 @@ used.
 
 `ca_path` points at a private CA's certificate, so you don't have to turn off
 certificate checks.
+
+For a server that asks for a TLS client certificate (mutual TLS), `client_cert`
+is the PEM file with the certificate and `client_key` the one with its key;
+`client_key` isn't needed when the certificate file holds the key too. Both are
+read on the host the module runs on.
+
+The modules use the proxy from `http_proxy`, `https_proxy` and `no_proxy` on
+that host. `use_proxy: false` goes to the server directly.
 
 ## Good to know
 

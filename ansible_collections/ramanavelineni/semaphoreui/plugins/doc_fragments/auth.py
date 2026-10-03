@@ -51,6 +51,29 @@ options:
       - PEM file with the CA certificate(s) to verify the server against, instead of the system trust store.
       - If not set, the value of the E(SEMAPHORE_CA_PATH) environment variable is used.
     type: path
+  client_cert:
+    description:
+      - PEM file with the TLS client certificate to present, for a server that asks for one (mutual TLS).
+      - The file may hold the private key as well. If it does not, set O(client_key).
+      - The file is read on the host the module runs on. A path that is not a file there fails before a
+        request is sent.
+      - If not set, the value of the E(SEMAPHORE_CLIENT_CERT) environment variable is used.
+    type: path
+  client_key:
+    description:
+      - PEM file with the private key that belongs to O(client_cert). Not needed when O(client_cert) holds
+        the key too.
+      - Requires O(client_cert). The key must not be protected by a passphrase.
+      - If not set, the value of the E(SEMAPHORE_CLIENT_KEY) environment variable is used.
+    type: path
+  use_proxy:
+    description:
+      - Whether to go through the proxy named by the E(http_proxy), E(https_proxy) and E(no_proxy)
+        environment variables on the host the module runs on.
+      - Set to V(false) to reach the server directly even when those variables are set.
+      - If not set, the value of the E(SEMAPHORE_USE_PROXY) environment variable is used.
+    type: bool
+    default: true
   timeout:
     description:
       - Seconds to wait for each HTTP response. Must be 1 or more.
