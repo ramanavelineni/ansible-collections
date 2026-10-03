@@ -1,6 +1,8 @@
 # Copyright: ramanavelineni
 # Apache License 2.0 (see LICENSE or https://www.apache.org/licenses/LICENSE-2.0)
 
+import json
+
 import pytest
 
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
@@ -9,6 +11,7 @@ from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semapho
     diff_fields,
     find_by_name,
     redact,
+    scrub,
     semaphore_module_kwargs,
     server_minor,
     version_is_tested,
@@ -83,6 +86,18 @@ def test_redact_masks_secret_keys_and_no_log_values():
         secrets=[dict(name='API', secret='********', type='env')], override_secret=True, note='********')
     assert body['ssh']['private_key'] == '-----BEGIN\nKEY'
     assert redact(None) is None
+
+
+def test_scrub_takes_secrets_out_of_a_server_answer():
+    # As written, and as JSON writes a value with a quote and a backslash.
+    secret = 'to"k\\en'
+    answer = json.dumps(dict(error='rejected %s' % secret, hint='plain pw-123 here'))
+    shown = scrub(answer, (secret, 'pw-123', None, ''))
+    assert shown == '{"error": "rejected ********", "hint": "plain ******** here"}'
+    assert scrub('token %s refused' % secret, (secret,)) == 'token ******** refused'
+    # The longer secret goes first, so one that contains another is not left half shown.
+    assert scrub('abcdef abc', ('abc', 'abcdef')) == '******** ********'
+    assert scrub('nothing to hide', ()) == 'nothing to hide'
 
 
 def test_server_minor():

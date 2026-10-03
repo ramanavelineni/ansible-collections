@@ -119,7 +119,9 @@ def resolve_credentials(module):
     if token is None and (username is None or password is None):
         module.fail_json(msg='parameters are required together: username, password')
     # Secrets from the environment are not no_log option values; register them
-    # so they are masked like the ones a task passes.
+    # so they are masked like the ones a task passes. Not every ansible-core
+    # masks a result from this set any more, so the client also takes its own
+    # credentials out of what a server answers (see scrub()).
     module.no_log_values.update(v for v in (token, password) if v)
     return token, username, password
 
@@ -174,6 +176,14 @@ def redact(value, secrets=(), key=''):
     if isinstance(value, str) and value and (SECRET_KEYS.search(key) or value in secrets):
         return MASK
     return value
+
+
+def scrub(text, secrets):
+    """Text a server sent, with each of `secrets` replaced by MASK, as written and as JSON writes it."""
+    for secret in sorted((s for s in secrets if s), key=len, reverse=True):
+        for form in (secret, json.dumps(secret)[1:-1]):
+            text = text.replace(form, MASK)
+    return text
 
 
 def version_is_tested(version):
@@ -253,6 +263,9 @@ class SemaphoreClient(object):
         validate_connection(module)
         self.url = base_url(params['url'])
         self.api_token, self.username, self.password = resolve_credentials(module)
+        # A server can repeat a credential in an error. Wherever it came from,
+        # it is taken out of what a failure shows of the answer.
+        self.credentials = (self.api_token, self.password)
         self.validate_certs = params['validate_certs']
         self.ca_path = params.get('ca_path')
         self.client_cert = params.get('client_cert')
@@ -349,23 +362,25 @@ class SemaphoreClient(object):
                     time.sleep(self.retry_delay)
                     continue
                 headers_in = getattr(e, 'headers', None)
-                raise SemaphoreError(method, url, status=status, response=raw.strip(), request=sent,
-                                     location=headers_in.get('Location') if headers_in else None)
+                raise SemaphoreError(method, url, status=status, response=scrub(raw.strip(), self.credentials),
+                                     request=sent, location=headers_in.get('Location') if headers_in else None)
             except (URLError, socket.timeout, ConnectionError, OSError, HTTPException) as e:
                 if attempt < attempts:
                     time.sleep(self.retry_delay)
                     continue
-                raise SemaphoreError(method, url, request=sent, reason=to_text(e) or type(e).__name__)
+                raise SemaphoreError(method, url, request=sent,
+                                     reason=scrub(to_text(e), self.credentials) or type(e).__name__)
 
             if status not in expected:
-                raise SemaphoreError(method, url, status=status, response=raw.strip(), request=sent)
+                raise SemaphoreError(method, url, status=status, response=scrub(raw.strip(), self.credentials),
+                                     request=sent)
             if not raw.strip():
                 return None
             try:
                 return json.loads(raw)
             except ValueError:
-                raise SemaphoreError(method, url, status=status, response=raw.strip(), request=sent,
-                                     reason='response is not JSON')
+                raise SemaphoreError(method, url, status=status, response=scrub(raw.strip(), self.credentials),
+                                     request=sent, reason='response is not JSON')
 
     # -- server ------------------------------------------------------------
 
