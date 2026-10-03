@@ -224,6 +224,10 @@ each module logs in and out within its own run.
   registration token (valid one hour) right after creating it and returns it.
   `regenerate_token` gets a new one, which resets an already registered
   runner.
+- The token request is the one POST that is retried: each answer is a new
+  token and only the last is handed out. If it still fails for a new runner,
+  the runner is deleted again, because a runner left without its token looks
+  finished to the next run.
 - The update replaces every field, tags included, so the whole runner is
   sent.
 - The global list includes project runners, so global lookups filter on

@@ -13,6 +13,9 @@ description:
   - A new runner has no credentials. The module asks Semaphore for a one-time registration token
     right after creating it and returns it as RV(registration_token); the runner uses it to
     register. The token is valid for one hour. O(regenerate_token=true) gets a fresh one later.
+  - Creating a runner and asking for its token are two requests. The token request is repeated on
+    a transient failure (see O(retries)). If it still fails, the module deletes the runner it just
+    created and fails, so that the next run starts over and returns a token.
 author:
   - ramanavelineni (@ramanavelineni)
 extends_documentation_fragment:
@@ -70,6 +73,8 @@ options:
       - Get a new one-time registration token for an existing runner and return it.
       - B(If the runner is already registered, this resets it:) its credentials are cleared and it
         has to register again with the new token before it takes tasks.
+      - In check mode no token is requested, and RV(runner) shows the runner as it would be
+        afterwards (RV(runner.registered=false)).
     type: bool
     default: false
 notes:
@@ -132,6 +137,7 @@ registration_token:
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
+    SemaphoreError,
     find_by_name,
     resolve_project,
     run_module,
@@ -162,6 +168,40 @@ def body_for(state, project_id):
     if project_id is not None:
         body['project_id'] = project_id
     return body
+
+
+def registration_token(client, path):
+    """A new one-time registration token for the runner at `path`.
+
+    Repeated on a transient failure, unlike other POSTs: every answer is a new
+    token and only the last one is handed out, so a token whose answer got lost
+    is one nobody ever had.
+    """
+    token = client.request('POST', path + '/registration-token', expected=(200,), retry=True) or {}
+    return token.get('registration_token') or ''
+
+
+def token_for_new_runner(module, client, path, name):
+    """The new runner's token. If it can't be had, the runner goes again.
+
+    A runner left behind without its token would look finished to the next run:
+    found by name, nothing to change, no token returned.
+    """
+    try:
+        return registration_token(client, path)
+    except SemaphoreError as error:
+        try:
+            client.delete(path)
+        except SemaphoreError as cleanup:
+            module.fail_json(
+                msg='Runner %r was created, but its registration token could not be fetched: %s. Deleting the '
+                    'runner again failed too: %s. It exists without a token; run the task again with '
+                    'regenerate_token: true to get one.' % (name, error.message(), cleanup.message()),
+                request_details=error.details())
+        module.fail_json(
+            msg='Runner %r was created, but its registration token could not be fetched: %s. The runner was '
+                'deleted again, so the next run starts over.' % (name, error.message()),
+            request_details=error.details())
 
 
 def ensure(module, client):
@@ -204,9 +244,8 @@ def ensure(module, client):
         if not module.check_mode:
             created = client.post(base + '/runners', body_for(after, project_id), expected=(200, 201))
             after = normalize(created, params['project'])
-            token = client.post('%s/runners/%d/registration-token' % (base, created['id']), None,
-                                expected=(200,)) or {}
-            result['registration_token'] = token.get('registration_token') or ''
+            result['registration_token'] = token_for_new_runner(
+                module, client, '%s/runners/%d' % (base, created['id']), params['name'])
         result.update(changed=True, runner=after, diff=dict(before={}, after=after))
         return result
 
@@ -222,10 +261,9 @@ def ensure(module, client):
             module.warn('Runner %r was registered; the new registration token resets it, and it has to '
                         'register again before it takes tasks.' % params['name'])
         if not module.check_mode:
-            token = client.post('%s/runners/%d/registration-token' % (base, current['id']), None,
-                                expected=(200,)) or {}
-            result['registration_token'] = token.get('registration_token') or ''
-            after['registered'] = False
+            result['registration_token'] = registration_token(client, '%s/runners/%d' % (base, current['id']))
+        # A new token clears the runner's credentials. Check mode says so too.
+        after['registered'] = False
     result.update(changed=fields_changed or params['regenerate_token'], runner=after,
                   diff=dict(before=before, after=after))
     return result
