@@ -30,10 +30,12 @@ permissions:
 
 # A newer push to a pull request replaces the run in progress. Runs on main are
 # never cancelled: each one tests only its own push, so a cancelled run would
-# leave that push untested. Called from the release workflow, github.workflow
+# leave that push untested. That takes a group per commit: in a shared group a
+# run that is still waiting is cancelled by the next one, whatever
+# cancel-in-progress says. Called from the release workflow, github.workflow
 # and github.ref are the caller's, so the group is that tag's alone.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.ref_type == 'branch' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
