@@ -5,8 +5,8 @@ name: Release
 # builds that collection and publishes a GitHub Release with the tarball and
 # the version's changelog. The tag must match the version in galaxy.yml, and
 # CHANGELOG.md must already have that version (make changelog COLLECTION=...).
-# The tag must be on main. No release is marked "Latest": the two collections
-# release separately, and the mark would only ever show one of them.
+# The tag must be on main. GitHub marks the newest release as "Latest"; with
+# two collections that is whichever was released last.
 
 on:
   push:
@@ -91,6 +91,5 @@ jobs:
         run: >-
           gh release create "${TAG}" dist/*.tar.gz
           --verify-tag
-          --latest=false
           --title "ramanavelineni.${{ steps.meta.outputs.collection }} ${{ steps.meta.outputs.version }}"
           --notes-file notes.md
