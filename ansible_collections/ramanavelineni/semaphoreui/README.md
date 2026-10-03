@@ -139,6 +139,12 @@ environment variables:
 | `username` / `password` | `SEMAPHORE_USERNAME` / `SEMAPHORE_PASSWORD` |
 | `validate_certs` / `ca_path` | `SEMAPHORE_VALIDATE_CERTS` / `SEMAPHORE_CA_PATH` |
 
+Credentials a task sets win over the environment as a whole: a task with
+`username` and `password` ignores `SEMAPHORE_API_TOKEN`, and a task with
+`api_token` ignores `SEMAPHORE_USERNAME` and `SEMAPHORE_PASSWORD`. When
+everything comes from the environment and both kinds are set, the token is
+used.
+
 `ca_path` points at a private CA's certificate, so you don't have to turn off
 certificate checks.
 

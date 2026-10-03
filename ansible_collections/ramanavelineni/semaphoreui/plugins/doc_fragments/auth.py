@@ -17,19 +17,24 @@ options:
     description:
       - API token, sent as a Bearer token.
       - Mutually exclusive with O(username) and O(password).
-      - If not set, the value of the E(SEMAPHORE_API_TOKEN) environment variable is used.
+      - If the task sets none of O(api_token), O(username) and O(password), the value of the
+        E(SEMAPHORE_API_TOKEN) environment variable is used. A task that sets O(username) or O(password)
+        ignores that variable.
     type: str
   username:
     description:
       - Login name or email address to log in with.
       - The module logs in at the start of its run and logs out at the end, so no session outlives the task.
       - Requires O(password). Mutually exclusive with O(api_token).
-      - If not set, the value of the E(SEMAPHORE_USERNAME) environment variable is used.
+      - If not set, the value of the E(SEMAPHORE_USERNAME) environment variable is used. A task that sets
+        O(api_token) ignores that variable. When the task sets no credential at all and both
+        E(SEMAPHORE_API_TOKEN) and E(SEMAPHORE_USERNAME) are set, the token is used.
     type: str
   password:
     description:
       - Password for O(username).
-      - If not set, the value of the E(SEMAPHORE_PASSWORD) environment variable is used.
+      - If not set, the value of the E(SEMAPHORE_PASSWORD) environment variable is used, under the same
+        conditions as for O(username).
     type: str
   validate_certs:
     description:
