@@ -22,9 +22,16 @@ attributes:
     support: full
   diff_mode:
     support: none
+seealso:
+  - module: ramanavelineni.harbor.configuration
+    description: Change Harbor's system configuration.
 '''
 
 EXAMPLES = r'''
+# The connection options (url, username, password) are left out of these examples. Set them once with
+# module_defaults for the group/ramanavelineni.harbor.harbor action group, or with the HARBOR_URL,
+# HARBOR_USERNAME and HARBOR_PASSWORD environment variables.
+
 - name: Read the configuration
   ramanavelineni.harbor.configuration_info:
   register: harbor_config

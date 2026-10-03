@@ -24,9 +24,16 @@ options:
       - Name of the project.
     type: str
     required: true
+seealso:
+  - module: ramanavelineni.harbor.tag_retention
+    description: Manage a project's tag retention policy.
 '''
 
 EXAMPLES = r'''
+# The connection options (url, username, password) can be set once instead of on every task, with
+# module_defaults for the group/ramanavelineni.harbor.harbor action group, or with the HARBOR_URL,
+# HARBOR_USERNAME and HARBOR_PASSWORD environment variables.
+
 - name: Read the retention policy of the apps project
   ramanavelineni.harbor.tag_retention_info:
     url: https://harbor.example.com
@@ -54,6 +61,45 @@ tag_retention:
         tags_decoration: matches
         untagged: false
         disabled: false
+  contains:
+    id:
+      description: Harbor's id of the policy.
+      type: int
+    project:
+      description: Name of the project the policy belongs to.
+      type: str
+    schedule:
+      description: Six-field cron expression the policy runs on, empty without a schedule.
+      type: str
+    rules:
+      description: The retention rules, in order.
+      type: list
+      elements: dict
+      contains:
+        template:
+          description: What the rule keeps, as Harbor's rule template, for example V(latestPushedK).
+          type: str
+        value:
+          description: The count or number of days the template takes, V(null) for V(always).
+          type: int
+        repositories:
+          description: Doublestar pattern for the repositories the rule applies to.
+          type: str
+        repositories_decoration:
+          description: V(matches) or V(excludes).
+          type: str
+        tags:
+          description: Doublestar pattern for the tags the rule applies to.
+          type: str
+        tags_decoration:
+          description: V(matches) or V(excludes).
+          type: str
+        untagged:
+          description: Whether untagged artifacts count as matching the tag pattern too.
+          type: bool
+        disabled:
+          description: Whether the rule is switched off.
+          type: bool
 '''
 
 from ansible.module_utils.basic import AnsibleModule

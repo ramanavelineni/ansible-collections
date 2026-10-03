@@ -21,9 +21,16 @@ attributes:
     support: none
 notes:
   - Harbor needs a default vulnerability scanner for this; without one the module fails saying so.
+seealso:
+  - module: ramanavelineni.harbor.scan_all
+    description: Manage the Scan All schedule.
 '''
 
 EXAMPLES = r'''
+# The connection options (url, username, password) are left out of these examples. Set them once with
+# module_defaults for the group/ramanavelineni.harbor.harbor action group, or with the HARBOR_URL,
+# HARBOR_USERNAME and HARBOR_PASSWORD environment variables.
+
 - name: Scan All schedule and latest metrics
   ramanavelineni.harbor.scan_all_info:
   register: scan_all
@@ -38,6 +45,16 @@ scan_all:
     schedule: custom
     cron: "0 0 5 * * 0"
     next_scheduled_time: null
+  contains:
+    schedule:
+      description: V(none), V(hourly), V(daily), V(weekly) or V(custom).
+      type: str
+    cron:
+      description: The cron expression, empty without a schedule.
+      type: str
+    next_scheduled_time:
+      description: Always null; Harbor doesn't report it for this schedule.
+      type: str
 metrics:
   description: Harbor's metrics of the latest Scan All run (total, completed, metrics by status, ongoing, trigger).
   returned: always
@@ -48,6 +65,22 @@ metrics:
     metrics: {Success: 40}
     ongoing: false
     trigger: Schedule
+  contains:
+    total:
+      description: Number of artifacts the run covers.
+      type: int
+    completed:
+      description: Number of artifacts scanned so far.
+      type: int
+    metrics:
+      description: Number of artifacts by scan status.
+      type: dict
+    ongoing:
+      description: Whether the run is still going.
+      type: bool
+    trigger:
+      description: What started the run, as Harbor reports it.
+      type: str
 '''
 
 from ansible.module_utils.basic import AnsibleModule

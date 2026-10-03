@@ -54,9 +54,16 @@ notes:
     O(schedule) in the same task).
   - If Harbor reports a schedule of a type other than the choices of O(schedule), the module fails
     when it would have to write that schedule back. Set O(schedule) to replace it.
+seealso:
+  - module: ramanavelineni.harbor.garbage_collection_info
+    description: Read the garbage collection schedule and recent runs.
 '''
 
 EXAMPLES = r'''
+# The connection options (url, username, password) are left out of these examples. Set them once with
+# module_defaults for the group/ramanavelineni.harbor.harbor action group, or with the HARBOR_URL,
+# HARBOR_USERNAME and HARBOR_PASSWORD environment variables.
+
 - name: Garbage collection every Sunday at 04:00, untagged artifacts included
   ramanavelineni.harbor.garbage_collection:
     schedule: custom
@@ -74,6 +81,13 @@ garbage_collection:
   description: The schedule after the change, or as it would be in check mode.
   returned: always
   type: dict
+  sample:
+    schedule: custom
+    cron: "0 0 4 * * 0"
+    next_scheduled_time: "2026-10-04T04:00:00.000Z"
+    delete_untagged: true
+    workers: 2
+    delete_tag: false
   contains:
     schedule:
       description: V(none), V(hourly), V(daily), V(weekly) or V(custom).
@@ -93,13 +107,6 @@ garbage_collection:
     delete_tag:
       description: Whether tags of deleted artifacts are deleted too (Harbor 2.15 and newer).
       type: bool
-  sample:
-    schedule: custom
-    cron: "0 0 4 * * 0"
-    next_scheduled_time: "2026-10-04T04:00:00.000Z"
-    delete_untagged: true
-    workers: 2
-    delete_tag: false
 '''
 
 from ansible.module_utils.basic import AnsibleModule
