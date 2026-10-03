@@ -3,7 +3,8 @@
 
 """Shared helpers for the registry and replication modules."""
 
-# Adapter types Harbor 2.14 and 2.15 accept (GET /replication/adapters).
+# Adapter types Harbor 2.14 and 2.15 offer (GET /replication/adapters). The
+# registry module asks the server only about a type that is not among them.
 REGISTRY_TYPES = ('ali-acr', 'aws-ecr', 'azure-acr', 'docker-hub', 'docker-registry', 'github-ghcr',
                   'google-gcr', 'harbor', 'huawei-SWR', 'jfrog-artifactory', 'tencent-tcr', 'volcengine-cr')
 

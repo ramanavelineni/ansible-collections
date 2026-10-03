@@ -38,11 +38,15 @@ options:
   type:
     description:
       - Provider of the endpoint. Required to create it.
+      - Harbor 2.14 and 2.15 offer V(ali-acr), V(aws-ecr), V(azure-acr), V(docker-hub), V(docker-registry),
+        V(github-ghcr), V(google-gcr), V(harbor), V(huawei-SWR), V(jfrog-artifactory), V(tencent-tcr) and
+        V(volcengine-cr).
+      - Any other type is checked against the types the server offers before the endpoint is created,
+        so a type a newer Harbor adds can be used. A type the server does not offer fails; in check mode
+        it is a warning instead.
       - Harbor cannot change the type of an existing endpoint, so a different type fails with
         instructions instead.
     type: str
-    choices: [ali-acr, aws-ecr, azure-acr, docker-hub, docker-registry, github-ghcr, google-gcr, harbor,
-              huawei-SWR, jfrog-artifactory, tencent-tcr, volcengine-cr]
   endpoint_url:
     description:
       - URL of the endpoint, for example C(https://hub.docker.com). Required to create it.
@@ -190,6 +194,7 @@ secret_updated:
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor import (
+    HarborError,
     find_by_name,
     harbor_argument_spec,
     id_from_location,
@@ -223,6 +228,28 @@ def desired_values(params):
     return out
 
 
+def check_type(module, client, wanted):
+    """Refuse a type the server does not offer.
+
+    Only a type outside REGISTRY_TYPES is looked up, so a task that uses a
+    known one costs no request more. When the server's list cannot be read,
+    the type is sent as it is and Harbor decides.
+    """
+    if wanted in REGISTRY_TYPES:
+        return
+    try:
+        offered = client.get('/replication/adapters')
+    except HarborError:
+        return
+    if not isinstance(offered, list) or wanted in offered:
+        return
+    message = 'Unknown registry type %s; this server offers %s.' % (
+        wanted, ', '.join(sorted(str(t) for t in offered)))
+    if not module.check_mode:
+        raise ValueError(message)
+    module.warn(message)
+
+
 def ensure(module, client):
     params = module.params
     client.warn_if_untested()
@@ -250,6 +277,7 @@ def ensure(module, client):
         missing = [o for o in ('type', 'endpoint_url') if params[o] is None]
         if missing:
             raise ValueError('Creating registry %r needs %s.' % (params['name'], ', '.join(missing)))
+        check_type(module, client, params['type'])
         body = dict(name=params['name'], type=params['type'], url=desired['url'],
                     insecure=bool(params['insecure']), description=params['description'] or '')
         if params['ca_certificate'] is not None:
@@ -315,7 +343,7 @@ def main():
     argument_spec.update(
         name=dict(type='str', required=True),
         state=dict(type='str', default='present', choices=['present', 'absent']),
-        type=dict(type='str', choices=list(REGISTRY_TYPES)),
+        type=dict(type='str'),
         endpoint_url=dict(type='str'),
         description=dict(type='str'),
         insecure=dict(type='bool'),
