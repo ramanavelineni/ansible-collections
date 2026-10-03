@@ -98,16 +98,91 @@ def test_matchers_exact(server, project, run_module):
     assert server.calls('POST', path + '/matchers')[0]['body']['name'] == 'event'
 
 
-def test_extra_items_deleted(server, project, run_module):
-    path = existing(server, project)
+def removal_routes(server, path, matchers_after, values_after):
+    """Route the deletions of the recorded matcher and value, and what the lists show afterwards."""
     mid = server.fixtures['integration_matcher_create']['body']['id']
     vid = server.fixtures['integration_value_create']['body']['id']
     server.route('DELETE', '%s/matchers/%d' % (path, mid), 'integration_matcher_delete')
+    # No deletion of a value was recorded; Semaphore answers it like the matcher's (204, no body).
     server.route('DELETE', '%s/values/%d' % (path, vid), 'integration_matcher_delete')
+    server.route('GET', path + '/matchers', 'integration_matchers_one', matchers_after)
+    server.route('GET', path + '/values', 'integration_values_one', values_after)
+    return '%s/matchers/%d' % (path, mid), '%s/values/%d' % (path, vid)
+
+
+def test_extra_items_deleted(server, project, run_module):
+    path = existing(server, project)
+    deletions = removal_routes(server, path, 'integration_matchers_empty', 'integration_values_empty')
     result = run_module(integration.main, dict(project='homelab', name='gh', matchers=[], extract_values=[]))
     assert result['changed'] is True
-    assert sorted(c['path'] for c in server.calls('DELETE')) == sorted(
-        ['%s/matchers/%d' % (path, mid), '%s/values/%d' % (path, vid)])
+    assert sorted(c['path'] for c in server.calls('DELETE')) == sorted(deletions)
+    assert result['integration']['matchers'] == [] and result['integration']['extract_values'] == []
+    # Each list is read again after the deletions, to see that they happened.
+    assert len(server.calls('GET', path + '/matchers')) == 2 and len(server.calls('GET', path + '/values')) == 2
+
+
+def test_no_second_read_when_nothing_is_removed(server, project, run_module):
+    path = existing(server, project)
+    result = run_module(integration.main, GH)
+    assert result['changed'] is False
+    assert len(server.calls('GET', path + '/matchers')) == 1 and len(server.calls('GET', path + '/values')) == 1
+
+
+@pytest.mark.parametrize('matchers_after, values_after, named, unnamed', [
+    ('integration_matchers_one', 'integration_values_one', ["matcher 'main'", "extracted value 'sha'"], []),
+    ('integration_matchers_one', 'integration_values_empty', ["matcher 'main'"], ['extracted value']),
+    ('integration_matchers_empty', 'integration_values_one', ["extracted value 'sha'"], ['matcher ']),
+], ids=['both-kept', 'matcher-kept', 'value-kept'])
+def test_a_removal_the_server_does_not_carry_out_fails(server, project, run_module, matchers_after, values_after, named, unnamed):
+    # What Semaphore 2.18.30 and 2.19.12 on SQLite do: 204 to the DELETE (recorded), and the list afterwards
+    # still holds the entry (seen on both servers; that second read was not recorded, so the recorded list
+    # from before the DELETE stands in for it).
+    path = existing(server, project)
+    removal_routes(server, path, matchers_after, values_after)
+    server.route('PUT', path, 'integration_update')
+    result = run_module(integration.main, dict(project='homelab', name='gh', searchable=True, matchers=[], extract_values=[]))
+    assert result['failed'] is True
+    assert 'did not remove' in result['msg'] and "integration 'gh'" in result['msg']
+    for text in named:
+        assert text in result['msg']
+    for text in unnamed:
+        assert text not in result['msg'].split('with success')[0]
+    assert 'state: absent' in result['msg'] and 'new webhook URL' in result['msg']
+    # The other change of the task was not made.
+    assert server.calls('PUT') == [] and server.calls('POST', path + '/matchers') == []
+
+
+def test_removal_in_check_mode_warns_and_sends_nothing(server, project, run_module, monkeypatch):
+    warnings = []
+    monkeypatch.setattr(integration.AnsibleModule, 'warn', lambda self, text: warnings.append(text))
+    path = existing(server, project)
+    result = run_module(integration.main, dict(project='homelab', name='gh', matchers=[], extract_values=[]), check_mode=True)
+    assert result['changed'] is True
+    assert server.calls('DELETE') == []
+    assert len(server.calls('GET', path + '/matchers')) == 1
+    told = [w for w in warnings if "can't tell" in w]
+    assert len(told) == 1 and "matcher 'main'" in told[0] and "extracted value 'sha'" in told[0]
+
+
+def test_check_mode_without_a_removal_does_not_warn(server, project, run_module, monkeypatch):
+    warnings = []
+    monkeypatch.setattr(integration.AnsibleModule, 'warn', lambda self, text: warnings.append(text))
+    existing(server, project)
+    run_module(integration.main, dict(GH, matchers=[dict(name='main', key='ref', value='other')]), check_mode=True)
+    assert [w for w in warnings if "can't tell" in w] == []
+
+
+def test_removal_comes_before_the_other_changes(server, project, run_module):
+    path = existing(server, project)
+    deletion = removal_routes(server, path, 'integration_matchers_empty', 'integration_values_one')[0]
+    server.route('PUT', path, 'integration_update')
+    server.route('POST', path + '/matchers', 'integration_matcher_create')
+    result = run_module(integration.main, dict(project='homelab', name='gh', searchable=True,
+                                               matchers=[dict(name='event', match_type='header', key='X-GitHub-Event', value='push')]))
+    assert result['changed'] is True
+    writes = [(c['method'], c['path']) for c in server.requests
+              if c['method'] != 'GET' and not c['path'].startswith('/auth/')]
+    assert writes == [('DELETE', deletion), ('PUT', path), ('POST', path + '/matchers')]
 
 
 def test_alias_created_when_missing(server, project, run_module):

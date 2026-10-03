@@ -81,6 +81,10 @@ options:
     description:
       - Conditions a request must meet to start the task, all of them. When set, the complete list;
         matchers not listed are deleted.
+      - Semaphore 2.18 and 2.19 with an SQLite database answer such a deletion with success and keep the
+        matcher. The module reads the list again after deleting; if the matcher is still there the task fails
+        and makes none of its other changes. Check mode cannot tell and warns. On such a server, remove the
+        integration with O(state=absent) and create it again; it gets a new webhook URL then.
     type: list
     elements: dict
     suboptions:
@@ -115,6 +119,7 @@ options:
     description:
       - Values taken from the request and passed to the task. When set, the complete list; values
         not listed are deleted.
+      - What O(matchers) says about a deletion the server does not carry out applies here too.
     type: list
     elements: dict
     suboptions:
@@ -318,12 +323,59 @@ def validate(params):
             raise ValueError('Extracted value %r needs key.' % value['name'])
 
 
+def undeclared(current, desired):
+    """The items of `current` that `desired` doesn't name."""
+    names = set(i['name'] for i in desired)
+    return [i for i in current if i.get('name') not in names]
+
+
+def remove_items(client, module, name, removals):
+    """Delete the matchers and extracted values the task no longer lists, and make sure they are gone.
+
+    `removals` is a list of (what, path, items). Semaphore 2.18 and 2.19 with
+    an SQLite database answer the DELETE with 204 and keep the entry: the
+    server's delete statement fails and the error is dropped. Reporting a
+    change then would report it on every run, so the lists are read again
+    and an entry that is still there fails the task. In check mode nothing
+    is sent, so nothing can be known; the task warns instead.
+    """
+    removals = [(what, path, items) for what, path, items in removals if items]
+    if not removals:
+        return False
+    described = ' and '.join('%s %s' % (what, ', '.join(repr(i.get('name')) for i in items)) for what, path, items in removals)
+    if module.check_mode:
+        module.warn("Check mode can't tell whether this server removes %s from integration %r. Semaphore 2.18 and 2.19 "
+                    "with an SQLite database answer the removal with success and keep the entry, and a real run "
+                    "fails then." % (described, name))
+        return True
+    for what, path, items in removals:
+        for item in items:
+            client.delete('%s/%d' % (path, item['id']))
+    left = []
+    for what, path, items in removals:
+        ids = set(i['id'] for i in items)
+        still = [i for i in client.list(path) if i.get('id') in ids]
+        if still:
+            left.append('%s %s' % (what, ', '.join(repr(i.get('name')) for i in still)))
+    if left:
+        raise ValueError(
+            "Semaphore answered the removal of %s from integration %r with success, but did not remove anything "
+            "of that. Semaphore 2.18 and 2.19 with an SQLite database do not remove matchers and extracted values "
+            "through the API. The task's other changes were not made. Either keep listing what is named here, or "
+            "remove the integration with state: absent and create it again without it; that gives the integration "
+            "a new webhook URL." % (' and '.join(left), name))
+    return True
+
+
 def sync_items(client, path, current, desired, fields, create_status, integ_id, check_mode):
-    """Make the sub-resources at `path` exactly `desired` (matched by name)."""
+    """Create and update the sub-resources at `path` so that every item of `desired` is there (matched by name).
+
+    Items `desired` doesn't name are not touched here; see remove_items().
+    """
     have = dict((i.get('name'), i) for i in current)
     changed = False
     for item in desired:
-        existing = have.pop(item['name'], None)
+        existing = have.get(item['name'])
         body = dict((f, item[f]) for f in ('name',) + fields)
         body['integration_id'] = integ_id
         if existing is None:
@@ -335,10 +387,6 @@ def sync_items(client, path, current, desired, fields, create_status, integ_id, 
             if not check_mode:
                 body['id'] = existing['id']
                 client.put('%s/%d' % (path, existing['id']), body)
-    for extra in have.values():
-        changed = True
-        if not check_mode:
-            client.delete('%s/%d' % (path, extra['id']))
     return changed
 
 
@@ -422,7 +470,14 @@ def ensure(module, client):
             after['id'] = created['id']
         return dict(changed=True, integration=after, webhook_urls=urls, diff=dict(before={}, after=after))
 
-    changed = False
+    # Removals first, checked before anything else is written: when the server
+    # keeps an entry it claims to have removed, the task fails with the
+    # integration as it was.
+    changed = remove_items(client, module, params['name'], [
+        ('matcher', ipath + '/matchers', undeclared(cur_matchers, params['matchers']) if params['matchers'] is not None else []),
+        ('extracted value', ipath + '/values',
+         undeclared(cur_values, params['extract_values']) if params['extract_values'] is not None else []),
+    ])
     fields_changed = dict((k, v) for k, v in after.items() if k not in ('matchers', 'extract_values')) != \
         dict((k, v) for k, v in before.items() if k not in ('matchers', 'extract_values'))
     if fields_changed:
