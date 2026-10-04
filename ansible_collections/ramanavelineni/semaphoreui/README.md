@@ -109,7 +109,9 @@ Run it with `--check --diff` first to see what would change.
 | Area | Module | Read-only |
 |---|---|---|
 | Server | | `info`: version, tested flag, registered apps |
+| Activity log | | `event_info` |
 | Projects | `project` | `project_info` |
+| Project backups | `project_restore`: a new project from a backup | `project_backup`: reads it, writes it to a file |
 | Key Store | `key_store`: `ssh`, `login_password`, `none` | `key_store_info` |
 | Repositories | `repository` | `repository_info` |
 | Inventories | `inventory`: `file`, `static`, `static-yaml` | `inventory_info` |
@@ -117,8 +119,10 @@ Run it with `--check --diff` first to see what would change.
 | Views (template tabs) | `view` | `view_info` |
 | Task templates | `template` | `template_info` |
 | Schedules | `schedule`: cron, commit poller, run-at | `schedule_info` |
+| Tasks (runs of a template) | `task`: start, wait for the result, stop | `task_info` |
 | Integrations (inbound webhooks) | `integration`: returns the webhook URL | `integration_info` |
 | Team | `team_member` | `team_member_info` |
+| API tokens | `user_token`: of the user that logs in | |
 | Runners | `runner`: global, and project runners on Pro | `runner_info` |
 | Users | `user` | `user_info` |
 
@@ -286,6 +290,12 @@ Where one of these can't be avoided, set `no_log: true` on the task.
 - `schedule` also finds commit pollers, which Semaphore's own project list
   leaves out, and refuses `active: false` on a poller, because Semaphore keeps
   running pollers whatever `active` says. Use `state: absent` to stop one.
+- `task` starts a new run of a template every time it runs: it is not
+  idempotent. By default it waits for the run and fails when the run failed or
+  was stopped. What a run may set for itself (branch, arguments, inventory,
+  limit, tags) has to be allowed by the template; Semaphore ignores it
+  otherwise, so the module fails instead. `wait: false` returns the task id
+  for `task_info`.
 - `integration` makes sure the integration has a webhook URL and returns it.
   Matchers and extracted values are complete lists.
 - `team_member` never removes or downgrades a project's last owner, and never

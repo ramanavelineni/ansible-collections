@@ -1,0 +1,591 @@
+{
+  "recorded_from": "v2.18.30-9dcfe85-1788086332",
+  "responses": {
+    "task_get_build_success": {
+      "body": {
+        "created": "2026-10-04T16:00:03.23898638Z",
+        "end": "2026-10-04T16:00:04.274200278Z",
+        "id": 15,
+        "limit": "",
+        "playbook": "",
+        "project_id": 68,
+        "start": "2026-10-04T16:00:04.26003664Z",
+        "status": "success",
+        "template_id": 82,
+        "user_id": 1,
+        "version": "1.0.0"
+      },
+      "status": 200
+    },
+    "task_get_deploy_success": {
+      "body": {
+        "build_task_id": 15,
+        "created": "2026-10-04T16:00:04.375629982Z",
+        "end": "2026-10-04T16:00:05.415603898Z",
+        "id": 16,
+        "limit": "",
+        "playbook": "",
+        "project_id": 68,
+        "start": "2026-10-04T16:00:05.398321776Z",
+        "status": "success",
+        "template_id": 83,
+        "user_id": 1
+      },
+      "status": 200
+    },
+    "task_get_error": {
+      "body": {
+        "created": "2026-10-04T15:59:56.925682707Z",
+        "end": "2026-10-04T15:59:57.946207969Z",
+        "id": 13,
+        "limit": "",
+        "playbook": "",
+        "project_id": 68,
+        "start": "2026-10-04T15:59:57.94103837Z",
+        "status": "error",
+        "template_id": 81,
+        "user_id": 1
+      },
+      "status": 200
+    },
+    "task_get_missing": {
+      "body": null,
+      "status": 400
+    },
+    "task_get_quick_success": {
+      "body": {
+        "created": "2026-10-04T16:00:05.475711975Z",
+        "end": "2026-10-04T16:00:06.491971592Z",
+        "id": 17,
+        "limit": "",
+        "playbook": "",
+        "project_id": 68,
+        "start": "2026-10-04T16:00:06.487846029Z",
+        "status": "success",
+        "template_id": 79,
+        "user_id": 1
+      },
+      "status": 200
+    },
+    "task_get_running": {
+      "body": {
+        "arguments": "[\"--flag\"]",
+        "created": "2026-10-04T15:59:47.670331527Z",
+        "environment": "{\"who\": \"world\"}",
+        "id": 12,
+        "limit": "",
+        "message": "recorded",
+        "playbook": "",
+        "project_id": 68,
+        "start": "2026-10-04T15:59:48.703834017Z",
+        "status": "running",
+        "template_id": 80,
+        "user_id": 1
+      },
+      "status": 200
+    },
+    "task_get_stopped": {
+      "body": {
+        "created": "2026-10-04T16:00:00.070014Z",
+        "end": "2026-10-04T16:00:01.217110843Z",
+        "id": 14,
+        "limit": "",
+        "playbook": "",
+        "project_id": 68,
+        "start": "2026-10-04T16:00:01.088332899Z",
+        "status": "stopped",
+        "template_id": 80,
+        "user_id": 1
+      },
+      "status": 200
+    },
+    "task_get_success": {
+      "body": {
+        "arguments": "[\"--flag\"]",
+        "created": "2026-10-04T15:59:47.670331527Z",
+        "end": "2026-10-04T15:59:54.715453397Z",
+        "environment": "{\"who\": \"world\"}",
+        "id": 12,
+        "limit": "",
+        "message": "recorded",
+        "playbook": "",
+        "project_id": 68,
+        "start": "2026-10-04T15:59:48.703834017Z",
+        "status": "success",
+        "template_id": 80,
+        "user_id": 1
+      },
+      "status": 200
+    },
+    "task_get_waiting": {
+      "body": {
+        "arguments": "[\"--flag\"]",
+        "created": "2026-10-04T15:59:47.670331527Z",
+        "environment": "{\"who\": \"world\"}",
+        "id": 12,
+        "limit": "",
+        "message": "recorded",
+        "playbook": "",
+        "project_id": 68,
+        "status": "waiting",
+        "template_id": 80,
+        "user_id": 1
+      },
+      "status": 200
+    },
+    "task_list_last": {
+      "body": [
+        {
+          "created": "2026-10-04T16:00:05.475711975Z",
+          "end": "2026-10-04T16:00:06.491971592Z",
+          "id": 17,
+          "limit": "",
+          "playbook": "",
+          "project_id": 68,
+          "start": "2026-10-04T16:00:06.487846029Z",
+          "status": "success",
+          "template_id": 79,
+          "tpl_alias": "tk-quick",
+          "tpl_app": "bash",
+          "tpl_playbook": "null",
+          "user_id": 1,
+          "user_name": "Admin"
+        },
+        {
+          "build_task": {
+            "created": "2026-10-04T16:00:03.23898638Z",
+            "end": "2026-10-04T16:00:04.274200278Z",
+            "id": 15,
+            "limit": "",
+            "playbook": "",
+            "project_id": 68,
+            "start": "2026-10-04T16:00:04.26003664Z",
+            "status": "success",
+            "template_id": 82,
+            "user_id": 1,
+            "version": "1.0.0"
+          },
+          "build_task_id": 15,
+          "created": "2026-10-04T16:00:04.375629982Z",
+          "end": "2026-10-04T16:00:05.415603898Z",
+          "id": 16,
+          "limit": "",
+          "playbook": "",
+          "project_id": 68,
+          "start": "2026-10-04T16:00:05.398321776Z",
+          "status": "success",
+          "template_id": 83,
+          "tpl_alias": "tk-deploy",
+          "tpl_app": "bash",
+          "tpl_playbook": "null",
+          "tpl_type": "deploy",
+          "user_id": 1,
+          "user_name": "Admin"
+        },
+        {
+          "created": "2026-10-04T16:00:03.23898638Z",
+          "end": "2026-10-04T16:00:04.274200278Z",
+          "id": 15,
+          "limit": "",
+          "playbook": "",
+          "project_id": 68,
+          "start": "2026-10-04T16:00:04.26003664Z",
+          "status": "success",
+          "template_id": 82,
+          "tpl_alias": "tk-build",
+          "tpl_app": "bash",
+          "tpl_playbook": "null",
+          "tpl_type": "build",
+          "user_id": 1,
+          "user_name": "Admin",
+          "version": "1.0.0"
+        }
+      ],
+      "status": 200
+    },
+    "task_list_template": {
+      "body": [
+        {
+          "created": "2026-10-04T16:00:00.070014Z",
+          "end": "2026-10-04T16:00:01.217110843Z",
+          "id": 14,
+          "limit": "",
+          "playbook": "",
+          "project_id": 68,
+          "start": "2026-10-04T16:00:01.088332899Z",
+          "status": "stopped",
+          "template_id": 80,
+          "tpl_alias": "tk-slow",
+          "tpl_app": "bash",
+          "tpl_playbook": "null",
+          "user_id": 1,
+          "user_name": "Admin"
+        },
+        {
+          "arguments": "[\"--flag\"]",
+          "created": "2026-10-04T15:59:47.670331527Z",
+          "end": "2026-10-04T15:59:54.715453397Z",
+          "environment": "{\"who\": \"world\"}",
+          "id": 12,
+          "limit": "",
+          "message": "recorded",
+          "playbook": "",
+          "project_id": 68,
+          "start": "2026-10-04T15:59:48.703834017Z",
+          "status": "success",
+          "template_id": 80,
+          "tpl_alias": "tk-slow",
+          "tpl_app": "bash",
+          "tpl_playbook": "null",
+          "user_id": 1,
+          "user_name": "Admin"
+        }
+      ],
+      "status": 200
+    },
+    "task_output": {
+      "body": [
+        {
+          "id": 0,
+          "output": "Task tk-slow added to queue",
+          "stage_id": null,
+          "task_id": 12,
+          "time": "2026-10-04T15:59:47.673473219Z"
+        },
+        {
+          "id": 0,
+          "output": "Started task #12 of template 'tk-slow'\n",
+          "stage_id": null,
+          "task_id": 12,
+          "time": "2026-10-04T15:59:48.702949771Z"
+        },
+        {
+          "id": 0,
+          "output": "Preparing: 12",
+          "stage_id": null,
+          "task_id": 12,
+          "time": "2026-10-04T15:59:48.707113125Z"
+        },
+        {
+          "id": 0,
+          "output": "installing static inventory",
+          "stage_id": null,
+          "task_id": 12,
+          "time": "2026-10-04T15:59:48.707394624Z"
+        },
+        {
+          "id": 0,
+          "output": "tk-slow started",
+          "stage_id": null,
+          "task_id": 12,
+          "time": "2026-10-04T15:59:48.718895233Z"
+        },
+        {
+          "id": 0,
+          "output": "tk-slow done",
+          "stage_id": null,
+          "task_id": 12,
+          "time": "2026-10-04T15:59:54.713354032Z"
+        }
+      ],
+      "status": 200
+    },
+    "task_output_error": {
+      "body": [
+        {
+          "id": 0,
+          "output": "Task tk-fail added to queue",
+          "stage_id": null,
+          "task_id": 13,
+          "time": "2026-10-04T15:59:56.933299336Z"
+        },
+        {
+          "id": 0,
+          "output": "Started task #13 of template 'tk-fail'\n",
+          "stage_id": null,
+          "task_id": 13,
+          "time": "2026-10-04T15:59:57.940814913Z"
+        },
+        {
+          "id": 0,
+          "output": "Preparing: 13",
+          "stage_id": null,
+          "task_id": 13,
+          "time": "2026-10-04T15:59:57.942181739Z"
+        },
+        {
+          "id": 0,
+          "output": "installing static inventory",
+          "stage_id": null,
+          "task_id": 13,
+          "time": "2026-10-04T15:59:57.942262322Z"
+        },
+        {
+          "id": 0,
+          "output": "Failed to run task: exit status 127",
+          "stage_id": null,
+          "task_id": 13,
+          "time": "2026-10-04T15:59:57.944977226Z"
+        }
+      ],
+      "status": 200
+    },
+    "task_output_missing": {
+      "body": null,
+      "status": 400
+    },
+    "task_output_running": {
+      "body": [
+        {
+          "id": 0,
+          "output": "Task tk-slow added to queue",
+          "stage_id": null,
+          "task_id": 12,
+          "time": "2026-10-04T15:59:47.673473219Z"
+        }
+      ],
+      "status": 200
+    },
+    "task_output_stopped": {
+      "body": [
+        {
+          "id": 0,
+          "output": "Task tk-slow added to queue",
+          "stage_id": null,
+          "task_id": 14,
+          "time": "2026-10-04T16:00:00.075643264Z"
+        },
+        {
+          "id": 0,
+          "output": "Started task #14 of template 'tk-slow'\n",
+          "stage_id": null,
+          "task_id": 14,
+          "time": "2026-10-04T16:00:01.08787886Z"
+        },
+        {
+          "id": 0,
+          "output": "Preparing: 14",
+          "stage_id": null,
+          "task_id": 14,
+          "time": "2026-10-04T16:00:01.090372014Z"
+        },
+        {
+          "id": 0,
+          "output": "installing static inventory",
+          "stage_id": null,
+          "task_id": 14,
+          "time": "2026-10-04T16:00:01.090461222Z"
+        },
+        {
+          "id": 0,
+          "output": "tk-slow started",
+          "stage_id": null,
+          "task_id": 14,
+          "time": "2026-10-04T16:00:01.093339499Z"
+        }
+      ],
+      "status": 200
+    },
+    "task_projects_list": {
+      "body": [
+        {
+          "created": "2026-10-04T15:59:47.615317Z",
+          "id": 68,
+          "name": "fixtures-task",
+          "type": ""
+        }
+      ],
+      "status": 200
+    },
+    "task_start": {
+      "body": {
+        "arguments": "[\"--flag\"]",
+        "created": "2026-10-04T15:59:47.670331527Z",
+        "environment": "{\"who\": \"world\"}",
+        "id": 12,
+        "limit": "",
+        "message": "recorded",
+        "playbook": "",
+        "project_id": 68,
+        "secret": "{}",
+        "status": "waiting",
+        "template_id": 80,
+        "user_id": 1
+      },
+      "status": 201
+    },
+    "task_start_build": {
+      "body": {
+        "created": "2026-10-04T16:00:03.23898638Z",
+        "id": 15,
+        "limit": "",
+        "playbook": "",
+        "project_id": 68,
+        "secret": "{}",
+        "status": "waiting",
+        "template_id": 82,
+        "user_id": 1,
+        "version": "1.0.0"
+      },
+      "status": 201
+    },
+    "task_start_deploy": {
+      "body": {
+        "build_task_id": 15,
+        "created": "2026-10-04T16:00:04.375629982Z",
+        "id": 16,
+        "limit": "",
+        "playbook": "",
+        "project_id": 68,
+        "secret": "{}",
+        "status": "waiting",
+        "template_id": 83,
+        "user_id": 1
+      },
+      "status": 201
+    },
+    "task_start_environment_object": {
+      "body": null,
+      "status": 400
+    },
+    "task_start_failing": {
+      "body": {
+        "created": "2026-10-04T15:59:56.925682707Z",
+        "id": 13,
+        "limit": "",
+        "playbook": "",
+        "project_id": 68,
+        "secret": "{}",
+        "status": "waiting",
+        "template_id": 81,
+        "user_id": 1
+      },
+      "status": 201
+    },
+    "task_start_quick": {
+      "body": {
+        "created": "2026-10-04T16:00:05.475711975Z",
+        "id": 17,
+        "limit": "",
+        "playbook": "",
+        "project_id": 68,
+        "secret": "{}",
+        "status": "waiting",
+        "template_id": 79,
+        "user_id": 1
+      },
+      "status": 201
+    },
+    "task_start_to_stop": {
+      "body": {
+        "created": "2026-10-04T16:00:00.070014Z",
+        "id": 14,
+        "limit": "",
+        "playbook": "",
+        "project_id": 68,
+        "secret": "{}",
+        "status": "waiting",
+        "template_id": 80,
+        "user_id": 1
+      },
+      "status": 201
+    },
+    "task_start_unknown_template": {
+      "body": null,
+      "status": 404
+    },
+    "task_stop": {
+      "body": null,
+      "status": 204
+    },
+    "task_stop_missing": {
+      "body": null,
+      "status": 400
+    },
+    "task_templates": {
+      "body": [
+        {
+          "app": "bash",
+          "environment_id": 57,
+          "environment_ids": [
+            57
+          ],
+          "id": 82,
+          "inventory_id": 75,
+          "name": "tk-build",
+          "permissions": null,
+          "playbook": "null",
+          "project_id": 68,
+          "repository_id": 62,
+          "start_version": "1.0.0",
+          "tasks": 0,
+          "type": "build"
+        },
+        {
+          "app": "bash",
+          "build_template_id": 82,
+          "environment_id": 57,
+          "environment_ids": [
+            57
+          ],
+          "id": 83,
+          "inventory_id": 75,
+          "name": "tk-deploy",
+          "permissions": null,
+          "playbook": "null",
+          "project_id": 68,
+          "repository_id": 62,
+          "tasks": 0,
+          "type": "deploy"
+        },
+        {
+          "app": "bash",
+          "environment_id": 57,
+          "environment_ids": [
+            57
+          ],
+          "id": 81,
+          "inventory_id": 75,
+          "name": "tk-fail",
+          "permissions": null,
+          "playbook": "tk-missing.sh",
+          "project_id": 68,
+          "repository_id": 62,
+          "tasks": 0
+        },
+        {
+          "app": "bash",
+          "environment_id": 57,
+          "environment_ids": [
+            57
+          ],
+          "id": 79,
+          "inventory_id": 75,
+          "name": "tk-quick",
+          "permissions": null,
+          "playbook": "null",
+          "project_id": 68,
+          "repository_id": 62,
+          "tasks": 0
+        },
+        {
+          "allow_override_args_in_task": true,
+          "app": "bash",
+          "environment_id": 58,
+          "environment_ids": [
+            58
+          ],
+          "id": 80,
+          "inventory_id": 75,
+          "name": "tk-slow",
+          "permissions": null,
+          "playbook": "null",
+          "project_id": 68,
+          "repository_id": 62,
+          "tasks": 0
+        }
+      ],
+      "status": 200
+    }
+  }
+}

@@ -1,0 +1,181 @@
+{
+  "recorded_from": "v2.19.12-012ed06-1788086368",
+  "responses": {
+    "event_projects": {
+      "body": [
+        {
+          "created": "2026-10-04T16:01:34.853857Z",
+          "id": 93,
+          "max_parallel_tasks": 1,
+          "name": "ev-fixtures",
+          "type": ""
+        }
+      ],
+      "status": 200
+    },
+    "events": {
+      "body": [
+        {
+          "created": "2026-10-04T16:01:34.859714565Z",
+          "description": "Repository https://github.com/example/ansible.git created",
+          "integration_id": null,
+          "object_id": 81,
+          "object_name": "",
+          "object_type": "repository",
+          "project_id": 93,
+          "project_name": "ev-fixtures",
+          "user_id": 1,
+          "username": "admin"
+        },
+        {
+          "created": "2026-10-04T16:01:34.857158286Z",
+          "description": "Access Key none created",
+          "integration_id": null,
+          "object_id": 257,
+          "object_name": "",
+          "object_type": "key",
+          "project_id": 93,
+          "project_name": "ev-fixtures",
+          "user_id": 1,
+          "username": "admin"
+        },
+        {
+          "created": "2026-10-04T16:01:34.854602382Z",
+          "description": "Project created",
+          "integration_id": null,
+          "object_id": 93,
+          "object_name": "",
+          "object_type": "project",
+          "project_id": 93,
+          "project_name": "ev-fixtures",
+          "user_id": 1,
+          "username": "admin"
+        }
+      ],
+      "status": 200
+    },
+    "events_last": {
+      "body": [
+        {
+          "created": "2026-10-04T16:01:34.859714565Z",
+          "description": "Repository https://github.com/example/ansible.git created",
+          "integration_id": null,
+          "object_id": 81,
+          "object_name": "",
+          "object_type": "repository",
+          "project_id": 93,
+          "project_name": "ev-fixtures",
+          "user_id": 1,
+          "username": "admin"
+        },
+        {
+          "created": "2026-10-04T16:01:34.857158286Z",
+          "description": "Access Key none created",
+          "integration_id": null,
+          "object_id": 257,
+          "object_name": "",
+          "object_type": "key",
+          "project_id": 93,
+          "project_name": "ev-fixtures",
+          "user_id": 1,
+          "username": "admin"
+        },
+        {
+          "created": "2026-10-04T16:01:34.854602382Z",
+          "description": "Project created",
+          "integration_id": null,
+          "object_id": 93,
+          "object_name": "",
+          "object_type": "project",
+          "project_id": 93,
+          "project_name": "ev-fixtures",
+          "user_id": 1,
+          "username": "admin"
+        }
+      ],
+      "status": 200
+    },
+    "events_project": {
+      "body": [
+        {
+          "created": "2026-10-04T16:01:34.859714565Z",
+          "description": "Repository https://github.com/example/ansible.git created",
+          "integration_id": null,
+          "object_id": 81,
+          "object_name": "",
+          "object_type": "repository",
+          "project_id": 93,
+          "project_name": "ev-fixtures",
+          "user_id": 1,
+          "username": "admin"
+        },
+        {
+          "created": "2026-10-04T16:01:34.857158286Z",
+          "description": "Access Key none created",
+          "integration_id": null,
+          "object_id": 257,
+          "object_name": "",
+          "object_type": "key",
+          "project_id": 93,
+          "project_name": "ev-fixtures",
+          "user_id": 1,
+          "username": "admin"
+        },
+        {
+          "created": "2026-10-04T16:01:34.854602382Z",
+          "description": "Project created",
+          "integration_id": null,
+          "object_id": 93,
+          "object_name": "",
+          "object_type": "project",
+          "project_id": 93,
+          "project_name": "ev-fixtures",
+          "user_id": 1,
+          "username": "admin"
+        }
+      ],
+      "status": 200
+    },
+    "events_project_last": {
+      "body": [
+        {
+          "created": "2026-10-04T16:01:34.859714565Z",
+          "description": "Repository https://github.com/example/ansible.git created",
+          "integration_id": null,
+          "object_id": 81,
+          "object_name": "",
+          "object_type": "repository",
+          "project_id": 93,
+          "project_name": "ev-fixtures",
+          "user_id": 1,
+          "username": "admin"
+        },
+        {
+          "created": "2026-10-04T16:01:34.857158286Z",
+          "description": "Access Key none created",
+          "integration_id": null,
+          "object_id": 257,
+          "object_name": "",
+          "object_type": "key",
+          "project_id": 93,
+          "project_name": "ev-fixtures",
+          "user_id": 1,
+          "username": "admin"
+        },
+        {
+          "created": "2026-10-04T16:01:34.854602382Z",
+          "description": "Project created",
+          "integration_id": null,
+          "object_id": 93,
+          "object_name": "",
+          "object_type": "project",
+          "project_id": 93,
+          "project_name": "ev-fixtures",
+          "user_id": 1,
+          "username": "admin"
+        }
+      ],
+      "status": 200
+    }
+  }
+}

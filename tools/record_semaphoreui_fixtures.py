@@ -47,6 +47,7 @@ import json
 import os
 import re
 import sys
+import time
 import urllib.error
 import urllib.request
 from http.cookiejar import CookieJar
@@ -526,18 +527,326 @@ def record_user(srv, out):
     expect(srv.call('DELETE', '/users/%d' % xid), 204, 'delete external user')
 
 
+TASK_PROJECT = 'fixtures-task'
+# How long the slow template's task runs, in seconds: long enough to be seen
+# running and to be stopped, short enough to wait for.
+TASK_SECONDS = 6
+TASK_FINAL = ('success', 'error', 'stopped')
+
+
+def sweep_task(srv):
+    """Delete project fixtures-task; its templates and tasks go with it."""
+    delete_projects(srv, TASK_PROJECT)
+
+
+def record_task(srv, out):
+    """Starting, watching and stopping tasks, in project fixtures-task.
+
+    The tasks run in the server's own container and need nothing from outside
+    it: the repository is the local path /dev and the "playbook" of the bash
+    templates is null, so a task runs `bash null` there, which does nothing
+    and succeeds. A task that takes a while comes from a variable group that
+    sets BASH_ENV for the process: bash expands that value before it reads
+    the script, and the value is a command substitution that sleeps.
+    """
+    project = expect(srv.call('POST', '/projects', {'name': TASK_PROJECT}), 201, 'create project')['body']
+    pid = project['id']
+    base = '/project/%d' % pid
+    out['task_projects_list'] = keep(expect(srv.call('GET', '/projects'), 200, 'projects'), lambda p: p['id'] == pid)
+
+    kid = expect(srv.call('POST', base + '/keys', {'project_id': pid, 'name': 'tk-none', 'type': 'none'}),
+                 201, 'create key')['body']['id']
+    rid = expect(srv.call('POST', base + '/repositories', {
+        'project_id': pid, 'name': 'tk-local', 'git_url': '/dev', 'git_branch': '', 'ssh_key_id': kid}),
+        201, 'create repository')['body']['id']
+    iid = expect(srv.call('POST', base + '/inventory', {
+        'project_id': pid, 'name': 'tk-inventory', 'type': 'static', 'inventory': 'localhost', 'ssh_key_id': kid}),
+        201, 'create inventory')['body']['id']
+
+    def group(name, env):
+        return expect(srv.call('POST', base + '/environment', {
+            'project_id': pid, 'name': name, 'json': '{}', 'env': json.dumps(env)}), 201, 'create variable group')['body']['id']
+
+    plain = group('tk-plain', {})
+    slow = group('tk-slow', {'BASH_ENV': '$(echo "tk-slow started" >&2; sleep %d; echo "tk-slow done" >&2)' % TASK_SECONDS})
+
+    def template(name, group_id, **more):
+        body = dict({'project_id': pid, 'name': name, 'app': 'bash', 'playbook': 'null', 'repository_id': rid,
+                     'inventory_id': iid, 'environment_id': group_id, 'type': ''}, **more)
+        return expect(srv.call('POST', base + '/templates', body), 201, 'create template %s' % name)['body']['id']
+
+    quick_id = template('tk-quick', plain)
+    slow_id = template('tk-slow', slow, allow_override_args_in_task=True)
+    fail_id = template('tk-fail', plain, playbook='tk-missing.sh')
+    build_id = template('tk-build', plain, type='build', start_version='1.0.0')
+    deploy_id = template('tk-deploy', plain, type='deploy', build_template_id=build_id)
+    out['task_templates'] = expect(srv.call('GET', base + '/templates'), 200, 'templates')
+
+    def watch(task_id, wanted, what):
+        """The task's GET answer once its status is one of `wanted`."""
+        seen = None
+        for dummy in range(200):
+            seen = expect(srv.call('GET', '%s/tasks/%d' % (base, task_id)), 200, 'task %s' % what)
+            status = seen['body']['status']
+            if status in wanted:
+                return seen
+            if status in TASK_FINAL:
+                break
+            time.sleep(0.2)
+        sys.exit('task %s: waited for %s, the task is %s. Record this area again.'
+                 % (what, ' or '.join(wanted), seen['body']['status']))
+
+    def output(task_id, what):
+        # The last lines reach the output a moment after the task's final status.
+        time.sleep(2)
+        return expect(srv.call('GET', '%s/tasks/%d/output' % (base, task_id)), 200, 'output %s' % what)
+
+    # A task from start to success, with what a task may set for itself.
+    out['task_start'] = expect(srv.call('POST', base + '/tasks', {
+        'template_id': slow_id, 'message': 'recorded', 'environment': json.dumps({'who': 'world'}),
+        'arguments': json.dumps(['--flag'])}), 201, 'start task')
+    first = out['task_start']['body']['id']
+    out['task_get_waiting'] = watch(first, ('waiting',), 'right after its start')
+    out['task_get_running'] = watch(first, ('running',), 'while it runs')
+    out['task_output_running'] = expect(srv.call('GET', '%s/tasks/%d/output' % (base, first)), 200, 'output while running')
+    out['task_get_success'] = watch(first, ('success',), 'at its end')
+    out['task_output'] = output(first, 'of the finished task')
+
+    # A task that fails: its script is not there.
+    out['task_start_failing'] = expect(srv.call('POST', base + '/tasks', {'template_id': fail_id}), 201, 'start failing task')
+    failing = out['task_start_failing']['body']['id']
+    out['task_get_error'] = watch(failing, ('error',), 'that fails')
+    out['task_output_error'] = output(failing, 'of the failed task')
+
+    # A task stopped while it runs.
+    out['task_start_to_stop'] = expect(srv.call('POST', base + '/tasks', {'template_id': slow_id}), 201, 'start task to stop')
+    stopping = out['task_start_to_stop']['body']['id']
+    watch(stopping, ('running',), 'to stop')
+    out['task_stop'] = expect(srv.call('POST', '%s/tasks/%d/stop' % (base, stopping), {'force': False}), 204, 'stop task')
+    out['task_get_stopped'] = watch(stopping, ('stopped',), 'after the stop')
+    out['task_output_stopped'] = output(stopping, 'of the stopped task')
+
+    # A build, and the deploy of that build.
+    out['task_start_build'] = expect(srv.call('POST', base + '/tasks', {'template_id': build_id}), 201, 'start build')
+    build = out['task_start_build']['body']['id']
+    out['task_get_build_success'] = watch(build, ('success',), 'build')
+    out['task_start_deploy'] = expect(srv.call('POST', base + '/tasks', {
+        'template_id': deploy_id, 'build_task_id': build}), 201, 'start deploy')
+    out['task_get_deploy_success'] = watch(out['task_start_deploy']['body']['id'], ('success',), 'deploy')
+
+    # A task that finishes at once.
+    out['task_start_quick'] = expect(srv.call('POST', base + '/tasks', {'template_id': quick_id}), 201, 'start quick task')
+    out['task_get_quick_success'] = watch(out['task_start_quick']['body']['id'], ('success',), 'quick')
+
+    # Lists, newest first.
+    out['task_list_last'] = expect(srv.call('GET', base + '/tasks/last?limit=3'), 200, 'last tasks')
+    out['task_list_template'] = expect(srv.call('GET', '%s/templates/%d/tasks/last?limit=20' % (base, slow_id)),
+                                       200, 'tasks of a template')
+
+    # What the server refuses.
+    out['task_start_unknown_template'] = srv.call('POST', base + '/tasks', {'template_id': slow_id + 100000})
+    out['task_start_environment_object'] = srv.call('POST', base + '/tasks', {
+        'template_id': slow_id, 'environment': {'who': 'world'}})
+    missing = first + 100000
+    out['task_get_missing'] = srv.call('GET', '%s/tasks/%d' % (base, missing))
+    out['task_output_missing'] = srv.call('GET', '%s/tasks/%d/output' % (base, missing))
+    out['task_stop_missing'] = srv.call('POST', '%s/tasks/%d/stop' % (base, missing), {'force': False})
+
+
+# -- project backup and restore ------------------------------------------------
+
+BACKUP_PROJECT = 'bk-fixtures'
+BACKUP_PROJECTS = (BACKUP_PROJECT, 'bk-fixtures-restored', 'bk-fixtures-broken', 'bk-fixtures-partial')
+
+
+def sweep_backup(srv):
+    """Delete the projects named bk-fixtures*."""
+    delete_projects(srv, *BACKUP_PROJECTS)
+
+
+def record_backup(srv, out):
+    """A project's backup, and what restoring it answers.
+
+    Works next to anything else: it only touches projects named bk-fixtures*.
+    A backup holds no secrets and no ids, so it is recorded as it comes.
+    """
+    def own(project):
+        return project['name'] in BACKUP_PROJECTS
+
+    pid = expect(srv.call('POST', '/projects', {'name': BACKUP_PROJECT, 'alert': False, 'max_parallel_tasks': 2}),
+                 201, 'create project')['body']['id']
+    base = '/project/%d' % pid
+    kid = expect(srv.call('POST', base + '/keys', {
+        'project_id': pid, 'name': 'deploy', 'type': 'ssh',
+        'ssh': {'login': 'git', 'passphrase': '', 'private_key': FAKE_PRIVATE_KEY}}), 201, 'create key')['body']['id']
+    rid = expect(srv.call('POST', base + '/repositories', {
+        'project_id': pid, 'name': 'ansible', 'git_url': 'git@github.com:example/ansible.git',
+        'git_branch': 'main', 'ssh_key_id': kid}), 201, 'create repository')['body']['id']
+    iid = expect(srv.call('POST', base + '/inventory', {
+        'project_id': pid, 'name': 'hosts', 'type': 'static', 'inventory': 'localhost',
+        'ssh_key_id': kid}), 201, 'create inventory')['body']['id']
+    eid = expect(srv.call('POST', base + '/environment', {
+        'project_id': pid, 'name': 'vars', 'json': '{}', 'env': '{"TZ": "UTC"}',
+        'secrets': [{'name': 'API_KEY', 'secret': 'not-a-real-secret', 'type': 'var', 'operation': 'create'}]}),
+        201, 'create environment')['body']['id']
+    tid = expect(srv.call('POST', base + '/templates', {
+        'project_id': pid, 'name': 'site', 'app': 'ansible', 'playbook': 'site.yml', 'repository_id': rid,
+        'inventory_id': iid, 'environment_id': eid, 'type': ''}), 201, 'create template')['body']['id']
+    expect(srv.call('POST', base + '/schedules', {
+        'project_id': pid, 'template_id': tid, 'name': 'nightly', 'cron_format': '0 3 * * *', 'active': True}),
+        201, 'create schedule')
+
+    out['backup_projects'] = keep(expect(srv.call('GET', '/projects'), 200, 'projects'), own)
+    out['backup_project_get'] = expect(srv.call('GET', base), 200, 'project')
+    out['backup_get'] = expect(srv.call('GET', base + '/backup'), 200, 'backup')
+    backup = out['backup_get']['body']
+
+    # Restoring creates a project, and refuses the name of one that exists.
+    out['backup_restore_exists'] = expect(srv.call('POST', '/projects/restore', backup), 400, 'restore, same name')
+    renamed = json.loads(json.dumps(backup))
+    renamed['meta']['name'] = 'bk-fixtures-restored'
+    out['backup_restore'] = expect(srv.call('POST', '/projects/restore', renamed), 200, 'restore')
+    out['backup_projects_restored'] = keep(expect(srv.call('GET', '/projects'), 200, 'projects'), own)
+    new = '/project/%d' % out['backup_restore']['body']['id']
+    # What a restored project has: keys without their secrets, and no secret variables.
+    out['backup_restored_keys'] = expect(srv.call('GET', new + '/keys'), 200, 'restored keys')
+    out['backup_restored_environments'] = expect(srv.call('GET', new + '/environment'), 200, 'restored environments')
+    expect(srv.call('DELETE', new), 204, 'delete restored project')
+
+    # A reference to a name that is not in the backup is found before anything is created ...
+    broken = json.loads(json.dumps(backup))
+    broken['meta']['name'] = 'bk-fixtures-broken'
+    broken['templates'][0]['repository'] = 'no-such-repository'
+    out['backup_restore_broken'] = expect(srv.call('POST', '/projects/restore', broken), 400, 'restore, broken')
+    out['backup_projects_after_broken'] = keep(expect(srv.call('GET', '/projects'), 200, 'projects'), own)
+    # ... but not every one is: a schedule's template is only looked up after the project was created.
+    partial = {'meta': {'name': 'bk-fixtures-partial'},
+               'schedules': [{'name': 'nightly', 'template': 'no-such-template', 'cron_format': '0 3 * * *'}]}
+    out['backup_restore_partial'] = expect(srv.call('POST', '/projects/restore', partial), 400, 'restore, partial')
+    out['backup_projects_after_partial'] = keep(expect(srv.call('GET', '/projects'), 200, 'projects'), own)
+
+
+# -- the activity log ----------------------------------------------------------
+
+EVENT_PROJECT = 'ev-fixtures'
+
+
+def sweep_event(srv):
+    """Delete project ev-fixtures."""
+    delete_projects(srv, EVENT_PROJECT)
+
+
+def record_event(srv, out):
+    """Events of a project, and the same ones in the lists across projects.
+
+    Works next to anything else: it keeps only the events of project
+    ev-fixtures. They name the account the recorder logs in with.
+    """
+    pid = expect(srv.call('POST', '/projects', {'name': EVENT_PROJECT}), 201, 'create project')['body']['id']
+    base = '/project/%d' % pid
+    kid = expect(srv.call('POST', base + '/keys', {'project_id': pid, 'name': 'none', 'type': 'none'}),
+                 201, 'create key')['body']['id']
+    expect(srv.call('POST', base + '/repositories', {
+        'project_id': pid, 'name': 'ansible', 'git_url': 'https://github.com/example/ansible.git',
+        'git_branch': 'main', 'ssh_key_id': kid}), 201, 'create repository')
+    expect(srv.call('PUT', base, {'id': pid, 'name': EVENT_PROJECT, 'alert': False, 'max_parallel_tasks': 1}),
+           204, 'update project')
+
+    def own(event):
+        return event.get('project_id') == pid
+
+    out['event_projects'] = keep(expect(srv.call('GET', '/projects'), 200, 'projects'),
+                                 lambda project: project['name'] == EVENT_PROJECT)
+    out['events_project_last'] = expect(srv.call('GET', base + '/events/last'), 200, 'project events')
+    out['events_project'] = expect(srv.call('GET', base + '/events'), 200, 'project events')
+    out['events_last'] = keep(expect(srv.call('GET', '/events/last'), 200, 'events'), own)
+    out['events'] = keep(expect(srv.call('GET', '/events'), 200, 'events'), own)
+
+
+# -- API tokens ----------------------------------------------------------------
+
+TOKEN_PREFIX = 'tk-fixture'
+# Written in place of a token: Semaphore's own shape, and nothing a server ever made.
+RECORDED_API_TOKEN = '%s-recorded-not-a-real-api-token-000000='
+
+
+def sweep_token(srv):
+    """Revoke the API tokens named tk-fixture* of the account the recorder logs in with."""
+    for token in expect(srv.call('GET', '/user/tokens'), 200, 'tokens')['body'] or []:
+        if (token.get('name') or '').startswith(TOKEN_PREFIX):
+            expect(srv.call('DELETE', '/user/tokens/%s' % token['id']), 204, 'delete leftover token %s' % token['name'])
+
+
+def record_token(srv, out):
+    """The API tokens of the account the recorder logs in with.
+
+    Works next to the account's other tokens: it keeps only those named
+    tk-fixture*. A new token's answer is the token itself, and the list has
+    the first eight characters of each; both are replaced before anything is
+    written, the same stand-in start for the same token.
+    """
+    stand_ins = {}
+
+    def masked(result):
+        """The answer with every token of this run, whole or as its listed start, replaced."""
+        def stand_in(value):
+            start = stand_ins.setdefault(value[:8], 'tkfix%03d' % (len(stand_ins) + 1))
+            return start if len(value) <= 8 else RECORDED_API_TOKEN % start
+        body = result['body']
+        if isinstance(body, list):
+            body = [dict(token, id=stand_in(token['id'])) for token in body]
+        elif isinstance(body, dict) and 'id' in body:
+            body = dict(body, id=stand_in(body['id']))
+        return dict(result, body=body)
+
+    def own(token):
+        return (token.get('name') or '').startswith(TOKEN_PREFIX)
+
+    def listing():
+        return masked(keep(expect(srv.call('GET', '/user/tokens'), 200, 'tokens'), own))
+
+    out['tokens_none'] = listing()
+    created = expect(srv.call('POST', '/user/tokens', {'name': TOKEN_PREFIX}), 201, 'create token')
+    token = created['body']['id']
+    srv.secrets.append(token)
+    out['token_create'] = masked(created)
+    out['tokens_one'] = listing()
+    # The token works, and the start the list shows of it does not.
+    expect(srv.call('GET', '/user', token=token), 200, 'the token is taken')
+    expiring = expect(srv.call('POST', '/user/tokens', {
+        'name': TOKEN_PREFIX + '-expiring', 'expires_at': '2099-01-01T00:00:00Z'}), 201, 'create expiring token')
+    srv.secrets.append(expiring['body']['id'])
+    out['token_create_expiring'] = masked(expiring)
+    out['tokens_two'] = listing()
+    out['token_create_past'] = expect(srv.call('POST', '/user/tokens', {
+        'name': TOKEN_PREFIX + '-past', 'expires_at': '2001-01-01T00:00:00Z'}), 400, 'create token, past expiry')
+    # Deleting goes by the start of a token, and answers the same when no token starts that way.
+    out['token_delete'] = expect(srv.call('DELETE', '/user/tokens/%s' % token[:8]), 204, 'delete token')
+    out['token_delete_unknown'] = expect(srv.call('DELETE', '/user/tokens/%s' % token[:8]), 204, 'delete it again')
+    out['tokens_after_delete'] = listing()
+    expect(srv.call('DELETE', '/user/tokens/%s' % expiring['body']['id'][:8]), 204, 'delete expiring token')
+
+
 # Area name -> recorder. Each writes fixtures/<major.minor>/<area>.json.
 AREAS = {
+    'backup': record_backup,
     'core': record_core,
+    'event': record_event,
     'team': record_team,
+    'token': record_token,
     'runner': record_runner,
+    'task': record_task,
     'user': record_user,
 }
 # Area name -> what takes the area's own objects off the server (see run_area).
 SWEEPS = {
+    'backup': sweep_backup,
     'core': sweep_core,
+    'event': sweep_event,
     'team': sweep_team,
+    'token': sweep_token,
     'runner': sweep_runner,
+    'task': sweep_task,
     'user': sweep_user,
 }
 
