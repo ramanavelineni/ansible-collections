@@ -251,11 +251,11 @@ releases:
         of the module''s.'
       release_summary: 'New connection options (``client_cert``, ``client_key``, ``use_proxy``),
         ``project_id`` as an alternative to the project name, custom apps in ``template``,
-        and a round of bug fixes. Some checks are stricter than
-        in 0.2.1 and can make a task fail that ran before: ``template`` refuses ``start_version``
-        and ``build_template`` on a template type that does not take them, ``schedule``
-        refuses a ``run_at`` without a time zone, and negative ``retries`` or ``retry_delay``
-        are refused. Run with ``--check`` once after upgrading.'
+        and a round of bug fixes. Some checks are stricter than in 0.2.1 and can make
+        a task fail that ran before: ``template`` refuses ``start_version`` and ``build_template``
+        on a template type that does not take them, ``schedule`` refuses a ``run_at``
+        without a time zone, and negative ``retries`` or ``retry_delay`` are refused.
+        Run with ``--check`` once after upgrading.'
     fragments:
     - 0.3.0.yml
     - client-messages-validation.yml
@@ -268,3 +268,36 @@ releases:
     - survey-vars-env-credentials.yml
     - template-type-options-custom-apps.yml
     release_date: '2026-10-03'
+  0.3.1:
+    changes:
+      bugfixes:
+      - all modules - a token or password taken from ``SEMAPHORE_API_TOKEN`` or ``SEMAPHORE_PASSWORD``
+        that the server repeats in an error is now taken out of the failure message
+        and of ``request_details.response`` by the client itself. Until now this relied
+        on ansible-core masking the result, which the development version of ansible-core
+        (2.23.0.dev0) no longer does for values a module registers at run time. No
+        released ansible-core version from 2.18 to 2.21 showed such a value.
+      - integration - a matcher or an extracted value the task no longer lists is
+        deleted first, and the lists are read again before anything else is changed.
+        When the server answered the deletion with success but kept the entry, the
+        task now fails and says so. Before, it reported a change on every run and
+        returned the integration without the entry. In check mode the task warns that
+        it cannot tell.
+      - 'template - creating a template in check mode returned ``name: null`` in ``template``
+        and in the diff. It now returns the name, as a real run does.'
+      known_issues:
+      - 'integration - Semaphore 2.18 and 2.19 with an SQLite database do not remove
+        a matcher or an extracted value through the API; they answer the request with
+        success and keep the entry. To drop one on such a server, remove the integration
+        with ``state: absent`` and create it again. It gets a new webhook URL then.'
+      release_summary: 'Bug fixes found by running the modules against real servers.
+        One of them changes what a task does on some servers: ``integration`` now
+        fails when a task drops a matcher or an extracted value and the server keeps
+        it, where it used to report a change on every run. See the known issue below
+        for the servers this applies to.'
+    fragments:
+    - 0.3.1.yml
+    - env-secrets-devel.yml
+    - integration-remove-matchers.yml
+    - template-check-mode-name.yml
+    release_date: '2026-10-04'

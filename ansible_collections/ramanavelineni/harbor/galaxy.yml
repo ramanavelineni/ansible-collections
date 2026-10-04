@@ -1,7 +1,7 @@
 ---
 namespace: ramanavelineni
 name: harbor
-version: 0.3.0
+version: 0.3.1
 readme: README.md
 authors:
   - ramanavelineni <12130750+ramanavelineni@users.noreply.github.com>

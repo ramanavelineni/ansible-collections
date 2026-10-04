@@ -1,5 +1,0 @@
----
-bugfixes:
-  - >-
-    template - creating a template in check mode returned ``name: null`` in ``template`` and in the diff. It
-    now returns the name, as a real run does.

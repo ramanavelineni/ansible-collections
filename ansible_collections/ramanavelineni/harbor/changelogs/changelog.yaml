@@ -246,11 +246,11 @@ releases:
         the following are missing: project``.'
       release_summary: 'New connection options (``client_cert``, ``client_key``, ``use_proxy``,
         ``warn_untested_version``), modules that work for users who are not administrators,
-        and a round of bug fixes. Some checks are stricter than
-        in 0.2.0 and can make a task fail that ran before: ``configuration`` refuses
-        to change a setting Harbor reports as not editable, ``registry`` takes only
-        ``basic`` or ``oauth`` as ``credential_type``, and negative ``retries`` or
-        ``retry_delay`` are refused. Run with ``--check`` once after upgrading.'
+        and a round of bug fixes. Some checks are stricter than in 0.2.0 and can make
+        a task fail that ran before: ``configuration`` refuses to change a setting
+        Harbor reports as not editable, ``registry`` takes only ``basic`` or ``oauth``
+        as ``credential_type``, and negative ``retries`` or ``retry_delay`` are refused.
+        Run with ``--check`` once after upgrading.'
       security_fixes:
       - configuration, configuration_info - a key that Harbor returns and these modules
         have no name for is left out of ``configuration`` when its name contains ``secret``,
@@ -270,3 +270,16 @@ releases:
     - schedule-parameters.yml
     - unexpected-exceptions.yml
     release_date: '2026-10-03'
+  0.3.1:
+    changes:
+      bugfixes:
+      - registry - ``type`` no longer has a fixed list of choices, so an endpoint
+        can use a type a newer Harbor adds. The twelve types of Harbor 2.14 and 2.15
+        behave as before. Any other type is checked against the types the server offers
+        before the endpoint is created (a warning instead of a failure in check mode).
+      release_summary: '``registry`` accepts a registry type the server offers, not
+        only the twelve the module knows. No other change.'
+    fragments:
+    - 0.3.1.yml
+    - registry-types-from-server.yml
+    release_date: '2026-10-04'
