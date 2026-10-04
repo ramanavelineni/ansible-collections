@@ -36,17 +36,21 @@
 #
 # Needs: bash, curl, sed, awk, podman or docker, and a compose command
 # ("podman compose" with a provider installed, "docker compose",
-# "podman-compose" or "docker-compose").
+# "podman-compose" or "docker-compose"). With podman and none of those, as in
+# a podman machine, compose is run from the docker CLI image
+# ($HARBOR_UP_COMPOSE_IMAGE, default docker.io/library/docker:cli) against
+# podman's API socket.
 #
-# WHAT IS PROVEN AND WHAT IS NOT. The two edits this script makes itself are
-# tested without a server (tools/tests/test_harbor_up.py): the edited
-# harbor.yml, and the adjusted docker-compose.yml, which for 2.14.4 and 2.15.2
-# equals the compose file of the working servers. Starting and stopping a
-# stack with this script has NOT been run end to end yet: the prepare call,
-# the compose command found on the machine, the wait and the removal of the
-# data are written from Harbor's own prepare script and from the working
-# setup, and are the parts to watch on the first run. Take this paragraph out
-# after that run.
+# What it was checked with. The two edits this script makes itself are tested
+# without a server (tools/tests/test_harbor_up.py): the edited harbor.yml, and
+# the adjusted docker-compose.yml, which for 2.14.4 and 2.15.2 equals the
+# compose file of the servers the fixtures were recorded from. "up" and "down"
+# were run in a podman machine on macOS (rootless podman, no compose command,
+# so compose came from the docker CLI image) with Harbor v2.15.1, and the
+# harbor collection's live suite passed against that server, including the
+# registry endpoint that points at http://proxy:8080. Not run so far: docker
+# as the engine, a compose command installed on the machine, and Linux
+# without a podman machine.
 
 set -euo pipefail
 
@@ -191,6 +195,7 @@ engine() {
 
 # Sets the array "compose" to the compose command of this machine.
 find_compose() {
+  local sock
   if command -v podman >/dev/null 2>&1 && podman compose version >/dev/null 2>&1; then
     compose=(podman compose)
   elif command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
@@ -199,9 +204,31 @@ find_compose() {
     compose=(podman-compose)
   elif command -v docker-compose >/dev/null 2>&1; then
     compose=(docker-compose)
+  elif command -v podman >/dev/null 2>&1 && sock="$(podman info --format '{{.Host.RemoteSocket.Path}}' 2>/dev/null)" \
+      && [ -S "${sock}" ]; then
+    # A podman machine has podman and its API socket, and no compose command.
+    # The docker CLI image brings one and talks to that socket. The lab
+    # directory is mounted at its own path, so the paths in the compose file
+    # mean the same to podman as to compose.
+    compose=(podman run --rm --security-opt label=disable
+             -v "${sock}:/var/run/docker.sock" -v "${dir}:${dir}" -w "${dir}"
+             "${HARBOR_UP_COMPOSE_IMAGE:-docker.io/library/docker:cli}" compose)
   else
-    die 'no compose command found: install a provider for "podman compose" (docker-compose or podman-compose), or docker with its compose plugin'
+    die 'no compose command found, and no podman API socket to run one from a container against (systemctl --user start podman.socket). Otherwise install a provider for "podman compose" (docker-compose or podman-compose), or docker with its compose plugin'
   fi
+}
+
+# Whether containers of the compose project are there already, running or not.
+# docker-compose labels them com.docker.compose.project, podman-compose
+# io.podman.compose.project.
+project_in_use() {
+  local eng="$1" label
+  for label in com.docker.compose.project io.podman.compose.project; do
+    if [ -n "$("${eng}" ps -a -q --filter "label=${label}=${project}")" ]; then
+      return 0
+    fi
+  done
+  return 1
 }
 
 random_hex() {
@@ -214,6 +241,12 @@ up() {
   [ ! -e "${dir}" ] || die "${dir} exists already; run 'down ${version}' first"
   eng="$(engine)"
   find_compose
+  # The project name comes from the version alone. A Harbor of this version
+  # started from another directory has the same one: "up" would replace its
+  # containers with ours, and "down" would stop them.
+  if project_in_use "${eng}"; then
+    die "containers of a compose project ${project} exist already: a Harbor ${version} set up elsewhere. Take that one down first, or use another version"
+  fi
 
   # The services run as users of their own and have to get into the data and
   # configuration directories, so those are not closed to others. What holds

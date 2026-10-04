@@ -163,15 +163,20 @@ podman machine ssh 'bash -s -- down v2.15.2' < tools/harbor_up.sh
 
 It needs podman or docker and a compose command (`podman compose` with a
 provider installed, `docker compose`, `podman-compose` or `docker-compose`).
+With podman and none of those, as in a podman machine, it runs compose from
+the docker CLI image against podman's API socket.
 
-**What is proven.** The two edits the script makes itself are tested by
-`make tools-test`: its `harbor.yml`, and its compose file, which for 2.14.4
-and 2.15.2 equals the compose file of the working servers. The registry area
-makes Harbor reach itself as `http://proxy:8080`; the compose file confirms
-that name and port. **What is not:** `up` and `down` have not been run end to
-end yet. The call of `prepare`, the compose command on the machine, the wait
-and the removal of the data are the parts to watch on the first run; whoever
-does that run takes this paragraph and the one at the top of the script out.
+The compose project is named after the version, so one Harbor per version:
+`up` refuses when containers of that project exist already.
+
+**What it was checked with.** The two edits the script makes itself are tested
+by `make tools-test`: its `harbor.yml`, and its compose file, which for 2.14.4
+and 2.15.2 equals the compose file of the servers the fixtures were recorded
+from. `up` and `down` were run in a podman machine on macOS with Harbor
+v2.15.1, and the harbor live suite passed against that server, including the
+registry endpoint at `http://proxy:8080`. Not run so far: docker as the
+engine, a compose command installed on the machine, and Linux without a
+podman machine.
 
 ### Recording
 

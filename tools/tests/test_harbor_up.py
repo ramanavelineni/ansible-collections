@@ -14,12 +14,16 @@ with the script is not tested here. Run them with `make tools-test`.
 """
 
 import os
+import shutil
+import socket
 import subprocess
 import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(os.path.dirname(HERE), 'harbor_up.sh')
+# For tests that run the script with a PATH of their own.
+BASH = shutil.which('bash')
 FIXTURES = os.path.join(HERE, 'fixtures', 'harbor_up')
 # Version and the port its working server is published on.
 VERSIONS = (('v2.14.4', '8014'), ('v2.15.2', '8015'))
@@ -338,6 +342,77 @@ class Arguments(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn('exists already', result.stderr)
             self.assertFalse(os.path.exists(called))
+
+    def test_up_refuses_a_version_that_runs_from_another_directory(self):
+        with tempfile.TemporaryDirectory() as base:
+            bin_dir = os.path.join(base, 'bin')
+            os.mkdir(bin_dir)
+            called = os.path.join(base, 'called')
+            # A podman that has a compose provider and lists a container of the project harborv2152.
+            path = os.path.join(bin_dir, 'podman')
+            with open(path, 'w') as f:
+                f.write('#!/bin/sh\n'
+                        '[ "$1 $2" = "compose version" ] && exit 0\n'
+                        'if [ "$1" = ps ]; then\n'
+                        '  case "$*" in *com.docker.compose.project=harborv2152*) echo 7328b8a3d9cb;; esac\n'
+                        '  exit 0\n'
+                        'fi\n'
+                        'echo "$*" >> "%s"\n' % called)
+            os.chmod(path, 0o755)
+            env = dict(os.environ, HARBOR_UP_DIR=os.path.join(base, 'lab'), PATH=bin_dir + os.pathsep + os.environ['PATH'])
+            result = subprocess.run(['bash', SCRIPT, 'up', 'v2.15.2', '8016'], capture_output=True, text=True,
+                                    check=False, env=env)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn('containers of a compose project harborv2152 exist already', result.stderr)
+            # Nothing was made and nothing but the two questions was asked of podman.
+            self.assertFalse(os.path.exists(os.path.join(base, 'lab')))
+            self.assertFalse(os.path.exists(called))
+
+    def stub_podman(self, base, socket_path):
+        """An environment whose PATH has a podman without a compose provider, a curl that gets nothing, and no more
+        than the plain tools the script calls: whatever docker or compose the machine has is out of reach."""
+        bin_dir = os.path.join(base, 'bin')
+        os.mkdir(bin_dir)
+        called = os.path.join(base, 'called')
+        with open(os.path.join(bin_dir, 'podman'), 'w') as f:
+            f.write('#!/bin/sh\n'
+                    '[ "$1 $2" = "compose version" ] && exit 125\n'
+                    '[ "$1" = info ] && { echo "%s"; exit 0; }\n'
+                    '[ "$1" = ps ] && exit 0\n'
+                    'echo "$*" >> "%s"\n' % (socket_path, called))
+        with open(os.path.join(bin_dir, 'curl'), 'w') as f:
+            f.write('#!/bin/sh\nexit 22\n')
+        for name in ('podman', 'curl'):
+            os.chmod(os.path.join(bin_dir, name), 0o755)
+        for tool in ('sh', 'cat', 'mkdir', 'head', 'od', 'tr', 'sed', 'awk', 'seq', 'sleep', 'rm', 'chmod'):
+            found = shutil.which(tool)
+            if found:
+                os.symlink(found, os.path.join(bin_dir, tool))
+        return dict(os.environ, HARBOR_UP_DIR=os.path.join(base, 'lab'), PATH=bin_dir)
+
+    def test_without_a_compose_command_podmans_socket_is_used(self):
+        # A short path: a unix socket's path has a length limit.
+        with tempfile.TemporaryDirectory(dir='/tmp') as base:
+            socket_path = os.path.join(base, 's')
+            listener = socket.socket(socket.AF_UNIX)
+            listener.bind(socket_path)
+            try:
+                result = subprocess.run([BASH, SCRIPT, 'up', 'v2.15.2', '8016'], capture_output=True, text=True,
+                                        check=False, env=self.stub_podman(base, socket_path))
+            finally:
+                listener.close()
+            # It got past the search for a compose command, as far as fetching Harbor's template.
+            self.assertNotEqual(result.returncode, 0)
+            self.assertNotIn('no compose command found', result.stderr)
+            self.assertTrue(os.path.exists(os.path.join(base, 'lab', 'v2.15.2', '.harbor_up')))
+
+    def test_without_a_compose_command_and_without_a_socket_it_stops(self):
+        with tempfile.TemporaryDirectory() as base:
+            result = subprocess.run([BASH, SCRIPT, 'up', 'v2.15.2', '8016'], capture_output=True, text=True,
+                                    check=False, env=self.stub_podman(base, os.path.join(base, 'nothing-here')))
+            self.assertEqual(result.returncode, 1)
+            self.assertIn('no compose command found, and no podman API socket', result.stderr)
+            self.assertFalse(os.path.exists(os.path.join(base, 'lab')))
 
 
 if __name__ == '__main__':
