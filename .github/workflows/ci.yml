@@ -166,7 +166,10 @@ jobs:
           python-version: "3.13"
       - run: pip install "ansible-core~=2.21.0"
       - run: ansible-test units --docker --coverage --color yes
-      - run: ../../../.github/scripts/coverage-floor.sh "${{ matrix.collection }}" --docker
+      # The report is made on the runner, from what the container left in
+      # tests/output/coverage/: ansible-test only takes exported data with
+      # --docker.
+      - run: ../../../.github/scripts/coverage-floor.sh "${{ matrix.collection }}" --venv --python 3.13
 
   # What someone who downloads a release gets: the tarball is built, installed
   # into an empty directory and used from there (see the script). On the oldest
