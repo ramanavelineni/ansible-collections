@@ -498,8 +498,20 @@
                 export_split.files | map(attribute='path') | map('basename') | sort
                 == ['inventory.yml', 'key_store.yml', 'project.yml', 'repository.yml', 'schedule.yml',
                     'team_member.yml', 'template.yml', 'variable_group.yml', 'view.yml']
-              - export_split_project | dict2items | rejectattr('key', 'equalto', 'integration') | items2dict == exported
+              # The files together are the single file's project, less its integrations.
+              - export_split_differing | length == 0
+            fail_msg: "The directory and the single file differ in {{ export_split_differing | join(', ') }}"
             quiet: true
+          vars:
+            export_split_expected: "{{ exported | dict2items | rejectattr('key', 'equalto', 'integration') | items2dict }}"
+            export_split_differing: >-
+              {%- set bad = [] -%}
+              {%- for key in (export_split_project.keys() | list + export_split_expected.keys() | list) | unique | sort -%}
+              {%-   if export_split_project[key] | default('(not there)') != export_split_expected[key] | default('(not there)') -%}
+              {%-     set _ = bad.append(key) -%}
+              {%-   endif -%}
+              {%- endfor -%}
+              {{ bad }}
       always:
         - name: Remove the project
           ramanavelineni.semaphoreui.project:
