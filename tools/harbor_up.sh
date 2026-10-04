@@ -36,7 +36,10 @@
 #
 # Needs: bash, curl, sed, awk, podman or docker, and a compose command
 # ("podman compose" with a provider installed, "docker compose",
-# "podman-compose" or "docker-compose").
+# "podman-compose" or "docker-compose"). With podman and none of those, as in
+# a podman machine, compose is run from the docker CLI image
+# ($HARBOR_UP_COMPOSE_IMAGE, default docker.io/library/docker:cli) against
+# podman's API socket.
 #
 # WHAT IS PROVEN AND WHAT IS NOT. The two edits this script makes itself are
 # tested without a server (tools/tests/test_harbor_up.py): the edited
@@ -191,6 +194,7 @@ engine() {
 
 # Sets the array "compose" to the compose command of this machine.
 find_compose() {
+  local sock
   if command -v podman >/dev/null 2>&1 && podman compose version >/dev/null 2>&1; then
     compose=(podman compose)
   elif command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
@@ -199,8 +203,17 @@ find_compose() {
     compose=(podman-compose)
   elif command -v docker-compose >/dev/null 2>&1; then
     compose=(docker-compose)
+  elif command -v podman >/dev/null 2>&1 && sock="$(podman info --format '{{.Host.RemoteSocket.Path}}' 2>/dev/null)" \
+      && [ -S "${sock}" ]; then
+    # A podman machine has podman and its API socket, and no compose command.
+    # The docker CLI image brings one and talks to that socket. The lab
+    # directory is mounted at its own path, so the paths in the compose file
+    # mean the same to podman as to compose.
+    compose=(podman run --rm --security-opt label=disable
+             -v "${sock}:/var/run/docker.sock" -v "${dir}:${dir}" -w "${dir}"
+             "${HARBOR_UP_COMPOSE_IMAGE:-docker.io/library/docker:cli}" compose)
   else
-    die 'no compose command found: install a provider for "podman compose" (docker-compose or podman-compose), or docker with its compose plugin'
+    die 'no compose command found, and no podman API socket to run one from a container against (systemctl --user start podman.socket). Otherwise install a provider for "podman compose" (docker-compose or podman-compose), or docker with its compose plugin'
   fi
 }
 
