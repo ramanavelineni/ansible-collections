@@ -409,8 +409,7 @@ or an OIDC user's CLI secret.
 - `ansible-test sanity` and unit tests for both collections on ansible-core
   2.18, 2.19, 2.20 and 2.21, in GitHub Actions on every pull request. Changes
   that only touch Markdown skip CI. Everything also runs once a week, and the
-  unit tests run on ansible-core `devel` as an early warning that never blocks
-  a merge.
+  unit tests then also run on ansible-core `devel`, as an early warning.
 - Also in CI: the tarball is built, installed into an empty directory and used
   from there; `ansible-lint` with the production profile; the unit tests have
   to cover at least 95% of the plugin code.

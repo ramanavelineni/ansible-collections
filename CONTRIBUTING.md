@@ -32,26 +32,28 @@ docker isn't installed). `ANSIBLE_TEST_FLAGS="--venv --python 3.13"` runs them
 in a virtual environment instead. `lint`, `docs-lint` and `install-test` need
 `ansible-lint`, `antsibull-docs` and `ansible-core` installed.
 
-CI runs sanity and the unit tests on ansible-core 2.18, 2.19, 2.20 and 2.21,
-and lints the changelog fragments, for the collections a change touches. It
-also runs, for those collections:
+CI runs sanity and the unit tests on ansible-core 2.18, 2.19, 2.20 and 2.21
+for the collections a change touches. It also runs, for those collections:
 
+- **Lint:** one job with four checks: the changelog fragments, `ansible-lint`
+  with the production profile, a check that each
+  `tests/sanity/ignore-<version>.txt` has one explained entry per module and
+  nothing else, and `antsibull-docs lint-collection-docs` for the module
+  documentation. Each check runs whatever the one before it found.
+- **Coverage:** the unit job on the newest ansible-core also measures
+  coverage. The unit tests have to cover at least 95% of the plugin code (98%
+  when the floor was set). The floor is in `.github/scripts/coverage-floor.sh`.
 - **Install test:** the tarball is built, installed into an empty directory
   and used from there: `ansible-doc` for every module, and the `info` module
   against a port where nothing listens, which has to fail with the
-  collection's own connection error. On the oldest and the newest supported
-  ansible-core.
-- **Lint:** `ansible-lint` with the production profile, and a check that each
-  `tests/sanity/ignore-<version>.txt` has one explained entry per module and
-  nothing else.
-- **Coverage:** the unit tests have to cover at least 95% of the plugin code
-  (98% when the floor was set). The floor is in
-  `.github/scripts/coverage-floor.sh`.
-- **Docs lint:** `antsibull-docs lint-collection-docs`. It doesn't block a
-  merge yet.
+  collection's own connection error.
 
-All of these except the docs lint are part of "CI result", the one check a
-pull request needs.
+All of these are part of "CI result", the one check a pull request needs.
+
+A pull request runs a little less than a push to `main`, the weekly run and a
+release: the install test on the oldest ansible-core only (elsewhere also on
+the newest), and the role tests against the newest Semaphore only (elsewhere
+against every tested version).
 
 A
 change to the CI workflow or the `Makefile` runs both collections, a change
@@ -59,10 +61,9 @@ under `tools/` runs the recorder tests, and a change that only touches Markdown
 runs none of them. Once a week everything runs for both collections, so a new
 ansible-core patch release that breaks something is noticed.
 
-The jobs named "Units (..., devel)" run the unit tests on ansible-core's
-development branch. They are an early warning and never block a merge: a
-failure there on a pull request is worth a look, but usually means ansible-core
-changed, not that the pull request is wrong.
+The weekly run also has jobs named "Units (..., devel)": the unit tests on
+ansible-core's development branch. They are an early warning and not part of
+"CI result"; a failure there usually means ansible-core changed.
 
 ### Live suites
 
@@ -276,10 +277,11 @@ the repo changes by itself. The steps, in one pull request:
    Apache-2.0 licence header instead of the GPL one) are needed on every
    version.
 2. Add `stable-2.x` to the two `ansible:` lists in `.github/workflows/ci.yml`
-   (sanity and units), make it the newer of the two versions of the install
-   test, and move the coverage and docs lint jobs' `ansible-core~=` to it. The
-   Lint job fails until the ignore files from step 1 and the sanity list
-   agree.
+   (sanity and units; the newest version is the job with coverage, which
+   installs `ansible-core~=` itself, so the version before it moves into the
+   units list), make it the newer of the two versions of the install test, and
+   move the Lint job's `ansible-core~=` to it. The Lint job fails until the
+   ignore files from step 1 and the sanity list agree.
 3. Raise the upper bound in the `pip install "ansible-core>=...,<..."` line of
    `.github/workflows/release.yml`.
 4. Update the version badge at the top of the three READMEs, the "Compatibility"

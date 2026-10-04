@@ -3,9 +3,9 @@ name: CI
 
 # Only what a change touches is tested. The first job lists the changed files
 # and the other jobs run for the collections among them:
-#   - files under one collection: that collection's jobs (changelog lint,
-#     sanity and units on each ansible-core version, the install test, lint and
-#     coverage, and for semaphoreui the role tests)
+#   - files under one collection: that collection's jobs (lint, sanity and
+#     units on each ansible-core version, the install test, and for semaphoreui
+#     the role tests)
 #   - this workflow, .github/scripts/ or the Makefile: everything
 #   - tools/: the recorder tests
 #   - Markdown only (READMEs, PLAN.md): nothing; module docs live in the .py
@@ -13,27 +13,33 @@ name: CI
 # "CI result" always runs and fails when any job failed, so it is the one check
 # a branch ruleset has to require.
 #
+# A pull request runs a little less than a push to main, the weekly run and a
+# release do: the install test on the oldest ansible-core only, the role tests
+# against the newest Semaphore only, and no run on ansible-core's development
+# branch. Sanity and units run on every supported ansible-core everywhere.
+#
+# "Lint (...)" is four checks in one job: the changelog fragments,
+# ansible-lint, the sanity ignore files and the module documentation. Each
+# runs whatever the one before it found.
+#
+# "Units (..., stable-2.21)" also measures how much of the plugin code the unit
+# tests cover and fails under the floor in .github/scripts/coverage-floor.sh.
+#
 # Once a week everything runs for both collections, whatever changed, so a new
 # ansible-core patch release that breaks something is noticed without a push.
-#
-# "Units (..., devel)" runs the unit tests on ansible-core's development
-# branch, as an early warning: the test harness uses private ansible-core names
-# that a new version may change. It is not part of "CI result" and never blocks
-# a merge; only the weekly run turns red when it fails.
+# Only then "Units (..., devel)" runs the unit tests on ansible-core's
+# development branch, as an early warning: the test harness uses private
+# ansible-core names that a new version may change. It is not part of
+# "CI result"; a red weekly run is the warning.
 #
 # "Role tests (...)" runs the roles of the semaphoreui collection against a
 # throwaway Semaphore that the job starts as a service container: the playbooks
 # in the collection's tests/roles/. Roles cannot be tested without a server, so
 # unlike the modules' live suites this one is part of CI and of "CI result".
 #
-# "Docs lint (...)" is not part of "CI result" either, for now: it could not
-# be run before it was added here, so its first runs show what it reports.
-# Once it is green it belongs in the needs of "CI result".
-#
 # The release workflow calls this one with a collection name. Then nothing is
 # compared: that collection's jobs run at the tagged commit, because the last
-# push to main may not have touched it and so may not have tested it. The
-# devel job is left out there: a release is decided by the supported versions.
+# push to main may not have touched it and so may not have tested it.
 on:
   push:
     branches: [main]
@@ -104,24 +110,6 @@ jobs:
             .github/scripts/ci-changes.sh all </dev/null | tee -a "${GITHUB_OUTPUT}"
           fi
 
-  changelog:
-    name: Changelog fragments (${{ matrix.collection }})
-    needs: changes
-    if: needs.changes.outputs.collections != '[]'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        collection: ${{ fromJSON(needs.changes.outputs.collections) }}
-    steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-python@v7.0.0
-        with:
-          python-version: "3.13"
-      - run: pip install antsibull-changelog==0.35.1
-      - run: antsibull-changelog lint
-        working-directory: ansible_collections/ramanavelineni/${{ matrix.collection }}
-
   sanity:
     name: Sanity (${{ matrix.collection }}, ${{ matrix.ansible }})
     needs: changes
@@ -148,7 +136,7 @@ jobs:
       fail-fast: false
       matrix:
         collection: ${{ fromJSON(needs.changes.outputs.collections) }}
-        ansible: [stable-2.18, stable-2.19, stable-2.20, stable-2.21]
+        ansible: [stable-2.18, stable-2.19, stable-2.20]
     steps:
       - uses: ansible-community/ansible-test-gh-action@v1.18.0
         with:
@@ -156,59 +144,11 @@ jobs:
           collection-root: ansible_collections/ramanavelineni/${{ matrix.collection }}
           testing-type: units
 
-  # What someone who downloads a release gets: the tarball is built, installed
-  # into an empty directory and used from there (see the script). On the oldest
-  # and the newest supported ansible-core, since installing and loading a
-  # collection is ansible-core's part.
-  install:
-    name: Install test (${{ matrix.collection }}, ${{ matrix.ansible }})
-    needs: changes
-    if: needs.changes.outputs.collections != '[]'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        collection: ${{ fromJSON(needs.changes.outputs.collections) }}
-        ansible: ["2.18", "2.21"]
-    steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-python@v7.0.0
-        with:
-          python-version: "3.13"
-      - run: pip install "ansible-core~=${{ matrix.ansible }}.0"
-      - run: .github/scripts/install-test.sh "${{ matrix.collection }}"
-
-  # ansible-lint with the production profile (each collection's .ansible-lint),
-  # and the check that the sanity ignore files hold one explained entry per
-  # module and nothing else.
-  lint:
-    name: Lint (${{ matrix.collection }})
-    needs: changes
-    if: needs.changes.outputs.collections != '[]'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        collection: ${{ fromJSON(needs.changes.outputs.collections) }}
-    steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-python@v7.0.0
-        with:
-          python-version: "3.13"
-      - run: pip install ansible-lint==26.9.0
-      # The checkout is a collections path (ansible_collections/ is at its
-      # root): the roles call the collection's own modules, which ansible-lint
-      # has to find.
-      - run: ansible-lint
-        working-directory: ansible_collections/ramanavelineni/${{ matrix.collection }}
-        env:
-          ANSIBLE_COLLECTIONS_PATH: ${{ github.workspace }}
-      - run: .github/scripts/check-sanity-ignore.py "${{ matrix.collection }}"
-
-  # Unit-test coverage of the plugin code, against the floor in the script. One
-  # ansible-core version is enough for that, and nothing is sent anywhere.
-  coverage:
-    name: Coverage (${{ matrix.collection }})
+  # The newest ansible-core, with coverage: the same unit tests in ansible-test's
+  # container, then the floor for the plugin code (see the script). Nothing is
+  # sent anywhere.
+  units-coverage:
+    name: Units (${{ matrix.collection }}, stable-2.21)
     needs: changes
     if: needs.changes.outputs.collections != '[]'
     runs-on: ubuntu-latest
@@ -225,16 +165,84 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install "ansible-core~=2.21.0"
-      - run: ansible-test units --venv --python 3.13 --coverage
-      - run: ../../../.github/scripts/coverage-floor.sh "${{ matrix.collection }}" --venv --python 3.13
+      - run: ansible-test units --docker --coverage --color yes
+      - run: ../../../.github/scripts/coverage-floor.sh "${{ matrix.collection }}" --docker
+
+  # What someone who downloads a release gets: the tarball is built, installed
+  # into an empty directory and used from there (see the script). On the oldest
+  # and the newest supported ansible-core, since installing and loading a
+  # collection is ansible-core's part; a pull request only on the oldest.
+  install:
+    name: Install test (${{ matrix.collection }}, ${{ matrix.ansible }})
+    needs: changes
+    if: needs.changes.outputs.collections != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        collection: ${{ fromJSON(needs.changes.outputs.collections) }}
+        ansible: ${{ fromJSON(github.event_name == 'pull_request' && '["2.18"]' || '["2.18", "2.21"]') }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+      - run: pip install "ansible-core~=${{ matrix.ansible }}.0"
+      - run: .github/scripts/install-test.sh "${{ matrix.collection }}"
+
+  # Four checks that need no server and no test run, in one job. Each step
+  # runs whatever the one before it found, so one run shows everything:
+  #   - the changelog fragments
+  #   - ansible-lint with the production profile (the collection's .ansible-lint)
+  #   - the sanity ignore files: one explained entry per module, nothing else
+  #   - the module documentation as a documentation build would read it:
+  #     markup, links between modules, return value references
+  lint:
+    name: Lint (${{ matrix.collection }})
+    needs: changes
+    if: needs.changes.outputs.collections != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        collection: ${{ fromJSON(needs.changes.outputs.collections) }}
+    env:
+      # The checkout is a collections path (ansible_collections/ is at its
+      # root): ansible-lint and the documentation lint have to find the
+      # collection's own modules.
+      ANSIBLE_COLLECTIONS_PATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+      - run: >-
+          pip install "ansible-core~=2.21.0" antsibull-changelog==0.35.1
+          ansible-lint==26.9.0 antsibull-docs==2.27.0
+      - name: Changelog fragments
+        run: antsibull-changelog lint
+        working-directory: ansible_collections/ramanavelineni/${{ matrix.collection }}
+      - name: ansible-lint
+        if: success() || failure()
+        run: ansible-lint
+        working-directory: ansible_collections/ramanavelineni/${{ matrix.collection }}
+      - name: Sanity ignore files
+        if: success() || failure()
+        run: .github/scripts/check-sanity-ignore.py "${{ matrix.collection }}"
+      - name: Module documentation
+        if: success() || failure()
+        run: >-
+          antsibull-docs lint-collection-docs --plugin-docs
+          --validate-collection-refs self --disallow-unknown-collection-refs
+          "ansible_collections/ramanavelineni/${{ matrix.collection }}"
 
   # The roles, run for real: every playbook in the collection's tests/roles/
   # against a Semaphore started for this job (see .github/scripts/role-test.sh
   # and the playbooks). Each tested Semaphore version runs once, the older one
   # with the oldest supported ansible-core and the newer one with the newest,
-  # because a role is templating, and templating changed between those. The
-  # server and its admin password exist only for the run; the password is no
-  # secret.
+  # because a role is templating, and templating changed between those. A pull
+  # request runs only the newer pair. The server and its admin password exist
+  # only for the run; the password is no secret.
   roles:
     name: Role tests (semaphoreui, Semaphore ${{ matrix.semaphore }}, ansible-core ${{ matrix.ansible }})
     needs: changes
@@ -243,11 +251,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - semaphore: v2.18.30
-            ansible: "2.18"
-          - semaphore: v2.19.12
-            ansible: "2.21"
+        include: >-
+          ${{ fromJSON(github.event_name == 'pull_request'
+              && '[{"semaphore": "v2.19.12", "ansible": "2.21"}]'
+              || '[{"semaphore": "v2.18.30", "ansible": "2.18"}, {"semaphore": "v2.19.12", "ansible": "2.21"}]') }}
     services:
       semaphore:
         image: docker.io/semaphoreui/semaphore:${{ matrix.semaphore }}
@@ -282,44 +289,14 @@ jobs:
           exit 1
       - run: .github/scripts/role-test.sh semaphoreui
 
-  # The module documentation as a documentation build would read it: markup,
-  # links between modules, return value references. Not in the needs of
-  # "CI result" yet, see the top of this file.
-  docs:
-    name: Docs lint (${{ matrix.collection }})
-    needs: changes
-    if: needs.changes.outputs.collections != '[]'
-    continue-on-error: true
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        collection: ${{ fromJSON(needs.changes.outputs.collections) }}
-    steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-python@v7.0.0
-        with:
-          python-version: "3.13"
-      - run: pip install antsibull-docs==2.27.0 "ansible-core~=2.21.0"
-      # The checkout has ansible_collections/ at its root, so it is a
-      # collections path as it stands.
-      - run: >-
-          antsibull-docs lint-collection-docs --plugin-docs
-          --validate-collection-refs self --disallow-unknown-collection-refs
-          "ansible_collections/ramanavelineni/${{ matrix.collection }}"
-        env:
-          ANSIBLE_COLLECTIONS_PATH: ${{ github.workspace }}
-
-  # Early warning only. Not in the needs of "CI result", so a failure here
-  # cannot block a merge. continue-on-error keeps a failure from turning a push
-  # or pull request run red; the weekly run is left to fail, because a red
-  # scheduled run is the warning. Units only: sanity on devel would need a
-  # tests/sanity/ignore-<version>.txt that exists only for released versions.
+  # Early warning only, in the weekly run: the unit tests on ansible-core's
+  # development branch. Not in the needs of "CI result". Units only: sanity on
+  # devel would need a tests/sanity/ignore-<version>.txt that exists only for
+  # released versions.
   devel:
     name: Units (${{ matrix.collection }}, devel)
     needs: changes
-    if: needs.changes.outputs.collections != '[]' && !inputs.collection
-    continue-on-error: ${{ github.event_name != 'schedule' }}
+    if: needs.changes.outputs.collections != '[]' && github.event_name == 'schedule'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -347,7 +324,7 @@ jobs:
 
   result:
     name: CI result
-    needs: [changes, changelog, sanity, units, install, lint, coverage, roles, tools]
+    needs: [changes, sanity, units, units-coverage, install, lint, roles, tools]
     if: always()
     runs-on: ubuntu-latest
     steps:
