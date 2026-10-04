@@ -16,7 +16,9 @@ name: CI
 # A pull request runs a little less than a push to main, the weekly run and a
 # release do: the install test on the oldest ansible-core only, the role tests
 # against the newest Semaphore only, and no run on ansible-core's development
-# branch. Sanity and units run on every supported ansible-core everywhere.
+# branch. Sanity and units run on every supported ansible-core everywhere:
+# sanity as one job per collection that goes through the versions, units as
+# one job per version.
 #
 # "Lint (...)" is four checks in one job: the changelog fragments,
 # ansible-lint, the sanity ignore files and the module documentation. Each
@@ -110,8 +112,12 @@ jobs:
             .github/scripts/ci-changes.sh all </dev/null | tee -a "${GITHUB_OUTPUT}"
           fi
 
+  # ansible-test sanity on every supported ansible-core, one after the other
+  # in one job: each version takes about a minute, so separate jobs mostly
+  # spent their time starting up. A version that fails does not stop the ones
+  # after it; the job fails at the end and names the versions.
   sanity:
-    name: Sanity (${{ matrix.collection }}, ${{ matrix.ansible }})
+    name: Sanity (${{ matrix.collection }})
     needs: changes
     if: needs.changes.outputs.collections != '[]'
     runs-on: ubuntu-latest
@@ -119,13 +125,34 @@ jobs:
       fail-fast: false
       matrix:
         collection: ${{ fromJSON(needs.changes.outputs.collections) }}
-        ansible: [stable-2.18, stable-2.19, stable-2.20, stable-2.21]
+    defaults:
+      run:
+        working-directory: ansible_collections/ramanavelineni/${{ matrix.collection }}
     steps:
-      - uses: ansible-community/ansible-test-gh-action@v1.18.0
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
         with:
-          ansible-core-version: ${{ matrix.ansible }}
-          collection-root: ansible_collections/ramanavelineni/${{ matrix.collection }}
-          testing-type: sanity
+          python-version: "3.13"
+      - name: Sanity on ansible-core 2.18, 2.19, 2.20 and 2.21
+        run: |
+          failed=""
+          for version in 2.18 2.19 2.20 2.21; do
+            echo "::group::ansible-core ${version}"
+            python -m venv "${RUNNER_TEMP}/core-${version}"
+            "${RUNNER_TEMP}/core-${version}/bin/pip" install --quiet "ansible-core~=${version}.0"
+            if "${RUNNER_TEMP}/core-${version}/bin/ansible-test" sanity --docker --color yes; then
+              result=passed
+            else
+              result=FAILED
+              failed="${failed} ${version}"
+            fi
+            echo "::endgroup::"
+            echo "ansible-core ${version}: ${result}"
+          done
+          if [ -n "${failed}" ]; then
+            echo "::error::sanity failed on ansible-core${failed}; open that version's group above"
+            exit 1
+          fi
 
   units:
     name: Units (${{ matrix.collection }}, ${{ matrix.ansible }})
