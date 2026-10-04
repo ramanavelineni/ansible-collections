@@ -77,8 +77,7 @@ def flatten(tasks):
         nested = [key for key in BLOCK_KEYWORDS if key in task]
         if nested:
             for key in nested:
-                for inner in flatten(task[key]):
-                    yield inner
+                yield from flatten(task[key])
         else:
             yield task
 
