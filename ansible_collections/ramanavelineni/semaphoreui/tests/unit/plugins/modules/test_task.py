@@ -88,7 +88,7 @@ def posts(server):
 
 def test_start_waits_until_the_task_is_over(lifecycle, run_module):
     result = run_module(task.main, dict(
-        project=PROJECT, template='tk-slow', message='recorded', variables=dict(who='world'), arguments=['--flag']))
+        project=PROJECT, template='tk-slow', task_message='recorded', variables=dict(who='world'), arguments=['--flag']))
     assert result['changed'] is True
     assert result.get('failed') is not True, result.get('msg')
     ran = result['task']
@@ -156,7 +156,7 @@ def test_start_without_waiting(lifecycle, run_module):
 
 
 def test_start_in_check_mode_starts_nothing(project, run_module):
-    result = run_module(task.main, dict(project=PROJECT, template='tk-slow', message='m', variables=dict(a=1),
+    result = run_module(task.main, dict(project=PROJECT, template='tk-slow', task_message='m', variables=dict(a=1),
                                         arguments=['-x'], secret_variables=dict(pw='hunter2-not-real')),
                         check_mode=True)
     assert result['changed'] is True

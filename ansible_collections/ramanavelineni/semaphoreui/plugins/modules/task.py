@@ -59,7 +59,7 @@ options:
     description:
       - Id of the task to stop. Required with O(state=stopped), and only used there.
     type: int
-  message:
+  task_message:
     description:
       - A note shown with the task in Semaphore's task list.
     type: str
@@ -184,7 +184,7 @@ EXAMPLES = r'''
   ramanavelineni.semaphoreui.task:
     project: homelab
     template: site
-    message: started by the nightly play
+    task_message: started by the nightly play
   register: run
 
 - name: Show the end of its output
@@ -260,7 +260,7 @@ task:
       description: Whether the task is over, that is RV(task.status) is V(success), V(error) or V(stopped).
       type: bool
     message:
-      description: The note given with O(message). Empty when there is none.
+      description: The note given with O(task_message). Empty when there is none.
       type: str
     playbook:
       description: The file the task runs instead of the template's. Empty when it runs the template's.
@@ -407,8 +407,8 @@ def task_params_body(template, given):
 def start_body(client, base, template, params):
     """The body of the request that starts a task of `template`."""
     body = dict(template_id=template['id'])
-    if params['message'] is not None:
-        body['message'] = params['message']
+    if params['task_message'] is not None:
+        body['message'] = params['task_message']
     if params['variables'] is not None:
         # Semaphore takes both as JSON in a string.
         body['environment'] = json.dumps(params['variables'], sort_keys=True)
@@ -540,7 +540,7 @@ def main():
         state=dict(type='str', choices=['started', 'stopped'], default='started'),
         template=dict(type='str'),
         task_id=dict(type='int'),
-        message=dict(type='str'),
+        task_message=dict(type='str'),
         variables=dict(type='dict'),
         secret_variables=dict(type='dict', no_log=True),
         playbook=dict(type='str'),

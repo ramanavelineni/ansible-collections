@@ -63,7 +63,7 @@ def until_finished(sem, task_id, seconds=60):
 
 
 def test_a_task_runs_to_its_end(built):
-    result = built.ok(task, template='live-quick', message='live run', variables=dict(who='world'), **FAST)
+    result = built.ok(task, template='live-quick', task_message='live run', variables=dict(who='world'), **FAST)
     assert result['changed'] is True
     ran = result['task']
     assert (ran['status'], ran['finished'], ran['template'], ran['project']) == ('success', True, 'live-quick', PROJECT)
@@ -84,7 +84,7 @@ def test_every_run_starts_a_new_task(built):
 
 def test_check_mode_starts_nothing(built):
     before = ids(built)
-    result = built.ok(task, check_mode=True, template='live-quick', message='not started', **FAST)
+    result = built.ok(task, check_mode=True, template='live-quick', task_message='not started', **FAST)
     assert result['changed'] is True
     assert (result['task']['id'], result['task']['status'], result['task']['message']) == (None, '', 'not started')
     assert ids(built) == before
