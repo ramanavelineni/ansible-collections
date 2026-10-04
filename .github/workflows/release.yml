@@ -8,7 +8,8 @@ name: Release
 #      galaxy.yml, and CHANGELOG.md must already have that version
 #      (make changelog COLLECTION=...).
 #   2. "Test": the CI workflow for that collection: changelog lint, sanity and
-#      unit tests on every supported ansible-core version.
+#      unit tests on every supported ansible-core version, the install test,
+#      lint and the coverage floor.
 #   3. "Publish <tag>": only when all of that passed.
 # GitHub marks the newest release as "Latest"; with two collections that is
 # whichever was released last.

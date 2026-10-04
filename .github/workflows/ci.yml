@@ -3,7 +3,9 @@ name: CI
 
 # Only what a change touches is tested. The first job lists the changed files
 # and the other jobs run for the collections among them:
-#   - files under one collection: that collection's 9 jobs
+#   - files under one collection: that collection's jobs (changelog lint,
+#     sanity and units on each ansible-core version, the install test, lint and
+#     coverage)
 #   - this workflow, .github/scripts/ or the Makefile: everything
 #   - tools/: the recorder tests
 #   - Markdown only (READMEs, PLAN.md): nothing; module docs live in the .py
@@ -19,8 +21,12 @@ name: CI
 # that a new version may change. It is not part of "CI result" and never blocks
 # a merge; only the weekly run turns red when it fails.
 #
+# "Docs lint (...)" is not part of "CI result" either, for now: it could not
+# be run before it was added here, so its first runs show what it reports.
+# Once it is green it belongs in the needs of "CI result".
+#
 # The release workflow calls this one with a collection name. Then nothing is
-# compared: that collection's 9 jobs run at the tagged commit, because the last
+# compared: that collection's jobs run at the tagged commit, because the last
 # push to main may not have touched it and so may not have tested it. The
 # devel job is left out there: a release is decided by the supported versions.
 on:
@@ -145,6 +151,101 @@ jobs:
           collection-root: ansible_collections/ramanavelineni/${{ matrix.collection }}
           testing-type: units
 
+  # What someone who downloads a release gets: the tarball is built, installed
+  # into an empty directory and used from there (see the script). On the oldest
+  # and the newest supported ansible-core, since installing and loading a
+  # collection is ansible-core's part.
+  install:
+    name: Install test (${{ matrix.collection }}, ${{ matrix.ansible }})
+    needs: changes
+    if: needs.changes.outputs.collections != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        collection: ${{ fromJSON(needs.changes.outputs.collections) }}
+        ansible: ["2.18", "2.21"]
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+      - run: pip install "ansible-core~=${{ matrix.ansible }}.0"
+      - run: .github/scripts/install-test.sh "${{ matrix.collection }}"
+
+  # ansible-lint with the production profile (each collection's .ansible-lint),
+  # and the check that the sanity ignore files hold one explained entry per
+  # module and nothing else.
+  lint:
+    name: Lint (${{ matrix.collection }})
+    needs: changes
+    if: needs.changes.outputs.collections != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        collection: ${{ fromJSON(needs.changes.outputs.collections) }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+      - run: pip install ansible-lint==26.9.0
+      - run: ansible-lint
+        working-directory: ansible_collections/ramanavelineni/${{ matrix.collection }}
+      - run: .github/scripts/check-sanity-ignore.py "${{ matrix.collection }}"
+
+  # Unit-test coverage of the plugin code, against the floor in the script. One
+  # ansible-core version is enough for that, and nothing is sent anywhere.
+  coverage:
+    name: Coverage (${{ matrix.collection }})
+    needs: changes
+    if: needs.changes.outputs.collections != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        collection: ${{ fromJSON(needs.changes.outputs.collections) }}
+    defaults:
+      run:
+        working-directory: ansible_collections/ramanavelineni/${{ matrix.collection }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+      - run: pip install "ansible-core~=2.21.0"
+      - run: ansible-test units --venv --python 3.13 --coverage
+      - run: ../../../.github/scripts/coverage-floor.sh "${{ matrix.collection }}" --venv --python 3.13
+
+  # The module documentation as a documentation build would read it: markup,
+  # links between modules, return value references. Not in the needs of
+  # "CI result" yet, see the top of this file.
+  docs:
+    name: Docs lint (${{ matrix.collection }})
+    needs: changes
+    if: needs.changes.outputs.collections != '[]'
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        collection: ${{ fromJSON(needs.changes.outputs.collections) }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+      - run: pip install antsibull-docs==2.27.0 "ansible-core~=2.21.0"
+      # The checkout has ansible_collections/ at its root, so it is a
+      # collections path as it stands.
+      - run: >-
+          antsibull-docs lint-collection-docs --plugin-docs
+          --validate-collection-refs self --disallow-unknown-collection-refs
+          "ansible_collections/ramanavelineni/${{ matrix.collection }}"
+        env:
+          ANSIBLE_COLLECTIONS_PATH: ${{ github.workspace }}
+
   # Early warning only. Not in the needs of "CI result", so a failure here
   # cannot block a merge. continue-on-error keeps a failure from turning a push
   # or pull request run red; the weekly run is left to fail, because a red
@@ -182,7 +283,7 @@ jobs:
 
   result:
     name: CI result
-    needs: [changes, changelog, sanity, units, tools]
+    needs: [changes, changelog, sanity, units, install, lint, coverage, tools]
     if: always()
     runs-on: ubuntu-latest
     steps:

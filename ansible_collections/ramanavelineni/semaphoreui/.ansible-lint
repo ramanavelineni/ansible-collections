@@ -1,0 +1,12 @@
+---
+# ansible-lint for this collection: `make lint` and the "Lint" job in CI.
+profile: production
+offline: true
+
+exclude_paths:
+  # Written by antsibull-changelog in its own YAML style; reformatting them by
+  # hand would be undone by the next release.
+  - changelogs/
+  # Recorded API responses and ansible-test's own output, not Ansible content.
+  - tests/unit/plugins/fixtures/
+  - tests/output/
