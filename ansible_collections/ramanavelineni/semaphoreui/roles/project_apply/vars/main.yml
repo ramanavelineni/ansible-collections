@@ -1,0 +1,102 @@
+---
+# The sections of a project; every other key in a project is an option of the
+# project itself. This is also the order they are created in; entries marked
+# `state: absent` are deleted in the reverse order.
+__project_apply_sections:
+  - key_store
+  - repository
+  - inventory
+  - variable_group
+  - view
+  - template
+  - schedule
+  - integration
+  - team_member
+
+# The options an entry of each section may use: those of the module of the
+# same name, without the ones the role fills in itself (the project, and the
+# name the entry is keyed by). tests/unit/roles/test_apply_roles.py fails when
+# a list here, or a task in tasks/project.yml, no longer matches its module.
+__project_apply_options:
+  project:
+    - name
+    - state
+    - alert
+    - alert_chat
+    - max_parallel_tasks
+    - confirm_delete
+  key_store:
+    - state
+    - type
+    - ssh
+    - login_password
+    - update_secret
+    - force_repository_key_update
+  repository:
+    - state
+    - git_url
+    - git_branch
+    - ssh_key
+  inventory:
+    - state
+    - type
+    - inventory
+    - repository
+    - ssh_key
+    - become_key
+  variable_group:
+    - state
+    - json
+    - env
+    - secrets
+    - purge_secrets
+    - update_secret
+  view:
+    - state
+    - position
+    - hidden
+    - sort_column
+    - sort_reverse
+  template:
+    - state
+    - app
+    - playbook
+    - repository
+    - inventory
+    - variable_groups
+    - view
+    - description
+    - git_branch
+    - arguments
+    - type
+    - start_version
+    - build_template
+    - autorun
+    - allow_override_args_in_task
+    - allow_override_branch_in_task
+    - allow_parallel_tasks
+    - suppress_success_alerts
+    - runner_tag
+    - task_params
+    - vaults
+    - survey_vars
+  schedule:
+    - state
+    - template
+    - cron
+    - repository
+    - run_at
+    - delete_after_run
+    - active
+  integration:
+    - state
+    - template
+    - auth_method
+    - auth_key
+    - auth_header
+    - searchable
+    - matchers
+    - extract_values
+  team_member:
+    - role
+    - state

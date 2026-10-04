@@ -131,6 +131,34 @@ look a project up by name on a server with 200 or more projects. With
 `project_id` that list is not read and the project is found whatever their
 number.
 
+## Roles
+
+| Role | |
+|---|---|
+| `project_apply` | Applies a directory of project descriptions: each project a YAML file, or a directory of them, with its keys, repositories, inventories, variable groups, views, templates, schedules, integrations and team |
+| `server_apply` | Applies the users and the runners of the server |
+
+Both check what they are given before they change anything, leave alone what
+is not mentioned, delete only what is marked `state: absent`, and can run as a
+drift check that fails when Semaphore differs. Each role's README has the
+details: [project_apply](roles/project_apply/README.md),
+[server_apply](roles/server_apply/README.md), or
+`ansible-doc -t role ramanavelineni.semaphoreui.project_apply`.
+
+```yaml
+- name: Configure Semaphore
+  hosts: localhost
+  gather_facts: false
+  module_defaults:
+    group/ramanavelineni.semaphoreui.semaphoreui:
+      url: https://semaphore.example.com
+      api_token: "{{ vault_semaphore_api_token }}"
+  roles:
+    - role: ramanavelineni.semaphoreui.project_apply
+      vars:
+        project_apply_path: "{{ playbook_dir }}/config/projects"
+```
+
 ## Connecting
 
 Each module takes `url` (with or without `/api`) and either an `api_token` or
@@ -278,6 +306,34 @@ templates use an inventory, which repositories use a key. Deleting a project
 also needs `confirm_delete: true`, because it deletes everything inside.
 
 </details>
+
+## Exporting a project
+
+The role `project_export` reads a project from the server and writes it as the
+YAML the `project_apply` role reads: the project's options, and one section per
+kind of object, keyed by object name, with the options of the module that
+manages it.
+
+```yaml
+- name: Export a Semaphore project
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: ramanavelineni.semaphoreui.project_export
+      vars:
+        project_export_project: homelab
+        project_export_dest: "{{ playbook_dir }}/config/projects"
+```
+
+Semaphore never returns a stored secret, so each one becomes a reference to a
+variable (`"{{ vault_homelab_key_deploy_ssh_private_key }}"`), and the role
+lists those variables in a second file for you to fill in and keep in an Ansible
+Vault. The same project always gives the same files, and a file that differs is
+not replaced unless `project_export_overwrite` is set. See the
+[role's README](roles/project_export/README.md) for the variables and for what
+is left out. The filters behind it (`project_export_config`,
+`project_export_yaml`, `project_export_vault` and
+`project_export_vault_variables`) can be used on their own.
 
 ## More
 

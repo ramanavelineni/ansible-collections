@@ -1,0 +1,25 @@
+---
+# Takes everything apply.yml creates off the server. It runs before the test,
+# so that what a failed run left behind is no obstacle, and after it.
+
+- name: Delete the projects of the role test
+  ramanavelineni.semaphoreui.project:
+    name: "{{ item }}"
+    state: absent
+    confirm_delete: true
+  loop:
+    - roletest-full
+    - roletest-split
+    - roletest-unknown
+    - roletest-twice
+    - roletest-repeated
+
+- name: Delete the user of the role test
+  ramanavelineni.semaphoreui.user:
+    login: roletest-user
+    state: absent
+
+- name: Delete the runner of the role test
+  ramanavelineni.semaphoreui.runner:
+    name: roletest-runner
+    state: absent

@@ -1,0 +1,43 @@
+---
+argument_specs:
+  main:
+    short_description: Apply users and runners to a Semaphore UI server
+    description:
+      - Brings the users and the runners of a Semaphore server in line with two dictionaries, through the
+        M(ramanavelineni.semaphoreui.user) and M(ramanavelineni.semaphoreui.runner) modules.
+      - Every entry is created or updated; an entry marked C(state=absent) is deleted. Users and runners that
+        are not mentioned are left alone.
+      - An option a module does not have fails before anything is changed.
+      - A new runner's registration token is shown once, in the output of the run.
+      - The connection options are not variables of this role. Set them once with C(module_defaults) for the
+        action group C(ramanavelineni.semaphoreui.semaphoreui), or in the environment (E(SEMAPHORE_URL) and
+        E(SEMAPHORE_API_TOKEN), or E(SEMAPHORE_USERNAME) and E(SEMAPHORE_PASSWORD)).
+      - Afterwards C(server_apply_changed) says whether anything changed (or would have, with C(--check)).
+    author:
+      - ramanavelineni
+    options:
+      server_apply_users:
+        description:
+          - Users, keyed by login name.
+          - The options of an entry are those of the M(ramanavelineni.semaphoreui.user) module, without C(login).
+        type: dict
+        default: {}
+      server_apply_runners:
+        description:
+          - Runners, keyed by name.
+          - The options of an entry are those of the M(ramanavelineni.semaphoreui.runner) module, without C(name).
+        type: dict
+        default: {}
+      server_apply_drift_check:
+        description:
+          - Fail at the end of the role when something changed, or would have changed with C(--check).
+          - Passwords are then only sent for users that do not exist yet, because Semaphore never shows a
+            stored password and it would count as a difference on every run.
+        type: bool
+        default: false
+      server_apply_no_log:
+        description:
+          - Hide the output of the task that carries the users' passwords.
+          - Set it to V(false) only to find a mistake in the users.
+        type: bool
+        default: true

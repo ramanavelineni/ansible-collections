@@ -1,0 +1,27 @@
+---
+# Entries of full/ marked for deletion. They are deleted in reverse order of
+# creation: the schedule and the integration before their templates, the
+# templates before the view. Everything not mentioned stays.
+name: roletest-full
+
+view:
+  roletest-view:
+    state: absent
+
+template:
+  roletest-site:
+    state: absent
+  roletest-other:
+    state: absent
+
+schedule:
+  roletest-nightly:
+    state: absent
+
+integration:
+  roletest-hook:
+    state: absent
+
+team_member:
+  roletest-user:
+    state: absent

@@ -1,0 +1,428 @@
+---
+# Runs the roles project_apply and server_apply against a real Semaphore and
+# checks what they report. CI runs it against a throwaway server (the "Role
+# tests" job); `make role-test` runs it against the server named in the
+# environment:
+#
+#   SEMAPHORE_URL=http://127.0.0.1:3019 SEMAPHORE_PASSWORD=... make role-test
+#
+# The modules read SEMAPHORE_URL and SEMAPHORE_USERNAME / SEMAPHORE_PASSWORD
+# (or SEMAPHORE_API_TOKEN) themselves, so nothing about the connection is set
+# here. Everything it creates is named roletest-..., and it removes all of
+# that before it starts and when it ends. Throwaway servers only.
+- name: Test the roles project_apply and server_apply
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    roletest_files: "{{ playbook_dir }}/files/apply"
+    roletest_users:
+      roletest-user:
+        name: Role Test
+        email: roletest-user@example.com
+        user_password: roletest-user-pw-1
+        update_secret: on_create
+    roletest_runners:
+      roletest-runner:
+        max_parallel_tasks: 2
+        tags:
+          - roletest
+  tasks:
+    - name: Check that a server is named
+      ansible.builtin.assert:
+        that: lookup('ansible.builtin.env', 'SEMAPHORE_URL') | length > 0
+        fail_msg: Set SEMAPHORE_URL and SEMAPHORE_USERNAME / SEMAPHORE_PASSWORD (or SEMAPHORE_API_TOKEN) to a throwaway Semaphore.
+        quiet: true
+
+    - name: Remove what an earlier run left behind
+      ansible.builtin.include_tasks: tasks/apply_cleanup.yml
+
+    - name: Test the roles
+      block:
+        # ---- server_apply ---------------------------------------------------
+
+        - name: A check run of server_apply
+          check_mode: true
+          block:
+            - name: Apply the users and runners in check mode
+              ansible.builtin.include_role:
+                name: ramanavelineni.semaphoreui.server_apply
+              vars:
+                server_apply_users: "{{ roletest_users }}"
+                server_apply_runners: "{{ roletest_runners }}"
+
+        - name: Read the users after the check run
+          ramanavelineni.semaphoreui.user_info:
+            login: roletest-user
+          register: roletest_read
+
+        - name: The check run reports a change and creates nothing
+          ansible.builtin.assert:
+            that:
+              - server_apply_changed
+              - roletest_read.users | length == 0
+            fail_msg: "changed={{ server_apply_changed }}, users found: {{ roletest_read.users | length }}"
+            quiet: true
+
+        - name: Apply the users and runners
+          ansible.builtin.include_role:
+            name: ramanavelineni.semaphoreui.server_apply
+          vars:
+            server_apply_users: "{{ roletest_users }}"
+            server_apply_runners: "{{ roletest_runners }}"
+
+        - name: Read the user
+          ramanavelineni.semaphoreui.user_info:
+            login: roletest-user
+          register: roletest_read
+
+        - name: Read the runners
+          ramanavelineni.semaphoreui.runner_info:
+          register: roletest_read_runners
+
+        - name: The first run of server_apply changes the server
+          ansible.builtin.assert:
+            that:
+              - server_apply_changed
+              - roletest_read.users | length == 1
+              - roletest_read_runners.runners | selectattr('name', 'equalto', 'roletest-runner') | list | length == 1
+            fail_msg: "changed={{ server_apply_changed }}, users: {{ roletest_read.users | length }}"
+            quiet: true
+
+        - name: Apply the users and runners again
+          ansible.builtin.include_role:
+            name: ramanavelineni.semaphoreui.server_apply
+          vars:
+            server_apply_users: "{{ roletest_users }}"
+            server_apply_runners: "{{ roletest_runners }}"
+
+        - name: The second run of server_apply changes nothing
+          ansible.builtin.assert:
+            that: not server_apply_changed
+            fail_msg: server_apply reported a change on its second run
+            quiet: true
+
+        - name: A drift check of server_apply passes when nothing differs
+          check_mode: true
+          block:
+            - name: Check the users and runners for drift
+              ansible.builtin.include_role:
+                name: ramanavelineni.semaphoreui.server_apply
+              vars:
+                server_apply_users: "{{ roletest_users }}"
+                server_apply_runners: "{{ roletest_runners }}"
+                server_apply_drift_check: true
+
+        - name: A drift check of server_apply fails when something differs
+          check_mode: true
+          block:
+            - name: Check for drift with another name for the user
+              ansible.builtin.include_role:
+                name: ramanavelineni.semaphoreui.server_apply
+              vars:
+                server_apply_users:
+                  roletest-user:
+                    name: Somebody Else
+                server_apply_drift_check: true
+
+            - name: The drift check should have failed
+              ansible.builtin.fail:
+                msg: server_apply did not fail although the user differs
+          rescue:
+            - name: The drift check failed for the right reason
+              ansible.builtin.assert:
+                that: "'differ from server_apply_users' in ansible_failed_result.msg"
+                fail_msg: "{{ ansible_failed_result.msg }}"
+                quiet: true
+
+        - name: An unknown option of a user fails
+          block:
+            - name: Apply a user with a misspelled option
+              ansible.builtin.include_role:
+                name: ramanavelineni.semaphoreui.server_apply
+              vars:
+                server_apply_users:
+                  roletest-user:
+                    emial: roletest-user@example.com
+
+            - name: The role should have failed
+              ansible.builtin.fail:
+                msg: server_apply accepted an option the user module doesn't have
+          rescue:
+            - name: The role failed for the right reason
+              ansible.builtin.assert:
+                that: "'unknown option(s) user.roletest-user.emial' in ansible_failed_result.msg"
+                fail_msg: "{{ ansible_failed_result.msg }}"
+                quiet: true
+
+        # ---- project_apply --------------------------------------------------
+
+        - name: A check run of project_apply
+          check_mode: true
+          block:
+            - name: Apply the projects in check mode
+              ansible.builtin.include_role:
+                name: ramanavelineni.semaphoreui.project_apply
+              vars:
+                project_apply_path: "{{ roletest_files }}/full"
+
+        - name: Read the projects after the check run
+          ramanavelineni.semaphoreui.project_info:
+          register: roletest_read
+
+        - name: The check run reports a change and creates nothing
+          ansible.builtin.assert:
+            that:
+              - project_apply_changed
+              - project_apply_projects == ['roletest-full', 'roletest-split']
+              - roletest_read.projects | map(attribute='name') | select('match', 'roletest-') | list | length == 0
+            fail_msg: >-
+              changed={{ project_apply_changed }}, applied: {{ project_apply_projects }},
+              on the server: {{ roletest_read.projects | map(attribute='name') | list }}
+            quiet: true
+
+        - name: Apply the projects
+          ansible.builtin.include_role:
+            name: ramanavelineni.semaphoreui.project_apply
+          vars:
+            project_apply_path: "{{ roletest_files }}/full"
+
+        - name: Read the templates of the project in one file
+          ramanavelineni.semaphoreui.template_info:
+            project: roletest-full
+          register: roletest_read
+
+        - name: Read the views of the project in a directory
+          ramanavelineni.semaphoreui.view_info:
+            project: roletest-split
+          register: roletest_read_views
+
+        - name: The first run of project_apply creates what the files describe
+          ansible.builtin.assert:
+            that:
+              - project_apply_changed
+              - project_apply_projects == ['roletest-full', 'roletest-split']
+              - roletest_read.templates | map(attribute='name') | sort == ['roletest-other', 'roletest-site']
+              # Semaphore gives every project a view of its own ("All") next to these.
+              - roletest_read_views.views | map(attribute='name') | select('match', 'roletest-') | sort == ['roletest-first', 'roletest-second']
+            fail_msg: >-
+              changed={{ project_apply_changed }}, templates: {{ roletest_read.templates | map(attribute='name') | list }},
+              views: {{ roletest_read_views.views | map(attribute='name') | list }}
+            quiet: true
+
+        - name: Apply the projects again
+          ansible.builtin.include_role:
+            name: ramanavelineni.semaphoreui.project_apply
+          vars:
+            project_apply_path: "{{ roletest_files }}/full"
+
+        - name: The second run of project_apply changes nothing
+          ansible.builtin.assert:
+            that: not project_apply_changed
+            fail_msg: project_apply reported a change on its second run
+            quiet: true
+
+        - name: A drift check of project_apply passes when nothing differs
+          check_mode: true
+          block:
+            - name: Check the projects for drift
+              ansible.builtin.include_role:
+                name: ramanavelineni.semaphoreui.project_apply
+              vars:
+                project_apply_path: "{{ roletest_files }}/full"
+                project_apply_drift_check: true
+
+        - name: A drift check of project_apply fails when something differs
+          check_mode: true
+          block:
+            - name: Check for drift with another description of a template
+              ansible.builtin.include_role:
+                name: ramanavelineni.semaphoreui.project_apply
+              vars:
+                project_apply_path: "{{ roletest_files }}/changed"
+                project_apply_drift_check: true
+
+            - name: The drift check should have failed
+              ansible.builtin.fail:
+                msg: project_apply did not fail although a template differs
+          rescue:
+            - name: The drift check failed for the right reason
+              ansible.builtin.assert:
+                that: "'Semaphore differs from' in ansible_failed_result.msg"
+                fail_msg: "{{ ansible_failed_result.msg }}"
+                quiet: true
+
+        - name: An unknown option fails
+          block:
+            - name: Apply a project with options the modules don't have
+              ansible.builtin.include_role:
+                name: ramanavelineni.semaphoreui.project_apply
+              vars:
+                project_apply_path: "{{ roletest_files }}/unknown"
+
+            - name: The role should have failed
+              ansible.builtin.fail:
+                msg: project_apply accepted options the modules don't have
+          rescue:
+            - name: The role failed for the right reason
+              ansible.builtin.assert:
+                that: "'unknown option(s) colour, view.roletest-view.possition' in ansible_failed_result.msg"
+                fail_msg: "{{ ansible_failed_result.msg }}"
+                quiet: true
+
+        - name: Read the projects after the refused one
+          ramanavelineni.semaphoreui.project_info:
+            name: roletest-unknown
+          register: roletest_read
+
+        - name: The refused project was not created
+          ansible.builtin.assert:
+            that: roletest_read.projects | length == 0
+            fail_msg: roletest-unknown exists, although its description was refused
+            quiet: true
+
+        - name: A project described twice fails
+          block:
+            - name: Apply a project that is a file and a directory
+              ansible.builtin.include_role:
+                name: ramanavelineni.semaphoreui.project_apply
+              vars:
+                project_apply_path: "{{ roletest_files }}/twice"
+
+            - name: The role should have failed
+              ansible.builtin.fail:
+                msg: project_apply accepted a project described twice
+          rescue:
+            - name: The role failed for the right reason
+              ansible.builtin.assert:
+                that: "'describes roletest-twice more than once' in ansible_failed_result.msg"
+                fail_msg: "{{ ansible_failed_result.msg }}"
+                quiet: true
+
+        - name: An entry declared in two files fails
+          block:
+            - name: Apply a project with a view in two files
+              ansible.builtin.include_role:
+                name: ramanavelineni.semaphoreui.project_apply
+              vars:
+                project_apply_path: "{{ roletest_files }}/repeated"
+
+            - name: The role should have failed
+              ansible.builtin.fail:
+                msg: project_apply accepted an entry declared in two files
+          rescue:
+            - name: The role failed for the right reason
+              ansible.builtin.assert:
+                that: "'declared in more than one file: view.roletest-view (a.yml, b.yml)' in ansible_failed_result.msg"
+                fail_msg: "{{ ansible_failed_result.msg }}"
+                quiet: true
+
+        - name: A protected project fails
+          block:
+            - name: Apply the projects with one of them protected
+              ansible.builtin.include_role:
+                name: ramanavelineni.semaphoreui.project_apply
+              vars:
+                project_apply_path: "{{ roletest_files }}/full"
+                project_apply_protected_projects:
+                  - roletest-full
+
+            - name: The role should have failed
+              ansible.builtin.fail:
+                msg: project_apply managed a protected project
+          rescue:
+            - name: The role failed for the right reason
+              ansible.builtin.assert:
+                that: "'must not describe one of the projects in project_apply_protected_projects' in ansible_failed_result.msg"
+                fail_msg: "{{ ansible_failed_result.msg }}"
+                quiet: true
+
+        - name: Delete the entries marked absent
+          ansible.builtin.include_role:
+            name: ramanavelineni.semaphoreui.project_apply
+          vars:
+            project_apply_path: "{{ roletest_files }}/absent"
+
+        - name: Read the templates after the deletion
+          ramanavelineni.semaphoreui.template_info:
+            project: roletest-full
+          register: roletest_read
+
+        - name: Read the keys after the deletion
+          ramanavelineni.semaphoreui.key_store_info:
+            project: roletest-full
+          register: roletest_read_keys
+
+        - name: What was marked absent is gone, and the rest is still there
+          ansible.builtin.assert:
+            that:
+              - project_apply_changed
+              - roletest_read.templates | length == 0
+              # Semaphore gives every project a key of its own ("None") next to these.
+              - roletest_read_keys.key_store | map(attribute='name') | select('match', 'roletest-') | sort == ['roletest-login', 'roletest-none']
+            fail_msg: >-
+              changed={{ project_apply_changed }}, templates: {{ roletest_read.templates | map(attribute='name') | list }},
+              keys: {{ roletest_read_keys.key_store | map(attribute='name') | list }}
+            quiet: true
+
+        - name: Delete the entries marked absent again
+          ansible.builtin.include_role:
+            name: ramanavelineni.semaphoreui.project_apply
+          vars:
+            project_apply_path: "{{ roletest_files }}/absent"
+
+        - name: The second deletion changes nothing
+          ansible.builtin.assert:
+            that: not project_apply_changed
+            fail_msg: project_apply reported a change when it deleted what was already gone
+            quiet: true
+
+        - name: Delete the projects
+          ansible.builtin.include_role:
+            name: ramanavelineni.semaphoreui.project_apply
+          vars:
+            project_apply_path: "{{ roletest_files }}/gone"
+
+        - name: Read the projects after their deletion
+          ramanavelineni.semaphoreui.project_info:
+          register: roletest_read
+
+        - name: The projects are gone
+          ansible.builtin.assert:
+            that:
+              - project_apply_changed
+              - roletest_read.projects | map(attribute='name') | select('match', 'roletest-') | list | length == 0
+            fail_msg: "changed={{ project_apply_changed }}, on the server: {{ roletest_read.projects | map(attribute='name') | list }}"
+            quiet: true
+
+        - name: Delete the projects again
+          ansible.builtin.include_role:
+            name: ramanavelineni.semaphoreui.project_apply
+          vars:
+            project_apply_path: "{{ roletest_files }}/gone"
+
+        - name: Deleting projects that are gone changes nothing
+          ansible.builtin.assert:
+            that: not project_apply_changed
+            fail_msg: project_apply reported a change when it deleted projects that were already gone
+            quiet: true
+
+        - name: Delete the user and the runner
+          ansible.builtin.include_role:
+            name: ramanavelineni.semaphoreui.server_apply
+          vars:
+            server_apply_users:
+              roletest-user:
+                state: absent
+            server_apply_runners:
+              roletest-runner:
+                state: absent
+
+        - name: Deleting the user and the runner changes the server
+          ansible.builtin.assert:
+            that: server_apply_changed
+            fail_msg: server_apply reported no change when it deleted the user and the runner
+            quiet: true
+      always:
+        - name: Remove what the test created
+          ansible.builtin.include_tasks: tasks/apply_cleanup.yml

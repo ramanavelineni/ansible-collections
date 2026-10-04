@@ -1,0 +1,4 @@
+---
+name: roletest-split
+state: absent
+confirm_delete: true

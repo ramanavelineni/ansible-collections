@@ -416,6 +416,9 @@ or an OIDC user's CLI secret.
   to cover at least 95% of the plugin code.
 - Each collection has a live suite in `tests/live` that runs the modules
   against a real server. It runs locally, never in CI.
+- The roles of the semaphoreui collection run in CI against a Semaphore
+  container, once per tested version (`tests/roles`): a role can't be tested
+  without a server.
 - Unit tests replay API responses recorded from throwaway local servers:
   Semaphore UI 2.18.30 and 2.19.12, Harbor 2.14.4 and 2.15.2. Each quirk above
   has at least one test. The recorders live in `tools/`, one area at a time.

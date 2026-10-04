@@ -1,0 +1,4 @@
+---
+# A project as a directory: the files are put together. A section may be
+# spread over several files; each entry is declared in one of them.
+name: roletest-split

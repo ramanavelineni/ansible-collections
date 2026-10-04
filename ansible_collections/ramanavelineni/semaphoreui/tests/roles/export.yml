@@ -1,0 +1,526 @@
+---
+# Role test of project_export, run by CI against a throwaway Semaphore (and by
+# hand: see CONTRIBUTING.md). The server comes from the environment:
+# SEMAPHORE_URL, SEMAPHORE_USERNAME and SEMAPHORE_PASSWORD, which the modules
+# read themselves.
+#
+# It builds a project with the modules, exports it, and checks: the files, the
+# list of vault variables, that a second export changes nothing, that a file
+# that differs is not replaced unless asked, and that giving the exported
+# options back to the modules changes nothing. Everything it makes is named
+# roletest-export… and is removed again, also when a check fails.
+- name: Test the project_export role
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    export_project: roletest-export
+    # What the vault would hold: the variables the exported project refers to.
+    vault_roletest_export_key_roletest_export_ssh_ssh_login: git
+    vault_roletest_export_key_roletest_export_ssh_ssh_passphrase: ""
+    vault_roletest_export_key_roletest_export_ssh_ssh_private_key: "{{ export_private_key }}"
+    vault_roletest_export_key_roletest_export_login_login_password_login: ops
+    vault_roletest_export_key_roletest_export_login_login_password_password: roletest-export-pw
+    vault_roletest_export_var_roletest_export_vars_token: roletest-export-token
+    export_vault_variables:
+      - vault_roletest_export_key_roletest_export_login_login_password_login
+      - vault_roletest_export_key_roletest_export_login_login_password_password
+      - vault_roletest_export_key_roletest_export_ssh_ssh_login
+      - vault_roletest_export_key_roletest_export_ssh_ssh_passphrase
+      - vault_roletest_export_key_roletest_export_ssh_ssh_private_key
+      - vault_roletest_export_var_roletest_export_vars_token
+    # Not a key anyone uses: Semaphore stores what it is given.
+    export_private_key: |
+      -----BEGIN OPENSSH PRIVATE KEY-----
+      roletest
+      -----END OPENSSH PRIVATE KEY-----
+  tasks:
+    - name: Run the test and clean up after it
+      block:
+        - name: Remove what an earlier run left behind
+          ramanavelineni.semaphoreui.project:
+            name: "{{ export_project }}"
+            state: absent
+            confirm_delete: true
+
+        - name: Make a directory to export into
+          ansible.builtin.tempfile:
+            state: directory
+            prefix: roletest-export-
+          register: export_directory
+
+        # ---- a project with one object of every kind -------------------------
+
+        - name: Create the project
+          ramanavelineni.semaphoreui.project:
+            name: "{{ export_project }}"
+            max_parallel_tasks: 2
+          register: export_created
+
+        - name: Create an SSH key
+          ramanavelineni.semaphoreui.key_store:
+            project: "{{ export_project }}"
+            name: roletest-export-ssh
+            type: ssh
+            ssh:
+              login: git
+              private_key: "{{ export_private_key }}"
+
+        - name: Create a login key
+          ramanavelineni.semaphoreui.key_store:
+            project: "{{ export_project }}"
+            name: roletest-export-login
+            type: login_password
+            login_password:
+              login: ops
+              password: roletest-export-pw
+
+        - name: Create a repository
+          ramanavelineni.semaphoreui.repository:
+            project: "{{ export_project }}"
+            name: roletest-export-repo
+            git_url: git@github.com:example/roletest.git
+            git_branch: main
+            ssh_key: roletest-export-ssh
+
+        - name: Create an inventory
+          ramanavelineni.semaphoreui.inventory:
+            project: "{{ export_project }}"
+            name: roletest-export-inventory
+            type: static
+            inventory: |
+              [all]
+              localhost ansible_connection=local
+            ssh_key: roletest-export-ssh
+            become_key: roletest-export-login
+
+        - name: Create a variable group
+          ramanavelineni.semaphoreui.variable_group:
+            project: "{{ export_project }}"
+            name: roletest-export-vars
+            json:
+              region: eu
+              replicas: 2
+              # Data that looks like a template has to come back as data.
+              greeting: !unsafe "{{ not_a_variable }}"
+            env:
+              TZ: UTC
+            secrets:
+              - name: TOKEN
+                value: roletest-export-token
+
+        - name: Create a view
+          ramanavelineni.semaphoreui.view:
+            project: "{{ export_project }}"
+            name: roletest-export-view
+            position: 1
+
+        - name: Create a template
+          ramanavelineni.semaphoreui.template:
+            project: "{{ export_project }}"
+            name: roletest-export-site
+            playbook: site.yml
+            repository: roletest-export-repo
+            inventory: roletest-export-inventory
+            variable_groups:
+              - roletest-export-vars
+            view: roletest-export-view
+            description: Made by the role test
+            arguments:
+              - "-v"
+            vaults:
+              - key: roletest-export-login
+            survey_vars:
+              - name: region
+                title: Region
+                type: enum
+                values:
+                  - name: Europe
+                    value: eu
+
+        - name: Create a schedule
+          ramanavelineni.semaphoreui.schedule:
+            project: "{{ export_project }}"
+            name: roletest-export-nightly
+            template: roletest-export-site
+            cron: "0 3 * * *"
+
+        - name: Create an integration
+          ramanavelineni.semaphoreui.integration:
+            project: "{{ export_project }}"
+            name: roletest-export-hook
+            template: roletest-export-site
+            matchers:
+              - name: main
+                key: ref
+                value: refs/heads/main
+                method: contains
+            extract_values:
+              - name: sha
+                key: after
+                variable: COMMIT_SHA
+
+        # ---- export it, as one file -------------------------------------------
+
+        - name: Export the project
+          ansible.builtin.include_role:
+            name: ramanavelineni.semaphoreui.project_export
+          vars:
+            project_export_project: "{{ export_project }}"
+            project_export_dest: "{{ export_directory.path }}/projects"
+
+        - name: Read what was written
+          ansible.builtin.include_vars:
+            file: "{{ export_directory.path }}/projects/{{ export_project }}.yml"
+            name: exported
+
+        - name: Read the list of vault variables
+          ansible.builtin.include_vars:
+            file: "{{ export_directory.path }}/projects/{{ export_project }}.vault.example"
+            name: export_listed
+
+        - name: Read the file as text
+          ansible.builtin.slurp:
+            src: "{{ export_directory.path }}/projects/{{ export_project }}.yml"
+          register: export_text
+
+        - name: Check the exported project
+          ansible.builtin.assert:
+            that:
+              - exported.name == export_project
+              - exported.max_parallel_tasks == 2
+              - "'alert' not in exported"
+              - exported.key_store['roletest-export-ssh'].type == 'ssh'
+              - exported.key_store['roletest-export-ssh'].ssh.login == 'git'
+              - exported.key_store['roletest-export-ssh'].ssh.private_key == export_private_key
+              - exported.key_store['roletest-export-login'].login_password.password == 'roletest-export-pw'
+              - exported.repository['roletest-export-repo'].ssh_key == 'roletest-export-ssh'
+              - >-
+                exported.inventory['roletest-export-inventory'].inventory
+                == "[all]\nlocalhost ansible_connection=local\n"
+              - "'repository' not in exported.inventory['roletest-export-inventory']"
+              - exported.variable_group['roletest-export-vars'].json.replicas == 2
+              - >-
+                exported.variable_group['roletest-export-vars'].json.greeting
+                == '{' ~ '{ not_a_variable }' ~ '}'
+              - exported.variable_group['roletest-export-vars'].secrets[0].name == 'TOKEN'
+              - exported.variable_group['roletest-export-vars'].secrets[0].value == 'roletest-export-token'
+              - exported.view['roletest-export-view'].position == 1
+              - >-
+                exported.template['roletest-export-site'].vaults
+                == [{'key': 'roletest-export-login'}]
+              - >-
+                exported.template['roletest-export-site'].survey_vars[0]['values']
+                == [{'name': 'Europe', 'value': 'eu'}]
+              - "'allow_parallel_tasks' not in exported.template['roletest-export-site']"
+              - exported.schedule['roletest-export-nightly'].cron == '0 3 * * *'
+              - exported.integration['roletest-export-hook'].matchers[0].method == 'contains'
+              - "'webhook_urls' not in exported.integration['roletest-export-hook']"
+              - exported.team_member | length == 1
+              - export_listed | list | sort == export_vault_variables
+              - export_listed.values() | select | list | length == 0
+              # Nothing of the secrets themselves is in the file, and no id.
+              - "'roletest-export-pw' not in export_text.content | b64decode"
+              - "'roletest-export-token' not in export_text.content | b64decode"
+              - "'OPENSSH' not in export_text.content | b64decode"
+              - export_text.content | b64decode is not search('(?m)^\\s*(id|project_id):')
+            quiet: true
+
+        # ---- a second export changes nothing, and a difference is not overwritten
+
+        - name: Export the project again
+          ansible.builtin.include_role:
+            name: ramanavelineni.semaphoreui.project_export
+          vars:
+            project_export_project: "{{ export_project }}"
+            project_export_dest: "{{ export_directory.path }}/projects"
+
+        - name: Read the file again
+          ansible.builtin.slurp:
+            src: "{{ export_directory.path }}/projects/{{ export_project }}.yml"
+          register: export_text_again
+
+        - name: Check that the file is the same
+          ansible.builtin.assert:
+            that: export_text_again.content == export_text.content
+            quiet: true
+
+        - name: Change the project on the server
+          ramanavelineni.semaphoreui.view:
+            project: "{{ export_project }}"
+            name: roletest-export-view
+            position: 4
+
+        - name: Export it over the file that now differs
+          block:
+            - name: Export the changed project
+              ansible.builtin.include_role:
+                name: ramanavelineni.semaphoreui.project_export
+              vars:
+                project_export_project: "{{ export_project }}"
+                project_export_dest: "{{ export_directory.path }}/projects"
+
+            - name: Note that the role did not stop
+              ansible.builtin.set_fact:
+                export_refused: false
+          rescue:
+            - name: Note that the role stopped
+              ansible.builtin.set_fact:
+                export_refused: true
+                # The refusal comes from a task with a loop: its own message
+                # only says that items failed, and each item carries its reason.
+                export_refusal: >-
+                  {{ ([ansible_failed_result.msg | default('')]
+                      + (ansible_failed_result.results | default([]) | map(attribute='msg', default='') | list))
+                     | join(' ') }}
+
+        - name: Read the file after the refusal
+          ansible.builtin.slurp:
+            src: "{{ export_directory.path }}/projects/{{ export_project }}.yml"
+          register: export_text_refused
+
+        - name: Check that the file was left alone
+          ansible.builtin.assert:
+            that:
+              - export_refused
+              - "'project_export_overwrite' in export_refusal"
+              - export_text_refused.content == export_text.content
+            quiet: true
+
+        - name: Export the changed project, allowed to replace the file, by its id
+          ansible.builtin.include_role:
+            name: ramanavelineni.semaphoreui.project_export
+          vars:
+            project_export_project_id: "{{ export_created.project.id }}"
+            project_export_dest: "{{ export_directory.path }}/projects"
+            project_export_overwrite: true
+
+        - name: Read the replaced file
+          ansible.builtin.include_vars:
+            file: "{{ export_directory.path }}/projects/{{ export_project }}.yml"
+            name: exported
+
+        - name: Check that the file has the change
+          ansible.builtin.assert:
+            that: exported.view['roletest-export-view'].position == 4
+            quiet: true
+
+        # ---- what was exported, given back to the modules, changes nothing ----
+
+        - name: Apply the exported project options
+          ramanavelineni.semaphoreui.project:
+            name: "{{ exported.name }}"
+            max_parallel_tasks: "{{ exported.max_parallel_tasks | default(omit) }}"
+          register: export_applied_project
+
+        - name: Apply the exported keys
+          ramanavelineni.semaphoreui.key_store:
+            project: "{{ export_project }}"
+            name: "{{ item.key }}"
+            type: "{{ item.value.type }}"
+            ssh: "{{ item.value.ssh | default(omit) }}"
+            login_password: "{{ item.value.login_password | default(omit) }}"
+            # A secret cannot be compared with the stored one; without this it is sent again.
+            update_secret: on_create
+          loop: "{{ exported.key_store | dict2items }}"
+          loop_control:
+            label: "{{ item.key }}"
+          register: export_applied_keys
+
+        - name: Apply the exported repositories
+          ramanavelineni.semaphoreui.repository:
+            project: "{{ export_project }}"
+            name: "{{ item.key }}"
+            git_url: "{{ item.value.git_url }}"
+            git_branch: "{{ item.value.git_branch }}"
+            ssh_key: "{{ item.value.ssh_key | default(omit) }}"
+          loop: "{{ exported.repository | dict2items }}"
+          loop_control:
+            label: "{{ item.key }}"
+          register: export_applied_repositories
+
+        - name: Apply the exported inventories
+          ramanavelineni.semaphoreui.inventory:
+            project: "{{ export_project }}"
+            name: "{{ item.key }}"
+            type: "{{ item.value.type }}"
+            inventory: "{{ item.value.inventory }}"
+            repository: "{{ item.value.repository | default(omit) }}"
+            ssh_key: "{{ item.value.ssh_key | default(omit) }}"
+            become_key: "{{ item.value.become_key | default(omit) }}"
+          loop: "{{ exported.inventory | dict2items }}"
+          loop_control:
+            label: "{{ item.key }}"
+          register: export_applied_inventories
+
+        - name: Apply the exported variable groups
+          ramanavelineni.semaphoreui.variable_group:
+            project: "{{ export_project }}"
+            name: "{{ item.key }}"
+            json: "{{ item.value.json | default(omit) }}"
+            env: "{{ item.value.env | default(omit) }}"
+            secrets: "{{ item.value.secrets | default(omit) }}"
+            update_secret: on_create
+          loop: "{{ exported.variable_group | dict2items }}"
+          loop_control:
+            label: "{{ item.key }}"
+          register: export_applied_variable_groups
+
+        - name: Apply the exported views
+          ramanavelineni.semaphoreui.view:
+            project: "{{ export_project }}"
+            name: "{{ item.key }}"
+            position: "{{ item.value.position | default(omit) }}"
+            hidden: "{{ item.value.hidden | default(omit) }}"
+            sort_column: "{{ item.value.sort_column | default(omit) }}"
+            sort_reverse: "{{ item.value.sort_reverse | default(omit) }}"
+          loop: "{{ exported.view | dict2items }}"
+          loop_control:
+            label: "{{ item.key }}"
+          register: export_applied_views
+
+        - name: Apply the exported templates
+          ramanavelineni.semaphoreui.template:
+            project: "{{ export_project }}"
+            name: "{{ item.key }}"
+            app: "{{ item.value.app | default(omit) }}"
+            playbook: "{{ item.value.playbook | default(omit) }}"
+            repository: "{{ item.value.repository | default(omit) }}"
+            inventory: "{{ item.value.inventory | default(omit) }}"
+            variable_groups: "{{ item.value.variable_groups | default(omit) }}"
+            view: "{{ item.value.view | default(omit) }}"
+            description: "{{ item.value.description | default(omit) }}"
+            arguments: "{{ item.value.arguments | default(omit) }}"
+            vaults: "{{ item.value.vaults | default(omit) }}"
+            survey_vars: "{{ item.value.survey_vars | default(omit) }}"
+          loop: "{{ exported.template | dict2items }}"
+          loop_control:
+            label: "{{ item.key }}"
+          register: export_applied_templates
+
+        - name: Apply the exported schedules
+          ramanavelineni.semaphoreui.schedule:
+            project: "{{ export_project }}"
+            name: "{{ item.key }}"
+            template: "{{ item.value.template }}"
+            # The project has cron schedules only.
+            cron: "{{ item.value.cron }}"
+            active: "{{ item.value.active | default(omit) }}"
+          loop: "{{ exported.schedule | dict2items }}"
+          loop_control:
+            label: "{{ item.key }}"
+          register: export_applied_schedules
+
+        - name: Apply the exported integrations
+          ramanavelineni.semaphoreui.integration:
+            project: "{{ export_project }}"
+            name: "{{ item.key }}"
+            template: "{{ item.value.template }}"
+            auth_method: "{{ item.value.auth_method | default(omit) }}"
+            auth_key: "{{ item.value.auth_key | default(omit) }}"
+            auth_header: "{{ item.value.auth_header | default(omit) }}"
+            searchable: "{{ item.value.searchable | default(omit) }}"
+            matchers: "{{ item.value.matchers | default(omit) }}"
+            extract_values: "{{ item.value.extract_values | default(omit) }}"
+          loop: "{{ exported.integration | dict2items }}"
+          loop_control:
+            label: "{{ item.key }}"
+          register: export_applied_integrations
+
+        - name: Apply the exported team
+          ramanavelineni.semaphoreui.team_member:
+            project: "{{ export_project }}"
+            user: "{{ item.key }}"
+            role: "{{ item.value.role }}"
+          loop: "{{ exported.team_member | dict2items }}"
+          loop_control:
+            label: "{{ item.key }}"
+          register: export_applied_team
+
+        - name: Check that nothing changed
+          ansible.builtin.assert:
+            that:
+              - export_applied_project is not changed
+              - export_applied_changed | length == 0
+            fail_msg: "Applying the exported project changed {{ export_applied_changed | join(', ') }}"
+            quiet: true
+          vars:
+            export_applied_changed: >-
+              {{ (export_applied_keys.results + export_applied_repositories.results
+                  + export_applied_inventories.results + export_applied_variable_groups.results
+                  + export_applied_views.results + export_applied_templates.results
+                  + export_applied_schedules.results + export_applied_integrations.results
+                  + export_applied_team.results)
+                 | selectattr('changed') | map(attribute='item.key') | list }}
+
+        # ---- as a directory: one file per section, none for an empty one ------
+
+        - name: Export the project as a directory
+          ansible.builtin.include_role:
+            name: ramanavelineni.semaphoreui.project_export
+          vars:
+            project_export_project: "{{ export_project }}"
+            project_export_dest: "{{ export_directory.path }}/split"
+            project_export_layout: directory
+            project_export_vault_file: "{{ export_directory.path }}/split.vault.example"
+
+        - name: Remove the integration on the server
+          ramanavelineni.semaphoreui.integration:
+            project: "{{ export_project }}"
+            name: roletest-export-hook
+            state: absent
+
+        - name: Export the project as a directory again, allowed to replace what differs
+          ansible.builtin.include_role:
+            name: ramanavelineni.semaphoreui.project_export
+          vars:
+            project_export_project: "{{ export_project }}"
+            project_export_dest: "{{ export_directory.path }}/split"
+            project_export_layout: directory
+            project_export_vault_file: "{{ export_directory.path }}/split.vault.example"
+            project_export_overwrite: true
+
+        - name: Look at the files of the directory
+          ansible.builtin.find:
+            paths: "{{ export_directory.path }}/split/{{ export_project }}"
+          register: export_split
+
+        - name: Read the directory
+          ansible.builtin.include_vars:
+            dir: "{{ export_directory.path }}/split/{{ export_project }}"
+            name: export_split_project
+
+        - name: Check the directory
+          ansible.builtin.assert:
+            that:
+              # No file for the integrations, which the project has none of any more.
+              - >-
+                export_split.files | map(attribute='path') | map('basename') | sort
+                == ['inventory.yml', 'key_store.yml', 'project.yml', 'repository.yml', 'schedule.yml',
+                    'team_member.yml', 'template.yml', 'variable_group.yml', 'view.yml']
+              # The files together are the single file's project, less its integrations.
+              - export_split_differing | length == 0
+            fail_msg: "The directory and the single file differ in {{ export_split_differing | join(', ') }}"
+            quiet: true
+          vars:
+            export_split_expected: "{{ exported | dict2items | rejectattr('key', 'equalto', 'integration') | items2dict }}"
+            export_split_differing: >-
+              {%- set bad = [] -%}
+              {%- for key in (export_split_project.keys() | list + export_split_expected.keys() | list) | unique | sort -%}
+              {%-   if export_split_project[key] | default('(not there)') != export_split_expected[key] | default('(not there)') -%}
+              {%-     set _ = bad.append(key) -%}
+              {%-   endif -%}
+              {%- endfor -%}
+              {{ bad }}
+      always:
+        - name: Remove the project
+          ramanavelineni.semaphoreui.project:
+            name: "{{ export_project }}"
+            state: absent
+            confirm_delete: true
+
+        - name: Remove the directory
+          ansible.builtin.file:
+            path: "{{ export_directory.path }}"
+            state: absent
+          when: export_directory.path is defined

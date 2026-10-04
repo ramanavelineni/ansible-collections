@@ -1,0 +1,4 @@
+---
+key_store:
+  roletest-none:
+    type: none

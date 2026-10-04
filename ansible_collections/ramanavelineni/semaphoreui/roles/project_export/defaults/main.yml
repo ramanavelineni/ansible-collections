@@ -1,0 +1,31 @@
+---
+# The project to export: its name, or its id (for a server with 200 or more
+# projects, where a project cannot be found by name). One of the two.
+project_export_project: ""
+project_export_project_id: 0
+
+# project_export_dest has no default and has to be set: the directory the
+# project is written into, on the host this role runs on. It is created if it
+# is not there. Point it at the directory project_apply reads.
+
+# file: one file, <dest>/<name>.yml.
+# directory: <dest>/<name>/, with project.yml and one file per section.
+project_export_layout: file
+
+# Name of that file or directory, without ".yml". Empty: the project's name.
+project_export_file_name: ""
+
+# Semaphore never returns a stored secret. Each one becomes a variable named
+# <prefix>_<project>_<section>_<object>_<field>, and the variables are listed,
+# empty, in this file. Its name must not end in .yml or .yaml inside the
+# directory project_apply reads, or it would be taken for a project.
+# Empty: <dest>/<name>.vault.example.
+project_export_vault_prefix: vault
+project_export_vault_file: ""
+
+# Whether a file that is there already and differs may be replaced. Without
+# it, the role stops before it writes anything.
+project_export_overwrite: false
+
+project_export_file_mode: "0644"
+project_export_directory_mode: "0755"

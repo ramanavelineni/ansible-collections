@@ -1,0 +1,52 @@
+---
+argument_specs:
+  main:
+    short_description: Apply a directory of project descriptions to Semaphore UI
+    description:
+      - Finds the projects in a directory, checks them, and brings Semaphore in line with them through the
+        modules of this collection.
+      - A project is one file C(<name>.yml) (or C(.yaml)) or one directory C(<name>/) of such files, whose
+        contents are put together. The keys C(key_store), C(repository), C(inventory), C(variable_group),
+        C(view), C(template), C(schedule), C(integration) and C(team_member) each hold entries keyed by name,
+        with the options of the module of that name. Every other key is an option of the M(ramanavelineni.semaphoreui.project)
+        module; C(name) is required. A key that starts with an underscore is ignored, for YAML anchors.
+      - Everything declared is created or updated in dependency order. Then the entries marked C(state=absent)
+        are deleted in the reverse order. What a project does not mention is left alone.
+      - An option a module does not have, a project described twice, and an entry declared in two files all
+        fail before anything is changed.
+      - The connection options are not variables of this role. Set them once with C(module_defaults) for the
+        action group C(ramanavelineni.semaphoreui.semaphoreui), or in the environment (E(SEMAPHORE_URL) and
+        E(SEMAPHORE_API_TOKEN), or E(SEMAPHORE_USERNAME) and E(SEMAPHORE_PASSWORD)).
+      - Afterwards C(project_apply_changed) says whether anything changed (or would have, with C(--check)), and
+        C(project_apply_projects) lists the names of the projects that were applied.
+    author:
+      - ramanavelineni
+    options:
+      project_apply_path:
+        description:
+          - The directory that holds the projects.
+          - Give an absolute path, for example C({{ playbook_dir }}/config/projects). A relative one is taken
+            from the directory C(ansible-playbook) was started in.
+        type: path
+        required: true
+      project_apply_drift_check:
+        description:
+          - Fail at the end of the role when something changed, or would have changed with C(--check).
+          - Secrets are then only sent for keys and variable groups that do not exist yet, because Semaphore
+            never shows a stored secret and it would count as a difference on every run.
+        type: bool
+        default: false
+      project_apply_protected_projects:
+        description:
+          - Names of projects this role refuses to manage.
+          - Meant for the project a playbook runs from when it runs inside Semaphore. Updating a key that a
+            repository of that project uses makes Semaphore delete the checkout the run is working from.
+        type: list
+        elements: str
+        default: []
+      project_apply_no_log:
+        description:
+          - Hide the output of the tasks that carry secrets (keys, variable groups, and the loaded projects).
+          - Set it to V(false) only to find a mistake in a project description.
+        type: bool
+        default: true

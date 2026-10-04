@@ -1,0 +1,7 @@
+---
+# The view below is declared in b.yml as well: the role must refuse.
+name: roletest-repeated
+
+view:
+  roletest-view:
+    position: 1
