@@ -316,17 +316,29 @@ def test_integration(sem):
     assert sem.ok(integration, **options)['changed'] is False
 
 
-@pytest.mark.xfail(strict=True, reason='Semaphore 2.18.30 and 2.19.12 answer 204 to DELETE .../integrations/<id>/matchers/<id> and '
-                                       '.../values/<id> and delete nothing. integration reports the removal as done, returns the '
-                                       'object without the undeclared entries, and reports a change again on every run')
 def test_integration_removes_undeclared_matchers_and_values(sem):
+    """Dropping a matcher or a value either removes it, or fails saying the server kept it.
+
+    Semaphore on SQLite (2.18.30 and 2.19.12 at least) answers 204 to the
+    removal of a matcher or an extracted value and removes nothing. The module
+    then fails and leaves the integration as it was. On a server that does
+    remove them, the task changes the integration and a second run does not.
+    """
+    def entries():
+        stored = named(sem.ok(integration_info, project=PROJECT)['integrations'], 'live-hook')[0]
+        return sorted(m['name'] for m in stored['matchers']), sorted(v['name'] for v in stored['extract_values'])
+
+    before = entries()
     options = dict(project=PROJECT, name='live-hook', extract_values=[],
                    matchers=[dict(name='main', key='ref', value='refs/tags/', method='contains')])
-    assert sem.ok(integration, **options)['changed'] is True
-    stored = named(sem.ok(integration_info, project=PROJECT)['integrations'], 'live-hook')[0]
-    assert [m['name'] for m in stored['matchers']] == ['main']
-    assert stored['extract_values'] == []
-    assert sem.ok(integration, **options)['changed'] is False
+    result = sem.run(integration, **options)
+    if result.get('failed'):
+        assert 'did not remove' in result['msg']
+        assert entries() == before
+    else:
+        assert result['changed'] is True
+        assert entries() == (['main'], [])
+        assert sem.ok(integration, **options)['changed'] is False
 
 
 def test_runner(sem):
