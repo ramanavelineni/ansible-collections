@@ -1,0 +1,24 @@
+---
+# The options an entry may use: those of the module, without the name the
+# entry is keyed by. tests/unit/roles/test_apply_roles.py fails when a list
+# here, or a task in tasks/main.yml, no longer matches its module.
+__server_apply_options:
+  user:
+    - state
+    - name
+    - email
+    - admin
+    - alert
+    - external
+    - user_password
+    - update_secret
+  runner:
+    - project
+    - project_id
+    - state
+    - max_parallel_tasks
+    - active
+    - tags
+    - webhook
+    - is_default
+    - regenerate_token

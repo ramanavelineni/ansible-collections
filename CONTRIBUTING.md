@@ -82,6 +82,28 @@ the tests create and delete objects. Without the URL in the environment the
 tests are skipped. Run them before a release, and when a change touches what a
 module sends.
 
+### Role tests
+
+A role is tasks, so it can only be tested by running it against a server. The
+playbooks in a collection's `tests/roles/` do that: they apply sample
+descriptions, apply them again and expect no change, run in check mode, and
+feed the roles what they must refuse. CI runs them in the "Role tests" jobs,
+against a Semaphore container it starts for the run, once per tested Semaphore
+version. Locally:
+
+```sh
+SEMAPHORE_URL=http://127.0.0.1:3019 SEMAPHORE_USERNAME=admin SEMAPHORE_PASSWORD=... \
+    make role-test COLLECTION=semaphoreui
+```
+
+Every playbook in `tests/roles/` is run, so a new one needs no other change.
+Each has to stand alone: it only touches objects named `roletest-...`, and
+removes them before it starts and when it ends. Throwaway servers only.
+
+What can be checked without a server is a unit test:
+`tests/unit/roles/test_apply_roles.py` fails when a role's list of options, or
+the task that passes them on, no longer matches the module.
+
 ## What a change needs
 
 - **Tests.** Unit tests replay recorded API responses (see Fixtures below).

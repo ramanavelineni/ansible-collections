@@ -5,7 +5,7 @@ name: CI
 # and the other jobs run for the collections among them:
 #   - files under one collection: that collection's jobs (changelog lint,
 #     sanity and units on each ansible-core version, the install test, lint and
-#     coverage)
+#     coverage, and for semaphoreui the role tests)
 #   - this workflow, .github/scripts/ or the Makefile: everything
 #   - tools/: the recorder tests
 #   - Markdown only (READMEs, PLAN.md): nothing; module docs live in the .py
@@ -20,6 +20,11 @@ name: CI
 # branch, as an early warning: the test harness uses private ansible-core names
 # that a new version may change. It is not part of "CI result" and never blocks
 # a merge; only the weekly run turns red when it fails.
+#
+# "Role tests (...)" runs the roles of the semaphoreui collection against a
+# throwaway Semaphore that the job starts as a service container: the playbooks
+# in the collection's tests/roles/. Roles cannot be tested without a server, so
+# unlike the modules' live suites this one is part of CI and of "CI result".
 #
 # "Docs lint (...)" is not part of "CI result" either, for now: it could not
 # be run before it was added here, so its first runs show what it reports.
@@ -191,8 +196,13 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install ansible-lint==26.9.0
+      # The checkout is a collections path (ansible_collections/ is at its
+      # root): the roles call the collection's own modules, which ansible-lint
+      # has to find.
       - run: ansible-lint
         working-directory: ansible_collections/ramanavelineni/${{ matrix.collection }}
+        env:
+          ANSIBLE_COLLECTIONS_PATH: ${{ github.workspace }}
       - run: .github/scripts/check-sanity-ignore.py "${{ matrix.collection }}"
 
   # Unit-test coverage of the plugin code, against the floor in the script. One
@@ -217,6 +227,60 @@ jobs:
       - run: pip install "ansible-core~=2.21.0"
       - run: ansible-test units --venv --python 3.13 --coverage
       - run: ../../../.github/scripts/coverage-floor.sh "${{ matrix.collection }}" --venv --python 3.13
+
+  # The roles, run for real: every playbook in the collection's tests/roles/
+  # against a Semaphore started for this job (see .github/scripts/role-test.sh
+  # and the playbooks). Each tested Semaphore version runs once, the older one
+  # with the oldest supported ansible-core and the newer one with the newest,
+  # because a role is templating, and templating changed between those. The
+  # server and its admin password exist only for the run; the password is no
+  # secret.
+  roles:
+    name: Role tests (semaphoreui, Semaphore ${{ matrix.semaphore }}, ansible-core ${{ matrix.ansible }})
+    needs: changes
+    if: needs.changes.outputs.collections != '[]' && contains(needs.changes.outputs.collections, '"semaphoreui"')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - semaphore: v2.18.30
+            ansible: "2.18"
+          - semaphore: v2.19.12
+            ansible: "2.21"
+    services:
+      semaphore:
+        image: docker.io/semaphoreui/semaphore:${{ matrix.semaphore }}
+        env:
+          SEMAPHORE_DB_DIALECT: sqlite
+          SEMAPHORE_ADMIN: admin
+          SEMAPHORE_ADMIN_PASSWORD: roletest-${{ github.run_id }}-${{ github.run_attempt }}
+          SEMAPHORE_ADMIN_NAME: Admin
+          SEMAPHORE_ADMIN_EMAIL: admin@localhost
+        ports:
+          - 3000:3000
+    env:
+      SEMAPHORE_URL: http://127.0.0.1:3000
+      SEMAPHORE_USERNAME: admin
+      SEMAPHORE_PASSWORD: roletest-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+      - run: pip install "ansible-core~=${{ matrix.ansible }}.0"
+      - name: Wait for Semaphore
+        run: |
+          for try in $(seq 1 60); do
+            if curl -fsS -o /dev/null "${SEMAPHORE_URL}/api/ping"; then
+              echo "Semaphore answers after ${try} tries"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Semaphore did not answer on ${SEMAPHORE_URL}/api/ping within 2 minutes"
+          exit 1
+      - run: .github/scripts/role-test.sh semaphoreui
 
   # The module documentation as a documentation build would read it: markup,
   # links between modules, return value references. Not in the needs of
@@ -283,7 +347,7 @@ jobs:
 
   result:
     name: CI result
-    needs: [changes, changelog, sanity, units, install, lint, coverage, tools]
+    needs: [changes, changelog, sanity, units, install, lint, coverage, roles, tools]
     if: always()
     runs-on: ubuntu-latest
     steps:

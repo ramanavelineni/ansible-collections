@@ -1,0 +1,10 @@
+---
+galaxy_info:
+  author: ramanavelineni
+  description: Apply users and runners to a Semaphore UI server
+  license: Apache-2.0
+  min_ansible_version: "2.18"
+  galaxy_tags:
+    - semaphore
+    - semaphoreui
+dependencies: []

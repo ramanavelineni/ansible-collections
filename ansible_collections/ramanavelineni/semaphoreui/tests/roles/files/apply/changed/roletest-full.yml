@@ -1,0 +1,8 @@
+---
+# The project of full/, with one option that differs. What a project does not
+# mention is left alone, so this is all a drift check needs.
+name: roletest-full
+
+template:
+  roletest-site:
+    description: Changed behind the role's back

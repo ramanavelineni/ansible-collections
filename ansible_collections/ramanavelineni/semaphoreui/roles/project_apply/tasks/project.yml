@@ -1,0 +1,408 @@
+---
+# One project, described by one file or by a directory of files (their
+# contents are put together): create or update everything declared, in
+# dependency order, then delete the entries marked `state: absent` in the
+# reverse order (a schedule before its template, a template before its
+# repository). What the project does not mention is left alone.
+#
+# Every option of each module is passed through. The lists of those options
+# are in vars/main.yml; an entry that uses a key its module doesn't have fails
+# before anything is changed.
+
+- name: "Find the files of {{ __project_apply_source | basename }}"
+  ansible.builtin.find:
+    paths: "{{ __project_apply_source }}"
+    patterns:
+      - "*.yml"
+      - "*.yaml"
+  register: __project_apply_dir_files
+  when: __project_apply_source is directory
+
+- name: "Load {{ __project_apply_source | basename }}"
+  ansible.builtin.include_vars:
+    file: "{{ item }}"
+    name: project_apply_part
+  loop: >-
+    {{ (__project_apply_dir_files.files | map(attribute='path') | sort)
+       if __project_apply_source is directory else [__project_apply_source] }}
+  loop_control:
+    label: "{{ item | basename }}"
+  register: __project_apply_parts
+  no_log: "{{ project_apply_no_log | bool }}"
+
+- name: "Check the files of {{ __project_apply_source | basename }}"
+  ansible.builtin.assert:
+    that:
+      - __project_apply_parts.results | length > 0
+      - __project_apply_repeated | length == 0
+    fail_msg: >-
+      {{ __project_apply_source | basename }}:
+      {{ 'no .yml or .yaml file in this directory' if __project_apply_parts.results | length == 0
+         else 'declared in more than one file: ' ~ (__project_apply_repeated | join(', ')) }}
+    quiet: true
+  vars:
+    # A section may be spread over several files, but each entry (and each
+    # project option) is declared in one place.
+    __project_apply_repeated: >-
+      {%- set seen = {} -%}
+      {%- set bad = [] -%}
+      {%- for part in __project_apply_parts.results -%}
+      {%-   set file = part.item | basename -%}
+      {%-   for key, value in part.ansible_facts['project_apply_part'].items() if not key.startswith('_') -%}
+      {%-     set ids = [key] -%}
+      {%-     if key in __project_apply_sections -%}
+      {%-       set ids = (value | default({}, true)).keys() | map('regex_replace', '^', key ~ '.') | list -%}
+      {%-     endif -%}
+      {%-     for id in ids -%}
+      {%-       if id in seen -%}
+      {%-         set _ = bad.append(id ~ ' (' ~ seen[id] ~ ', ' ~ file ~ ')') -%}
+      {%-       else -%}
+      {%-         set _ = seen.update({id: file}) -%}
+      {%-       endif -%}
+      {%-     endfor -%}
+      {%-   endfor -%}
+      {%- endfor -%}
+      {{ bad }}
+
+- name: "Put together the files of {{ __project_apply_source | basename }}"
+  ansible.builtin.set_fact:
+    __project_apply_project: >-
+      {{ {} | combine(__project_apply_parts.results | map(attribute='ansible_facts.project_apply_part') | list, recursive=true) }}
+  no_log: "{{ project_apply_no_log | bool }}"
+
+- name: "Check the name of the project in {{ __project_apply_source | basename }}"
+  ansible.builtin.assert:
+    that:
+      - __project_apply_project.name is defined
+      - __project_apply_project.name not in project_apply_protected_projects
+    fail_msg: >-
+      {{ __project_apply_source | basename }} must set `name`, and must not describe one of the projects in
+      project_apply_protected_projects ({{ project_apply_protected_projects | join(', ') }}).
+    quiet: true
+
+- name: "Check the option names in {{ __project_apply_source | basename }}"
+  ansible.builtin.assert:
+    that: __project_apply_unknown | length == 0
+    fail_msg: "{{ __project_apply_source | basename }}: unknown option(s) {{ __project_apply_unknown | join(', ') }}"
+    quiet: true
+  vars:
+    __project_apply_unknown: >-
+      {%- set bad = [] -%}
+      {%- for key in __project_apply_project if not key.startswith('_') and key not in __project_apply_sections
+            and key not in __project_apply_options.project -%}
+      {%-   set _ = bad.append(key) -%}
+      {%- endfor -%}
+      {%- for section in __project_apply_sections -%}
+      {%-   for name, entry in (__project_apply_project[section] | default({}, true)).items() -%}
+      {%-     for key in (entry | default({}, true)) if key not in __project_apply_options[section] -%}
+      {%-       set _ = bad.append(section ~ '.' ~ name ~ '.' ~ key) -%}
+      {%-     endfor -%}
+      {%-   endfor -%}
+      {%- endfor -%}
+      {{ bad }}
+
+- name: "Project {{ __project_apply_project.name }}"
+  ramanavelineni.semaphoreui.project:
+    name: "{{ __project_apply_project.name }}"
+    state: "{{ __project_apply_project.state | default(omit) }}"
+    alert: "{{ __project_apply_project.alert | default(omit) }}"
+    alert_chat: "{{ __project_apply_project.alert_chat | default(omit) }}"
+    max_parallel_tasks: "{{ __project_apply_project.max_parallel_tasks | default(omit) }}"
+    confirm_delete: "{{ __project_apply_project.confirm_delete | default(omit) }}"
+  register: __project_apply_done_project
+
+# ---- create and update --------------------------------------------------
+
+- name: "Key Store ({{ __project_apply_project.name }})"
+  ramanavelineni.semaphoreui.key_store:
+    project: "{{ __project_apply_project.name }}"
+    name: "{{ item.key }}"
+    state: "{{ (item.value | default({}, true)).state | default(omit) }}"
+    type: "{{ (item.value | default({}, true)).type | default(omit) }}"
+    ssh: "{{ (item.value | default({}, true)).ssh | default(omit) }}"
+    login_password: "{{ (item.value | default({}, true)).login_password | default(omit) }}"
+    update_secret: "{{ 'on_create' if project_apply_drift_check | bool else ((item.value | default({}, true)).update_secret | default(omit)) }}"
+    force_repository_key_update: "{{ (item.value | default({}, true)).force_repository_key_update | default(omit) }}"
+  loop: "{{ __project_apply_project.key_store | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') != 'absent'
+  register: __project_apply_done_key_store
+  no_log: "{{ project_apply_no_log | bool }}"
+
+- name: "Repositories ({{ __project_apply_project.name }})"
+  ramanavelineni.semaphoreui.repository:
+    project: "{{ __project_apply_project.name }}"
+    name: "{{ item.key }}"
+    state: "{{ (item.value | default({}, true)).state | default(omit) }}"
+    git_url: "{{ (item.value | default({}, true)).git_url | default(omit) }}"
+    git_branch: "{{ (item.value | default({}, true)).git_branch | default(omit) }}"
+    ssh_key: "{{ (item.value | default({}, true)).ssh_key | default(omit) }}"
+  loop: "{{ __project_apply_project.repository | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') != 'absent'
+  register: __project_apply_done_repository
+
+- name: "Inventories ({{ __project_apply_project.name }})"
+  ramanavelineni.semaphoreui.inventory:
+    project: "{{ __project_apply_project.name }}"
+    name: "{{ item.key }}"
+    state: "{{ (item.value | default({}, true)).state | default(omit) }}"
+    type: "{{ (item.value | default({}, true)).type | default(omit) }}"
+    inventory: "{{ (item.value | default({}, true)).inventory | default(omit) }}"
+    repository: "{{ (item.value | default({}, true)).repository | default(omit) }}"
+    ssh_key: "{{ (item.value | default({}, true)).ssh_key | default(omit) }}"
+    become_key: "{{ (item.value | default({}, true)).become_key | default(omit) }}"
+  loop: "{{ __project_apply_project.inventory | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') != 'absent'
+  register: __project_apply_done_inventory
+
+- name: "Variable groups ({{ __project_apply_project.name }})"
+  ramanavelineni.semaphoreui.variable_group:
+    project: "{{ __project_apply_project.name }}"
+    name: "{{ item.key }}"
+    state: "{{ (item.value | default({}, true)).state | default(omit) }}"
+    json: "{{ (item.value | default({}, true)).json | default(omit) }}"
+    env: "{{ (item.value | default({}, true)).env | default(omit) }}"
+    secrets: "{{ (item.value | default({}, true)).secrets | default(omit) }}"
+    purge_secrets: "{{ (item.value | default({}, true)).purge_secrets | default(omit) }}"
+    update_secret: "{{ 'on_create' if project_apply_drift_check | bool else ((item.value | default({}, true)).update_secret | default(omit)) }}"
+  loop: "{{ __project_apply_project.variable_group | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') != 'absent'
+  register: __project_apply_done_variable_group
+  no_log: "{{ project_apply_no_log | bool }}"
+
+- name: "Views ({{ __project_apply_project.name }})"
+  ramanavelineni.semaphoreui.view:
+    project: "{{ __project_apply_project.name }}"
+    name: "{{ item.key }}"
+    state: "{{ (item.value | default({}, true)).state | default(omit) }}"
+    position: "{{ (item.value | default({}, true)).position | default(omit) }}"
+    hidden: "{{ (item.value | default({}, true)).hidden | default(omit) }}"
+    sort_column: "{{ (item.value | default({}, true)).sort_column | default(omit) }}"
+    sort_reverse: "{{ (item.value | default({}, true)).sort_reverse | default(omit) }}"
+  loop: "{{ __project_apply_project.view | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') != 'absent'
+  register: __project_apply_done_view
+
+- name: "Templates ({{ __project_apply_project.name }})"
+  ramanavelineni.semaphoreui.template:
+    project: "{{ __project_apply_project.name }}"
+    name: "{{ item.key }}"
+    state: "{{ (item.value | default({}, true)).state | default(omit) }}"
+    app: "{{ (item.value | default({}, true)).app | default(omit) }}"
+    playbook: "{{ (item.value | default({}, true)).playbook | default(omit) }}"
+    repository: "{{ (item.value | default({}, true)).repository | default(omit) }}"
+    inventory: "{{ (item.value | default({}, true)).inventory | default(omit) }}"
+    variable_groups: "{{ (item.value | default({}, true)).variable_groups | default(omit) }}"
+    view: "{{ (item.value | default({}, true)).view | default(omit) }}"
+    description: "{{ (item.value | default({}, true)).description | default(omit) }}"
+    git_branch: "{{ (item.value | default({}, true)).git_branch | default(omit) }}"
+    arguments: "{{ (item.value | default({}, true)).arguments | default(omit) }}"
+    type: "{{ (item.value | default({}, true)).type | default(omit) }}"
+    start_version: "{{ (item.value | default({}, true)).start_version | default(omit) }}"
+    build_template: "{{ (item.value | default({}, true)).build_template | default(omit) }}"
+    autorun: "{{ (item.value | default({}, true)).autorun | default(omit) }}"
+    allow_override_args_in_task: "{{ (item.value | default({}, true)).allow_override_args_in_task | default(omit) }}"
+    allow_override_branch_in_task: "{{ (item.value | default({}, true)).allow_override_branch_in_task | default(omit) }}"
+    allow_parallel_tasks: "{{ (item.value | default({}, true)).allow_parallel_tasks | default(omit) }}"
+    suppress_success_alerts: "{{ (item.value | default({}, true)).suppress_success_alerts | default(omit) }}"
+    runner_tag: "{{ (item.value | default({}, true)).runner_tag | default(omit) }}"
+    task_params: "{{ (item.value | default({}, true)).task_params | default(omit) }}"
+    vaults: "{{ (item.value | default({}, true)).vaults | default(omit) }}"
+    survey_vars: "{{ (item.value | default({}, true)).survey_vars | default(omit) }}"
+  loop: "{{ __project_apply_project.template | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') != 'absent'
+  register: __project_apply_done_template
+
+- name: "Schedules ({{ __project_apply_project.name }})"
+  ramanavelineni.semaphoreui.schedule:
+    project: "{{ __project_apply_project.name }}"
+    name: "{{ item.key }}"
+    state: "{{ (item.value | default({}, true)).state | default(omit) }}"
+    template: "{{ (item.value | default({}, true)).template | default(omit) }}"
+    cron: "{{ (item.value | default({}, true)).cron | default(omit) }}"
+    repository: "{{ (item.value | default({}, true)).repository | default(omit) }}"
+    run_at: "{{ (item.value | default({}, true)).run_at | default(omit) }}"
+    delete_after_run: "{{ (item.value | default({}, true)).delete_after_run | default(omit) }}"
+    active: "{{ (item.value | default({}, true)).active | default(omit) }}"
+  loop: "{{ __project_apply_project.schedule | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') != 'absent'
+  register: __project_apply_done_schedule
+
+- name: "Integrations ({{ __project_apply_project.name }})"
+  ramanavelineni.semaphoreui.integration:
+    project: "{{ __project_apply_project.name }}"
+    name: "{{ item.key }}"
+    state: "{{ (item.value | default({}, true)).state | default(omit) }}"
+    template: "{{ (item.value | default({}, true)).template | default(omit) }}"
+    auth_method: "{{ (item.value | default({}, true)).auth_method | default(omit) }}"
+    auth_key: "{{ (item.value | default({}, true)).auth_key | default(omit) }}"
+    auth_header: "{{ (item.value | default({}, true)).auth_header | default(omit) }}"
+    searchable: "{{ (item.value | default({}, true)).searchable | default(omit) }}"
+    matchers: "{{ (item.value | default({}, true)).matchers | default(omit) }}"
+    extract_values: "{{ (item.value | default({}, true)).extract_values | default(omit) }}"
+  loop: "{{ __project_apply_project.integration | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') != 'absent'
+  register: __project_apply_done_integration
+
+- name: "Show webhook URLs ({{ __project_apply_project.name }})"
+  ansible.builtin.debug:
+    msg: "{{ item.item.key }}: {{ item.webhook_urls | join(', ') }}"
+  loop: "{{ __project_apply_done_integration.results | default([]) | selectattr('webhook_urls', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+
+- name: "Team ({{ __project_apply_project.name }})"
+  ramanavelineni.semaphoreui.team_member:
+    project: "{{ __project_apply_project.name }}"
+    user: "{{ item.key }}"
+    role: "{{ (item.value | default({}, true)).role | default(omit) }}"
+    state: "{{ (item.value | default({}, true)).state | default(omit) }}"
+  loop: "{{ __project_apply_project.team_member | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') != 'absent'
+  register: __project_apply_done_team_member
+
+# ---- delete (state: absent), reverse order ------------------------------
+
+- name: "Delete team ({{ __project_apply_project.name }})"
+  ramanavelineni.semaphoreui.team_member:
+    project: "{{ __project_apply_project.name }}"
+    user: "{{ item.key }}"
+    state: absent
+  loop: "{{ __project_apply_project.team_member | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') == 'absent'
+  register: __project_apply_gone_team_member
+
+- name: "Delete integrations ({{ __project_apply_project.name }})"
+  ramanavelineni.semaphoreui.integration:
+    project: "{{ __project_apply_project.name }}"
+    name: "{{ item.key }}"
+    state: absent
+  loop: "{{ __project_apply_project.integration | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') == 'absent'
+  register: __project_apply_gone_integration
+
+- name: "Delete schedules ({{ __project_apply_project.name }})"
+  ramanavelineni.semaphoreui.schedule:
+    project: "{{ __project_apply_project.name }}"
+    name: "{{ item.key }}"
+    state: absent
+  loop: "{{ __project_apply_project.schedule | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') == 'absent'
+  register: __project_apply_gone_schedule
+
+- name: "Delete templates ({{ __project_apply_project.name }})"
+  ramanavelineni.semaphoreui.template:
+    project: "{{ __project_apply_project.name }}"
+    name: "{{ item.key }}"
+    state: absent
+  loop: "{{ __project_apply_project.template | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') == 'absent'
+  register: __project_apply_gone_template
+
+- name: "Delete views ({{ __project_apply_project.name }})"
+  ramanavelineni.semaphoreui.view:
+    project: "{{ __project_apply_project.name }}"
+    name: "{{ item.key }}"
+    state: absent
+  loop: "{{ __project_apply_project.view | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') == 'absent'
+  register: __project_apply_gone_view
+
+- name: "Delete variable groups ({{ __project_apply_project.name }})"
+  ramanavelineni.semaphoreui.variable_group:
+    project: "{{ __project_apply_project.name }}"
+    name: "{{ item.key }}"
+    state: absent
+  loop: "{{ __project_apply_project.variable_group | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') == 'absent'
+  register: __project_apply_gone_variable_group
+
+- name: "Delete inventories ({{ __project_apply_project.name }})"
+  ramanavelineni.semaphoreui.inventory:
+    project: "{{ __project_apply_project.name }}"
+    name: "{{ item.key }}"
+    state: absent
+  loop: "{{ __project_apply_project.inventory | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') == 'absent'
+  register: __project_apply_gone_inventory
+
+- name: "Delete repositories ({{ __project_apply_project.name }})"
+  ramanavelineni.semaphoreui.repository:
+    project: "{{ __project_apply_project.name }}"
+    name: "{{ item.key }}"
+    state: absent
+  loop: "{{ __project_apply_project.repository | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') == 'absent'
+  register: __project_apply_gone_repository
+
+- name: "Delete keys ({{ __project_apply_project.name }})"
+  ramanavelineni.semaphoreui.key_store:
+    project: "{{ __project_apply_project.name }}"
+    name: "{{ item.key }}"
+    state: absent
+  loop: "{{ __project_apply_project.key_store | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') == 'absent'
+  register: __project_apply_gone_key_store
+
+- name: "Note what was done ({{ __project_apply_project.name }})"
+  ansible.builtin.set_fact:
+    project_apply_changed: >-
+      {{ project_apply_changed | bool
+         or (__project_apply_results | map(attribute='changed', default=false) | select | list | length > 0) }}
+    project_apply_projects: "{{ project_apply_projects + [__project_apply_project.name] }}"
+  vars:
+    __project_apply_results:
+      - "{{ __project_apply_done_project }}"
+      - "{{ __project_apply_done_key_store }}"
+      - "{{ __project_apply_done_repository }}"
+      - "{{ __project_apply_done_inventory }}"
+      - "{{ __project_apply_done_variable_group }}"
+      - "{{ __project_apply_done_view }}"
+      - "{{ __project_apply_done_template }}"
+      - "{{ __project_apply_done_schedule }}"
+      - "{{ __project_apply_done_integration }}"
+      - "{{ __project_apply_done_team_member }}"
+      - "{{ __project_apply_gone_key_store }}"
+      - "{{ __project_apply_gone_repository }}"
+      - "{{ __project_apply_gone_inventory }}"
+      - "{{ __project_apply_gone_variable_group }}"
+      - "{{ __project_apply_gone_view }}"
+      - "{{ __project_apply_gone_template }}"
+      - "{{ __project_apply_gone_schedule }}"
+      - "{{ __project_apply_gone_integration }}"
+      - "{{ __project_apply_gone_team_member }}"

@@ -1,0 +1,81 @@
+---
+# Applies server_apply_users and server_apply_runners. Every option of the
+# user and the runner module is passed through; the lists of those options are
+# in vars/main.yml.
+
+- name: Check the Semaphore server
+  ramanavelineni.semaphoreui.info:
+
+- name: Check the option names of the users and runners
+  ansible.builtin.assert:
+    that: __server_apply_unknown | length == 0
+    fail_msg: "unknown option(s) {{ __server_apply_unknown | join(', ') }}"
+    quiet: true
+  vars:
+    __server_apply_unknown: >-
+      {%- set bad = [] -%}
+      {%- for section, entries in {'user': server_apply_users, 'runner': server_apply_runners}.items() -%}
+      {%-   for name, entry in (entries | default({}, true)).items() -%}
+      {%-     for key in (entry | default({}, true)) if key not in __server_apply_options[section] -%}
+      {%-       set _ = bad.append(section ~ '.' ~ name ~ '.' ~ key) -%}
+      {%-     endfor -%}
+      {%-   endfor -%}
+      {%- endfor -%}
+      {{ bad }}
+
+- name: Users
+  ramanavelineni.semaphoreui.user:
+    login: "{{ item.key }}"
+    state: "{{ (item.value | default({}, true)).state | default(omit) }}"
+    name: "{{ (item.value | default({}, true)).name | default(omit) }}"
+    email: "{{ (item.value | default({}, true)).email | default(omit) }}"
+    admin: "{{ (item.value | default({}, true)).admin | default(omit) }}"
+    alert: "{{ (item.value | default({}, true)).alert | default(omit) }}"
+    external: "{{ (item.value | default({}, true)).external | default(omit) }}"
+    user_password: "{{ (item.value | default({}, true)).user_password | default(omit) }}"
+    update_secret: "{{ 'on_create' if server_apply_drift_check | bool else ((item.value | default({}, true)).update_secret | default(omit)) }}"
+  loop: "{{ server_apply_users | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: __server_apply_done_users
+  no_log: "{{ server_apply_no_log | bool }}"
+
+- name: Runners
+  ramanavelineni.semaphoreui.runner:
+    name: "{{ item.key }}"
+    project: "{{ (item.value | default({}, true)).project | default(omit) }}"
+    project_id: "{{ (item.value | default({}, true)).project_id | default(omit) }}"
+    state: "{{ (item.value | default({}, true)).state | default(omit) }}"
+    max_parallel_tasks: "{{ (item.value | default({}, true)).max_parallel_tasks | default(omit) }}"
+    active: "{{ (item.value | default({}, true)).active | default(omit) }}"
+    tags: "{{ (item.value | default({}, true)).tags | default(omit) }}"
+    webhook: "{{ (item.value | default({}, true)).webhook | default(omit) }}"
+    is_default: "{{ (item.value | default({}, true)).is_default | default(omit) }}"
+    regenerate_token: "{{ (item.value | default({}, true)).regenerate_token | default(omit) }}"
+  loop: "{{ server_apply_runners | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: __server_apply_done_runners
+
+- name: Show the registration tokens of new runners (shown once)
+  ansible.builtin.debug:
+    msg: "{{ item.item.key }}: {{ item.registration_token }}"
+  loop: "{{ __server_apply_done_runners.results | default([]) | selectattr('registration_token', 'defined') | selectattr('registration_token') | list }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+
+- name: Note what was done
+  ansible.builtin.set_fact:
+    server_apply_changed: >-
+      {{ [__server_apply_done_users, __server_apply_done_runners]
+         | map(attribute='changed', default=false) | select | list | length > 0 }}
+
+- name: Report drift
+  ansible.builtin.fail:
+    msg: >-
+      Semaphore's users or runners differ from server_apply_users and server_apply_runners: see the tasks
+      marked "changed" above. Apply them without server_apply_drift_check to bring Semaphore back in line, or
+      change the two variables to match.
+  when:
+    - server_apply_drift_check | bool
+    - server_apply_changed | bool

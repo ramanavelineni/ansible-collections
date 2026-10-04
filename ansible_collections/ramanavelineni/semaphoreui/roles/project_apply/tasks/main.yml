@@ -1,0 +1,68 @@
+---
+# Applies every project found in project_apply_path. See the README and
+# meta/argument_specs.yml for what a project looks like.
+
+- name: Start with nothing changed
+  ansible.builtin.set_fact:
+    project_apply_changed: false
+    project_apply_projects: []
+
+- name: Check the directory of projects
+  ansible.builtin.assert:
+    that: project_apply_path is directory
+    fail_msg: "project_apply_path is not a directory: {{ project_apply_path }}"
+    quiet: true
+
+- name: Check the Semaphore server
+  ramanavelineni.semaphoreui.info:
+
+# A project is one file (projects/site.yml) or one directory of files
+# (projects/site/*.yml). Both .yml and .yaml are read.
+- name: Find the single-file projects
+  ansible.builtin.find:
+    paths: "{{ project_apply_path }}"
+    patterns:
+      - "*.yml"
+      - "*.yaml"
+  register: __project_apply_files
+
+- name: Find the project directories
+  ansible.builtin.find:
+    paths: "{{ project_apply_path }}"
+    file_type: directory
+  register: __project_apply_dirs
+
+- name: Check that no project is described twice
+  ansible.builtin.assert:
+    that: __project_apply_repeated | length == 0
+    fail_msg: >-
+      {{ project_apply_path }} describes {{ __project_apply_repeated | join(', ') }} more than once:
+      as a file and a directory, or as both .yml and .yaml. Keep one.
+    quiet: true
+  vars:
+    __project_apply_names: >-
+      {{ (__project_apply_files.files | map(attribute='path') | map('basename') | map('splitext') | map('first') | list)
+         + (__project_apply_dirs.files | map(attribute='path') | map('basename') | list) }}
+    __project_apply_repeated: >-
+      {%- set bad = [] -%}
+      {%- for name in __project_apply_names | unique if __project_apply_names | select('equalto', name) | list | length > 1 -%}
+      {%-   set _ = bad.append(name) -%}
+      {%- endfor -%}
+      {{ bad }}
+
+- name: Apply each project
+  ansible.builtin.include_tasks: project.yml
+  loop: "{{ (__project_apply_files.files + __project_apply_dirs.files) | map(attribute='path') | sort }}"
+  loop_control:
+    loop_var: __project_apply_source
+    label: "{{ __project_apply_source | basename }}"
+
+- name: Report drift
+  ansible.builtin.fail:
+    msg: >-
+      Semaphore differs from {{ project_apply_path }}: see the tasks marked "changed" above. Apply the
+      projects without project_apply_drift_check to bring Semaphore back in line, or change the
+      project descriptions to match.
+  when:
+    - project_apply_drift_check | bool
+    - project_apply_changed | bool

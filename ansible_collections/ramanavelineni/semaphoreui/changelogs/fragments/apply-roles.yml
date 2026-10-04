@@ -1,0 +1,6 @@
+---
+add object.role:
+  - name: project_apply
+    description: Apply a directory of project descriptions to Semaphore UI.
+  - name: server_apply
+    description: Apply users and runners to a Semaphore UI server.

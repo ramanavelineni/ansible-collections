@@ -1,0 +1,19 @@
+---
+# Users, keyed by login name. The options of an entry are those of the
+# ramanavelineni.semaphoreui.user module (name, email, admin, alert, external,
+# user_password, update_secret, state).
+server_apply_users: {}
+
+# Runners, keyed by name. The options of an entry are those of the
+# ramanavelineni.semaphoreui.runner module (project, project_id,
+# max_parallel_tasks, active, tags, webhook, is_default, regenerate_token,
+# state).
+server_apply_runners: {}
+
+# A drift check: nothing is expected to change, and the role fails at its end
+# when something did (or, with --check, would have). Passwords are then only
+# sent for users that don't exist yet.
+server_apply_drift_check: false
+
+# Hide the task that carries the users' passwords from the output.
+server_apply_no_log: true

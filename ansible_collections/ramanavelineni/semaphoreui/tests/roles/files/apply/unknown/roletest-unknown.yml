@@ -1,0 +1,9 @@
+---
+# An option the project module doesn't have, and one the view module doesn't
+# have. The role must fail before it creates the project.
+name: roletest-unknown
+colour: blue
+
+view:
+  roletest-view:
+    possition: 1

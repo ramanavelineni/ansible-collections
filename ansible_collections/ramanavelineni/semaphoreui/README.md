@@ -131,6 +131,34 @@ look a project up by name on a server with 200 or more projects. With
 `project_id` that list is not read and the project is found whatever their
 number.
 
+## Roles
+
+| Role | |
+|---|---|
+| `project_apply` | Applies a directory of project descriptions: each project a YAML file, or a directory of them, with its keys, repositories, inventories, variable groups, views, templates, schedules, integrations and team |
+| `server_apply` | Applies the users and the runners of the server |
+
+Both check what they are given before they change anything, leave alone what
+is not mentioned, delete only what is marked `state: absent`, and can run as a
+drift check that fails when Semaphore differs. Each role's README has the
+details: [project_apply](roles/project_apply/README.md),
+[server_apply](roles/server_apply/README.md), or
+`ansible-doc -t role ramanavelineni.semaphoreui.project_apply`.
+
+```yaml
+- name: Configure Semaphore
+  hosts: localhost
+  gather_facts: false
+  module_defaults:
+    group/ramanavelineni.semaphoreui.semaphoreui:
+      url: https://semaphore.example.com
+      api_token: "{{ vault_semaphore_api_token }}"
+  roles:
+    - role: ramanavelineni.semaphoreui.project_apply
+      vars:
+        project_apply_path: "{{ playbook_dir }}/config/projects"
+```
+
 ## Connecting
 
 Each module takes `url` (with or without `/api`) and either an `api_token` or

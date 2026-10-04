@@ -8,6 +8,7 @@
 #   make docs-lint                   # antsibull-docs lint of the module docs
 #   make install-test                # build, install elsewhere, use from there
 #   make live                        # live suite against a real server (see below)
+#   make role-test                   # the roles against a real server (see below)
 #   make changelog-lint              # check changelog fragments
 #   make tools-test                  # tests for the fixture recorders in tools/
 #   make build                       # collection tarball into build/
@@ -20,6 +21,10 @@
 # environment (SEMAPHORE_URL, SEMAPHORE_USERNAME, SEMAPHORE_PASSWORD, or
 # HARBOR_URL, HARBOR_USERNAME, HARBOR_PASSWORD). Without the URL the tests are
 # skipped. Throwaway servers only: the tests create and delete objects.
+#
+# make role-test runs the playbooks in tests/roles of the collection against
+# the server named the same way; CI runs them against a Semaphore it starts
+# itself. Throwaway servers only here too.
 
 NAMESPACE          ?= ramanavelineni
 COLLECTION         ?= semaphoreui
@@ -32,7 +37,7 @@ ANSIBLE_LINT       ?= ansible-lint
 PYTEST             ?= python3 -m pytest
 BUILD_DIR          := $(CURDIR)/build
 
-.PHONY: help sanity units coverage lint docs-lint install-test live tools-test changelog-lint changelog build clean
+.PHONY: help sanity units coverage lint docs-lint install-test live role-test tools-test changelog-lint changelog build clean
 
 help:
 	@sed -n 's/^#   //p' $(firstword $(MAKEFILE_LIST))
@@ -48,8 +53,10 @@ coverage:
 	cd $(COLLECTION_DIR) && $(ANSIBLE_TEST) units $(ANSIBLE_TEST_FLAGS) --coverage
 	cd $(COLLECTION_DIR) && $(CURDIR)/.github/scripts/coverage-floor.sh $(COLLECTION) $(ANSIBLE_TEST_FLAGS)
 
+# The repository root as a collections path: the roles call the collection's
+# own modules, which ansible-lint has to find.
 lint:
-	cd $(COLLECTION_DIR) && $(ANSIBLE_LINT)
+	cd $(COLLECTION_DIR) && ANSIBLE_COLLECTIONS_PATH=$(CURDIR) $(ANSIBLE_LINT)
 	.github/scripts/check-sanity-ignore.py $(COLLECTION)
 
 # The repository root has ansible_collections/ in it, so it is a collections path.
@@ -64,6 +71,12 @@ install-test:
 # environment, see the top of this file.
 live:
 	PYTHONPATH=$(CURDIR) $(PYTEST) $(COLLECTION_DIR)/tests/live -v
+
+# The roles need a server and a real ansible-playbook run. CI runs this
+# against a Semaphore container; here the connection comes from the
+# environment, see the top of this file.
+role-test:
+	.github/scripts/role-test.sh $(COLLECTION)
 
 # The recorders are not part of a collection, so ansible-test doesn't see them.
 tools-test:

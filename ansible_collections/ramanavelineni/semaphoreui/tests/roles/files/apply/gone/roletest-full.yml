@@ -1,0 +1,5 @@
+---
+# The whole project, deleted.
+name: roletest-full
+state: absent
+confirm_delete: true
