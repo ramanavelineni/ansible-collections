@@ -14,6 +14,7 @@ with the script is not tested here. Run them with `make tools-test`.
 """
 
 import os
+import shutil
 import socket
 import subprocess
 import tempfile
@@ -21,6 +22,8 @@ import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(os.path.dirname(HERE), 'harbor_up.sh')
+# For tests that run the script with a PATH of their own.
+BASH = shutil.which('bash')
 FIXTURES = os.path.join(HERE, 'fixtures', 'harbor_up')
 # Version and the port its working server is published on.
 VERSIONS = (('v2.14.4', '8014'), ('v2.15.2', '8015'))
@@ -366,7 +369,8 @@ class Arguments(unittest.TestCase):
             self.assertFalse(os.path.exists(called))
 
     def stub_podman(self, base, socket_path):
-        """A PATH with a podman that has no compose provider, and a curl that gets nothing."""
+        """An environment whose PATH has a podman without a compose provider, a curl that gets nothing, and no more
+        than the plain tools the script calls: whatever docker or compose the machine has is out of reach."""
         bin_dir = os.path.join(base, 'bin')
         os.mkdir(bin_dir)
         called = os.path.join(base, 'called')
@@ -380,8 +384,11 @@ class Arguments(unittest.TestCase):
             f.write('#!/bin/sh\nexit 22\n')
         for name in ('podman', 'curl'):
             os.chmod(os.path.join(bin_dir, name), 0o755)
-        # Only this directory and the system's own: no docker or compose of the machine the tests run on.
-        return dict(os.environ, HARBOR_UP_DIR=os.path.join(base, 'lab'), PATH=bin_dir + os.pathsep + '/usr/bin:/bin')
+        for tool in ('sh', 'cat', 'mkdir', 'head', 'od', 'tr', 'sed', 'awk', 'seq', 'sleep', 'rm', 'chmod'):
+            found = shutil.which(tool)
+            if found:
+                os.symlink(found, os.path.join(bin_dir, tool))
+        return dict(os.environ, HARBOR_UP_DIR=os.path.join(base, 'lab'), PATH=bin_dir)
 
     def test_without_a_compose_command_podmans_socket_is_used(self):
         # A short path: a unix socket's path has a length limit.
@@ -390,7 +397,7 @@ class Arguments(unittest.TestCase):
             listener = socket.socket(socket.AF_UNIX)
             listener.bind(socket_path)
             try:
-                result = subprocess.run(['bash', SCRIPT, 'up', 'v2.15.2', '8016'], capture_output=True, text=True,
+                result = subprocess.run([BASH, SCRIPT, 'up', 'v2.15.2', '8016'], capture_output=True, text=True,
                                         check=False, env=self.stub_podman(base, socket_path))
             finally:
                 listener.close()
@@ -401,7 +408,7 @@ class Arguments(unittest.TestCase):
 
     def test_without_a_compose_command_and_without_a_socket_it_stops(self):
         with tempfile.TemporaryDirectory() as base:
-            result = subprocess.run(['bash', SCRIPT, 'up', 'v2.15.2', '8016'], capture_output=True, text=True,
+            result = subprocess.run([BASH, SCRIPT, 'up', 'v2.15.2', '8016'], capture_output=True, text=True,
                                     check=False, env=self.stub_podman(base, os.path.join(base, 'nothing-here')))
             self.assertEqual(result.returncode, 1)
             self.assertIn('no compose command found, and no podman API socket', result.stderr)
