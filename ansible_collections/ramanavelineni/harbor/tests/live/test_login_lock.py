@@ -85,7 +85,8 @@ def locked_run(api, run, member, monkeypatch):
         seen['armed'] = True
         seen['project'] = project
         result = run(main, dict(member, **args), check=check)
-        status, body, dummy = seen['hidden']
+        hidden = seen['hidden']
+        status, body = hidden[0], hidden[1]
         assert status == 200 and body == [], 'the lookup was not answered anonymously: %s %s' % (status, body)
         states = list(seen['states'])
         for thread in seen['threads']:
