@@ -1,0 +1,53 @@
+---
+DOCUMENTATION:
+  name: project_export_config
+  version_added: 0.4.0
+  short_description: Turn what the Semaphore _info modules return into a project configuration
+  author:
+    - ramanavelineni (@ramanavelineni)
+  description:
+    - Turns a project, as the C(_info) modules of this collection return it, into the mapping the
+      C(project_apply) role reads. The project's own options are at the top, and there is one section per kind
+      of object, keyed by object name, with the options of the module that manages it.
+    - Ids and fields only the server knows are left out, and so are options that hold what an object gets when
+      it is created without them.
+    - Semaphore never returns a stored secret. Each one is the text C({{ variable }}) here, a reference to a
+      variable that P(ramanavelineni.semaphoreui.project_export_vault_variables#filter)
+      lists.
+    - The role C(project_export) uses this filter. It needs no connection to Semaphore itself.
+  positional: _input
+  options:
+    _input:
+      description:
+        - The project as the C(_info) modules return it. A mapping with the project under C(project) (one entry of
+          RV(ramanavelineni.semaphoreui.project_info#module:projects)) and the list each C(_info) module returns
+          under the name of its section, C(key_store), C(repository), C(inventory), C(variable_group), C(view),
+          C(template), C(schedule), C(integration) and C(team_member).
+        - A section that is missing counts as empty.
+      type: dict
+      required: true
+    vault_prefix:
+      description:
+        - What the name of every variable that stands for a secret starts with, in lower case. The name goes on with the
+          project, the section, the object and the field, as in
+          C(vault_homelab_key_deploy_ssh_private_key).
+      type: str
+      default: vault
+
+EXAMPLES: |
+  - name: Read the keys and the project
+    ramanavelineni.semaphoreui.key_store_info:
+      project: homelab
+    register: keys
+
+  - name: Show the keys the way a project file declares them
+    ansible.builtin.debug:
+      msg: "{{ {'project': {'name': 'homelab'}, 'key_store': keys.key_store}
+               | ramanavelineni.semaphoreui.project_export_config }}"
+
+RETURN:
+  _value:
+    description:
+      - The project. C(name) and the project options that are not at their default, then the sections that have
+        objects in them.
+    type: dict

@@ -1,0 +1,49 @@
+---
+DOCUMENTATION:
+  name: project_export_vault_variables
+  version_added: 0.4.0
+  short_description: List the vault variables an exported Semaphore project needs
+  author:
+    - ramanavelineni (@ramanavelineni)
+  description:
+    - Lists the variables that stand for the secrets of a project, in the order the project file names them.
+    - The key of type V(ssh) has three, its login, passphrase and private key. A key of type V(login_password)
+      has two. Each secret of a variable group has one.
+  positional: _input
+  options:
+    _input:
+      description:
+        - The project as the C(_info) modules return it. A mapping with the project under C(project) (one entry of
+          RV(ramanavelineni.semaphoreui.project_info#module:projects)) and the list each C(_info) module returns
+          under the name of its section, C(key_store), C(repository), C(inventory), C(variable_group), C(view),
+          C(template), C(schedule), C(integration) and C(team_member).
+        - A section that is missing counts as empty.
+      type: dict
+      required: true
+    vault_prefix:
+      description:
+        - What the name of every variable that stands for a secret starts with, in lower case. The name goes on with the
+          project, the section, the object and the field, as in
+          C(vault_homelab_key_deploy_ssh_private_key).
+      type: str
+      default: vault
+
+EXAMPLES: |
+  - name: Stop when a secret of the project has no value yet
+    ansible.builtin.assert:
+      that: lookup('ansible.builtin.vars', item.name, default=none) is not none
+      fail_msg: "{{ item.name }} is not defined ({{ item.description }})"
+    loop: "{{ exported | ramanavelineni.semaphoreui.project_export_vault_variables }}"
+
+RETURN:
+  _value:
+    description: One entry per secret.
+    type: list
+    elements: dict
+    contains:
+      name:
+        description: Name of the variable.
+        type: str
+      description:
+        description: "What it is the secret of, for example C(key deploy: ssh.private_key)."
+        type: str
