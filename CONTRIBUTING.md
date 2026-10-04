@@ -276,10 +276,11 @@ the repo changes by itself. The steps, in one pull request:
    both collections. Sanity fails without it, because the entries (the
    Apache-2.0 licence header instead of the GPL one) are needed on every
    version.
-2. Add `stable-2.x` to the two `ansible:` lists in `.github/workflows/ci.yml`
-   (sanity and units; the newest version is the job with coverage, which
-   installs `ansible-core~=` itself, so the version before it moves into the
-   units list), make it the newer of the two versions of the install test, and
+2. In `.github/workflows/ci.yml`, add the version to the list the Sanity job
+   goes through, and to the units: the newest version is the job with
+   coverage, which installs `ansible-core~=` itself, so the version before it
+   moves into the `ansible:` list of the other unit job. Make it the newer of
+   the two versions of the install test, and
    move the Lint job's `ansible-core~=` to it. The Lint job fails until the
    ignore files from step 1 and the sanity list agree.
 3. Raise the upper bound in the `pip install "ansible-core>=...,<..."` line of
