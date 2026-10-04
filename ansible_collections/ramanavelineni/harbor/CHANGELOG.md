@@ -2,24 +2,40 @@
 
 **Topics**
 
-- <a href="#v0-3-0">v0\.3\.0</a>
+- <a href="#v0-3-1">v0\.3\.1</a>
     - <a href="#release-summary">Release Summary</a>
+    - <a href="#bugfixes">Bugfixes</a>
+- <a href="#v0-3-0">v0\.3\.0</a>
+    - <a href="#release-summary-1">Release Summary</a>
     - <a href="#minor-changes">Minor Changes</a>
     - <a href="#security-fixes">Security Fixes</a>
-    - <a href="#bugfixes">Bugfixes</a>
+    - <a href="#bugfixes-1">Bugfixes</a>
 - <a href="#v0-2-0">v0\.2\.0</a>
-    - <a href="#release-summary-1">Release Summary</a>
+    - <a href="#release-summary-2">Release Summary</a>
     - <a href="#breaking-changes--porting-guide">Breaking Changes / Porting Guide</a>
     - <a href="#security-fixes-1">Security Fixes</a>
-    - <a href="#bugfixes-1">Bugfixes</a>
+    - <a href="#bugfixes-2">Bugfixes</a>
 - <a href="#v0-1-0">v0\.1\.0</a>
-    - <a href="#release-summary-2">Release Summary</a>
+    - <a href="#release-summary-3">Release Summary</a>
     - <a href="#new-modules">New Modules</a>
+
+<a id="v0-3-1"></a>
+## v0\.3\.1
+
+<a id="release-summary"></a>
+### Release Summary
+
+<code>registry</code> accepts a registry type the server offers\, not only the twelve the module knows\. No other change\.
+
+<a id="bugfixes"></a>
+### Bugfixes
+
+* registry \- <code>type</code> no longer has a fixed list of choices\, so an endpoint can use a type a newer Harbor adds\. The twelve types of Harbor 2\.14 and 2\.15 behave as before\. Any other type is checked against the types the server offers before the endpoint is created \(a warning instead of a failure in check mode\)\.
 
 <a id="v0-3-0"></a>
 ## v0\.3\.0
 
-<a id="release-summary"></a>
+<a id="release-summary-1"></a>
 ### Release Summary
 
 New connection options \(<code>client\_cert</code>\, <code>client\_key</code>\, <code>use\_proxy</code>\, <code>warn\_untested\_version</code>\)\, modules that work for users who are not administrators\, and a round of bug fixes\. Some checks are stricter than in 0\.2\.0 and can make a task fail that ran before\: <code>configuration</code> refuses to change a setting Harbor reports as not editable\, <code>registry</code> takes only <code>basic</code> or <code>oauth</code> as <code>credential\_type</code>\, and negative <code>retries</code> or <code>retry\_delay</code> are refused\. Run with <code>\-\-check</code> once after upgrading\.
@@ -38,7 +54,7 @@ New connection options \(<code>client\_cert</code>\, <code>client\_key</code>\, 
 
 * configuration\, configuration\_info \- a key that Harbor returns and these modules have no name for is left out of <code>configuration</code> when its name contains <code>secret</code>\, <code>password</code>\, <code>passwd</code>\, <code>token</code>\, <code>credential</code> or <code>private\_key</code>\. The secrets were recognised by a fixed list of names\, so a readable secret added by a newer Harbor would have been returned in clear text\. No Harbor version tested so far returns such a key\.
 
-<a id="bugfixes"></a>
+<a id="bugfixes-1"></a>
 ### Bugfixes
 
 * all modules \- <code>timeout</code> below 1 and a negative <code>retries</code> or <code>retry\_delay</code> fail before a request is sent\. <code>timeout\: 0</code> used to fail with \"Operation now in progress\"\, and a negative <code>retries</code> or <code>retry\_delay</code> was silently read as 0\.
@@ -72,7 +88,7 @@ New connection options \(<code>client\_cert</code>\, <code>client\_key</code>\, 
 <a id="v0-2-0"></a>
 ## v0\.2\.0
 
-<a id="release-summary-1"></a>
+<a id="release-summary-2"></a>
 ### Release Summary
 
 A security release\. A failed request no longer shows secrets\, and the collection now includes its <code>LICENSE</code>\. Also fixes to <code>project</code> quotas and robot account lookups\. One result changed form\, see the breaking changes\.
@@ -88,7 +104,7 @@ A security release\. A failed request no longer shows secrets\, and the collecti
 * All modules \- a failed request no longer shows secrets\. The request body in <code>request\_details</code> was returned as JSON text\, where a secret containing a quote\, a backslash or a non\-ASCII character is escaped and so was not masked\: such values of <code>robot\_account</code> <code>secret</code>\, <code>registry</code> <code>access\_secret</code>\, <code>configuration</code> <code>oidc\_client\_secret</code> and <code>ldap\_search\_password</code>\. The body is now returned as a dictionary with secret values replaced by <code>\*\*\*\*\*\*\*\*</code>\.
 * webhook \- a failed update no longer shows the webhook\'s stored auth header\, which the update sends back to Harbor\.
 
-<a id="bugfixes-1"></a>
+<a id="bugfixes-2"></a>
 ### Bugfixes
 
 * Add the <code>LICENSE</code> file to the collection\, so that installs and release tarballs include the license text\.
@@ -98,7 +114,7 @@ A security release\. A failed request no longer shows secrets\, and the collecti
 <a id="v0-1-0"></a>
 ## v0\.1\.0
 
-<a id="release-summary-2"></a>
+<a id="release-summary-3"></a>
 ### Release Summary
 
 First release\. 23 modules that manage Harbor 2\.14 and 2\.15 declaratively\: projects\, robot accounts\, registries\, replication rules\, webhooks\, tag retention and immutability\, system configuration\, and the garbage collection\, scan\-all and audit\-log rotation schedules\, each with an <code>\_info</code> module\. Objects are found and referenced by name\, only the options you set are compared\, and every module supports check mode and diff\.
