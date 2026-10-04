@@ -299,6 +299,11 @@ def record_core(srv, out):
                                        204, 'update integration')
     out['integration_refs_unused'] = expect(srv.call('GET', ipath + '/refs'), 200, 'integration refs')
     out['integration_matcher_delete'] = expect(srv.call('DELETE', '%s/matchers/%d' % (ipath, mid)), 204, 'delete matcher')
+    # Semaphore 2.18 and 2.19 on SQLite answer 204 to these two and remove nothing; the lists afterwards show it.
+    out['integration_matchers_after_delete'] = expect(srv.call('GET', ipath + '/matchers'), 200, 'matchers')
+    out['integration_value_delete'] = expect(srv.call(
+        'DELETE', '%s/values/%d' % (ipath, out['integration_value_create']['body']['id'])), 204, 'delete value')
+    out['integration_values_after_delete'] = expect(srv.call('GET', ipath + '/values'), 200, 'values')
     out['integration_delete'] = expect(srv.call('DELETE', ipath), 204, 'delete integration')
     tofu = expect(srv.call('POST', base + '/templates', {
         'project_id': pid, 'name': 'infra', 'app': 'tofu', 'repository_id': rid,

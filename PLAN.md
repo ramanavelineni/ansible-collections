@@ -221,6 +221,12 @@ each module logs in and out within its own run.
 - Matchers and extracted values are exact lists matched by name.
 - The module makes sure one webhook alias exists and returns the URLs.
 - Creating an alias or a matcher answers 200, not 201.
+- Deleting a matcher or an extracted value answers 204 and removes nothing on
+  Semaphore 2.18 and 2.19 with SQLite: the server's statement
+  (`delete from <table> t where ...`, an alias without `as`) is a syntax error
+  there and the handler drops every error but a foreign-key one. So the module
+  deletes first, reads the lists again, and fails when an entry is still
+  there. Deleting the integration does remove them.
 
 ### team_member
 - The member is `user:`, because `username` is the connection's login.
