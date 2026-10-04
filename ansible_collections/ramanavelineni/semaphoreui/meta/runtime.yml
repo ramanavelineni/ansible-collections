@@ -23,6 +23,8 @@ action_groups:
     - runner_info
     - schedule
     - schedule_info
+    - task
+    - task_info
     - team_member
     - team_member_info
     - template

@@ -47,6 +47,7 @@ import json
 import os
 import re
 import sys
+import time
 import urllib.error
 import urllib.request
 from http.cookiejar import CookieJar
@@ -526,11 +527,138 @@ def record_user(srv, out):
     expect(srv.call('DELETE', '/users/%d' % xid), 204, 'delete external user')
 
 
+TASK_PROJECT = 'fixtures-task'
+# How long the slow template's task runs, in seconds: long enough to be seen
+# running and to be stopped, short enough to wait for.
+TASK_SECONDS = 6
+TASK_FINAL = ('success', 'error', 'stopped')
+
+
+def sweep_task(srv):
+    """Delete project fixtures-task; its templates and tasks go with it."""
+    delete_projects(srv, TASK_PROJECT)
+
+
+def record_task(srv, out):
+    """Starting, watching and stopping tasks, in project fixtures-task.
+
+    The tasks run in the server's own container and need nothing from outside
+    it: the repository is the local path /dev and the "playbook" of the bash
+    templates is null, so a task runs `bash null` there, which does nothing
+    and succeeds. A task that takes a while comes from a variable group that
+    sets BASH_ENV for the process: bash expands that value before it reads
+    the script, and the value is a command substitution that sleeps.
+    """
+    project = expect(srv.call('POST', '/projects', {'name': TASK_PROJECT}), 201, 'create project')['body']
+    pid = project['id']
+    base = '/project/%d' % pid
+    out['task_projects_list'] = keep(expect(srv.call('GET', '/projects'), 200, 'projects'), lambda p: p['id'] == pid)
+
+    kid = expect(srv.call('POST', base + '/keys', {'project_id': pid, 'name': 'tk-none', 'type': 'none'}),
+                 201, 'create key')['body']['id']
+    rid = expect(srv.call('POST', base + '/repositories', {
+        'project_id': pid, 'name': 'tk-local', 'git_url': '/dev', 'git_branch': '', 'ssh_key_id': kid}),
+        201, 'create repository')['body']['id']
+    iid = expect(srv.call('POST', base + '/inventory', {
+        'project_id': pid, 'name': 'tk-inventory', 'type': 'static', 'inventory': 'localhost', 'ssh_key_id': kid}),
+        201, 'create inventory')['body']['id']
+
+    def group(name, env):
+        return expect(srv.call('POST', base + '/environment', {
+            'project_id': pid, 'name': name, 'json': '{}', 'env': json.dumps(env)}), 201, 'create variable group')['body']['id']
+
+    plain = group('tk-plain', {})
+    slow = group('tk-slow', {'BASH_ENV': '$(echo "tk-slow started" >&2; sleep %d; echo "tk-slow done" >&2)' % TASK_SECONDS})
+
+    def template(name, group_id, **more):
+        body = dict({'project_id': pid, 'name': name, 'app': 'bash', 'playbook': 'null', 'repository_id': rid,
+                     'inventory_id': iid, 'environment_id': group_id, 'type': ''}, **more)
+        return expect(srv.call('POST', base + '/templates', body), 201, 'create template %s' % name)['body']['id']
+
+    quick_id = template('tk-quick', plain)
+    slow_id = template('tk-slow', slow, allow_override_args_in_task=True)
+    fail_id = template('tk-fail', plain, playbook='tk-missing.sh')
+    build_id = template('tk-build', plain, type='build', start_version='1.0.0')
+    deploy_id = template('tk-deploy', plain, type='deploy', build_template_id=build_id)
+    out['task_templates'] = expect(srv.call('GET', base + '/templates'), 200, 'templates')
+
+    def watch(task_id, wanted, what):
+        """The task's GET answer once its status is one of `wanted`."""
+        seen = None
+        for dummy in range(200):
+            seen = expect(srv.call('GET', '%s/tasks/%d' % (base, task_id)), 200, 'task %s' % what)
+            status = seen['body']['status']
+            if status in wanted:
+                return seen
+            if status in TASK_FINAL:
+                break
+            time.sleep(0.2)
+        sys.exit('task %s: waited for %s, the task is %s. Record this area again.'
+                 % (what, ' or '.join(wanted), seen['body']['status']))
+
+    def output(task_id, what):
+        # The last lines reach the output a moment after the task's final status.
+        time.sleep(2)
+        return expect(srv.call('GET', '%s/tasks/%d/output' % (base, task_id)), 200, 'output %s' % what)
+
+    # A task from start to success, with what a task may set for itself.
+    out['task_start'] = expect(srv.call('POST', base + '/tasks', {
+        'template_id': slow_id, 'message': 'recorded', 'environment': json.dumps({'who': 'world'}),
+        'arguments': json.dumps(['--flag'])}), 201, 'start task')
+    first = out['task_start']['body']['id']
+    out['task_get_waiting'] = watch(first, ('waiting',), 'right after its start')
+    out['task_get_running'] = watch(first, ('running',), 'while it runs')
+    out['task_output_running'] = expect(srv.call('GET', '%s/tasks/%d/output' % (base, first)), 200, 'output while running')
+    out['task_get_success'] = watch(first, ('success',), 'at its end')
+    out['task_output'] = output(first, 'of the finished task')
+
+    # A task that fails: its script is not there.
+    out['task_start_failing'] = expect(srv.call('POST', base + '/tasks', {'template_id': fail_id}), 201, 'start failing task')
+    failing = out['task_start_failing']['body']['id']
+    out['task_get_error'] = watch(failing, ('error',), 'that fails')
+    out['task_output_error'] = output(failing, 'of the failed task')
+
+    # A task stopped while it runs.
+    out['task_start_to_stop'] = expect(srv.call('POST', base + '/tasks', {'template_id': slow_id}), 201, 'start task to stop')
+    stopping = out['task_start_to_stop']['body']['id']
+    watch(stopping, ('running',), 'to stop')
+    out['task_stop'] = expect(srv.call('POST', '%s/tasks/%d/stop' % (base, stopping), {'force': False}), 204, 'stop task')
+    out['task_get_stopped'] = watch(stopping, ('stopped',), 'after the stop')
+    out['task_output_stopped'] = output(stopping, 'of the stopped task')
+
+    # A build, and the deploy of that build.
+    out['task_start_build'] = expect(srv.call('POST', base + '/tasks', {'template_id': build_id}), 201, 'start build')
+    build = out['task_start_build']['body']['id']
+    out['task_get_build_success'] = watch(build, ('success',), 'build')
+    out['task_start_deploy'] = expect(srv.call('POST', base + '/tasks', {
+        'template_id': deploy_id, 'build_task_id': build}), 201, 'start deploy')
+    out['task_get_deploy_success'] = watch(out['task_start_deploy']['body']['id'], ('success',), 'deploy')
+
+    # A task that finishes at once.
+    out['task_start_quick'] = expect(srv.call('POST', base + '/tasks', {'template_id': quick_id}), 201, 'start quick task')
+    out['task_get_quick_success'] = watch(out['task_start_quick']['body']['id'], ('success',), 'quick')
+
+    # Lists, newest first.
+    out['task_list_last'] = expect(srv.call('GET', base + '/tasks/last?limit=3'), 200, 'last tasks')
+    out['task_list_template'] = expect(srv.call('GET', '%s/templates/%d/tasks/last?limit=20' % (base, slow_id)),
+                                       200, 'tasks of a template')
+
+    # What the server refuses.
+    out['task_start_unknown_template'] = srv.call('POST', base + '/tasks', {'template_id': slow_id + 100000})
+    out['task_start_environment_object'] = srv.call('POST', base + '/tasks', {
+        'template_id': slow_id, 'environment': {'who': 'world'}})
+    missing = first + 100000
+    out['task_get_missing'] = srv.call('GET', '%s/tasks/%d' % (base, missing))
+    out['task_output_missing'] = srv.call('GET', '%s/tasks/%d/output' % (base, missing))
+    out['task_stop_missing'] = srv.call('POST', '%s/tasks/%d/stop' % (base, missing), {'force': False})
+
+
 # Area name -> recorder. Each writes fixtures/<major.minor>/<area>.json.
 AREAS = {
     'core': record_core,
     'team': record_team,
     'runner': record_runner,
+    'task': record_task,
     'user': record_user,
 }
 # Area name -> what takes the area's own objects off the server (see run_area).
@@ -538,6 +666,7 @@ SWEEPS = {
     'core': sweep_core,
     'team': sweep_team,
     'runner': sweep_runner,
+    'task': sweep_task,
     'user': sweep_user,
 }
 

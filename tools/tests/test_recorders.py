@@ -153,6 +153,12 @@ class SecretScan(unittest.TestCase):
                          ['integration: has a value under "auth_header"', 'robot: has a value under "secret"',
                           'webhook: has a value under "auth_header"'])
 
+    def test_an_empty_json_object_under_a_secret_key_is_no_secret(self):
+        # What Semaphore answers for a task that was just started: "secret" is JSON in a string.
+        self.assertEqual(common.find_secrets(dict(task=dict(status=201, body=dict(id=1, secret='{}')))), [])
+        self.assertEqual(common.find_secrets(dict(task=dict(status=201, body=dict(id=1, secret='{"pw": "hunter2"}')))),
+                         ['task: has a value under "secret"'])
+
     def test_committed_fixtures_pass(self):
         for recorder, placeholders, key in ((semaphore, (semaphore.RECORDED_TOKEN,), common.SECRET_KEY),
                                             (harbor, (harbor.RECORDED_SECRET,), harbor.SECRET_KEY)):
@@ -279,6 +285,12 @@ class SemaphoreSweeps(unittest.TestCase):
                                  dict(id=3, username='us-fixture-ext-4711'), dict(id=4, username='us-ops')])
         semaphore.sweep_user(srv)
         self.assertEqual(srv.writes(), [('DELETE', '/users/2'), ('DELETE', '/users/3')])
+
+    def test_task_sweep_takes_only_its_own(self):
+        srv = self.server(projects=[dict(id=7, name='fixtures-task'), dict(id=8, name='fixtures-task-old'),
+                                    dict(id=9, name='homelab')])
+        semaphore.sweep_task(srv)
+        self.assertEqual(srv.writes(), [('DELETE', '/project/7')])
 
     def test_team_sweep_takes_only_its_own(self):
         srv = self.server(projects=[dict(id=7, name='fixtures-team'), dict(id=8, name='fixtures-team-old')],

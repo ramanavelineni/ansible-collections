@@ -14,7 +14,7 @@ along the way. Each quirk is handled inside a module and covered by a test.
 ## Status and roadmap
 
 - [x] Scaffolding: repository, CI, Makefile, pre-commit, changelog setup
-- [x] `ramanavelineni.semaphoreui`: 25 modules
+- [x] `ramanavelineni.semaphoreui`: 27 modules
 - [x] `ramanavelineni.harbor`: 23 modules
 - [x] First releases: `semaphoreui-v0.1.0` and `harbor-v0.1.0`, built and
       published as GitHub Releases by a workflow on tag push
@@ -214,6 +214,37 @@ each module logs in and out within its own run.
 - Task-parameter overrides are only in the single read, and an update without
   them unlinks them, so they're read and sent back.
 - An update resets a poller's last commit, so its next tick runs.
+
+### task
+- A task is started with `POST /project/<id>/tasks` and is not idempotent:
+  every request queues a new run. `variables` and `secret_variables` go as
+  JSON in a string (`environment`, `secret`); an object there is a 400, and a
+  string that isn't JSON a bare 500. `secret` is used for the run and never
+  stored.
+- What a task sets for itself is honoured only where the template allows it,
+  and dropped without a word otherwise: `git_branch`
+  (`allow_override_branch_in_task`), `arguments`
+  (`allow_override_args_in_task`), `inventory_id`
+  (`task_params.allow_override_inventory`, Ansible only), and in `params`
+  `limit`, `tags`, `skip_tags`, `debug` and `auto_approve`
+  (`allow_override_limit`, `allow_override_tags`, `allow_override_skip_tags`,
+  `allow_debug`, `allow_auto_approve`). The module checks first and fails.
+  `playbook` needs no permission.
+- A task is over at `success`, `error` or `stopped`. `waiting_confirmation`
+  (a Terraform plan without auto-approve) waits for a person, so the module
+  fails there instead of waiting on.
+- `POST .../tasks/<id>/stop` answers 204 for a task that is already over and
+  sets it to `stopped`, whatever it ended with. The module reads the task
+  first and doesn't send the request then.
+- A task id the project doesn't have is a 400, not a 404.
+- The last lines of the output are stored up to a few tenths of a second
+  after the final status, so the output of a finished task is read until two
+  reads agree. Each stored line keeps its line break; the result has none.
+- Lists: `tasks/last?limit=N` (at most 200) for a project and for a template.
+  2.18 ignores 2.19's `count`, so `limit` is what both take.
+- Tasks on the test servers need nothing from outside the container: the
+  repository is the local path `/dev` and the script `null`, and a variable
+  group's `BASH_ENV` makes a run take a few seconds.
 
 ### integration
 - `auth_header` is only a header name; the secret is a `login_password` key

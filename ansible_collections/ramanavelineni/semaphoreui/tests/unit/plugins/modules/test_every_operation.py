@@ -27,6 +27,7 @@ from ansible_collections.ramanavelineni.semaphoreui.plugins.modules import (
     runner_info,
     schedule,
     schedule_info,
+    task_info,
     team_member,
     team_member_info,
     template,
@@ -474,6 +475,14 @@ def schedule_list(server):
     return dict(project='homelab')
 
 
+def task_list(server):
+    pid = server.fixtures['task_projects_list']['body'][0]['id']
+    server.route('GET', '/projects', 'task_projects_list')
+    server.route('GET', '/project/%d/templates' % pid, 'task_templates')
+    server.route('GET', '/project/%d/tasks/last?limit=20' % pid, 'task_list_last')
+    return dict(project='fixtures-task')
+
+
 def team_member_list(server):
     team_routes(server, 'team_members_two')
     return dict(project=TEAM_PROJECT)
@@ -557,6 +566,7 @@ INFO_MODULES = [
     (repository_info, repository_list),
     (runner_info, runner_list),
     (schedule_info, schedule_list),
+    (task_info, task_list),
     (team_member_info, team_member_list),
     (template_info, template_list),
     (user_info, user_list),

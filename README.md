@@ -232,7 +232,7 @@ lists them under "Connecting".
 ## Modules
 
 <details>
-<summary><b>ramanavelineni.semaphoreui</b>: 25 modules</summary>
+<summary><b>ramanavelineni.semaphoreui</b>: 27 modules</summary>
 
 | Area | Modules |
 |---|---|
@@ -245,6 +245,7 @@ lists them under "Connecting".
 | Views (template tabs) | `view`, `view_info` |
 | Task templates | `template`, `template_info` |
 | Schedules and commit pollers | `schedule`, `schedule_info` |
+| Tasks (runs of a template) | `task`, `task_info` |
 | Integrations (inbound webhooks) | `integration`, `integration_info` |
 | Team | `team_member`, `team_member_info` |
 | Runners | `runner`, `runner_info` |

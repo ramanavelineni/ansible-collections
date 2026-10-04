@@ -112,7 +112,8 @@ SECRET_SHAPES = (
 # Keys whose value is a credential. A fixture may hold nothing, a mask, or one of the recorder's dummies there.
 # A recorder whose server has more such keys passes its own pattern.
 SECRET_KEY = re.compile(r'(secret|password|passphrase|private_key|token)$', re.I)
-DUMMY = re.compile(r'^\**$|not-?a-?real', re.I)
+# An empty JSON object as a string is what Semaphore answers for a new task's "secret".
+DUMMY = re.compile(r'^\**$|^\{\}$|not-?a-?real', re.I)
 
 
 def find_secrets(responses, secrets=(), placeholders=(), secret_key=SECRET_KEY):

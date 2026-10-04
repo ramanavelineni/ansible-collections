@@ -13,6 +13,8 @@ plugins/modules/runner.py validate-modules:missing-gplv3-license # Apache-2.0 co
 plugins/modules/runner_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/schedule.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/schedule_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/task.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/task_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/team_member.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/team_member_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/template.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
