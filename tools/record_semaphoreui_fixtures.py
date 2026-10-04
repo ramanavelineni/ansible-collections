@@ -526,17 +526,197 @@ def record_user(srv, out):
     expect(srv.call('DELETE', '/users/%d' % xid), 204, 'delete external user')
 
 
+# -- project backup and restore ------------------------------------------------
+
+BACKUP_PROJECT = 'bk-fixtures'
+BACKUP_PROJECTS = (BACKUP_PROJECT, 'bk-fixtures-restored', 'bk-fixtures-broken', 'bk-fixtures-partial')
+
+
+def sweep_backup(srv):
+    """Delete the projects named bk-fixtures*."""
+    delete_projects(srv, *BACKUP_PROJECTS)
+
+
+def record_backup(srv, out):
+    """A project's backup, and what restoring it answers.
+
+    Works next to anything else: it only touches projects named bk-fixtures*.
+    A backup holds no secrets and no ids, so it is recorded as it comes.
+    """
+    def own(project):
+        return project['name'] in BACKUP_PROJECTS
+
+    pid = expect(srv.call('POST', '/projects', {'name': BACKUP_PROJECT, 'alert': False, 'max_parallel_tasks': 2}),
+                 201, 'create project')['body']['id']
+    base = '/project/%d' % pid
+    kid = expect(srv.call('POST', base + '/keys', {
+        'project_id': pid, 'name': 'deploy', 'type': 'ssh',
+        'ssh': {'login': 'git', 'passphrase': '', 'private_key': FAKE_PRIVATE_KEY}}), 201, 'create key')['body']['id']
+    rid = expect(srv.call('POST', base + '/repositories', {
+        'project_id': pid, 'name': 'ansible', 'git_url': 'git@github.com:example/ansible.git',
+        'git_branch': 'main', 'ssh_key_id': kid}), 201, 'create repository')['body']['id']
+    iid = expect(srv.call('POST', base + '/inventory', {
+        'project_id': pid, 'name': 'hosts', 'type': 'static', 'inventory': 'localhost',
+        'ssh_key_id': kid}), 201, 'create inventory')['body']['id']
+    eid = expect(srv.call('POST', base + '/environment', {
+        'project_id': pid, 'name': 'vars', 'json': '{}', 'env': '{"TZ": "UTC"}',
+        'secrets': [{'name': 'API_KEY', 'secret': 'not-a-real-secret', 'type': 'var', 'operation': 'create'}]}),
+        201, 'create environment')['body']['id']
+    tid = expect(srv.call('POST', base + '/templates', {
+        'project_id': pid, 'name': 'site', 'app': 'ansible', 'playbook': 'site.yml', 'repository_id': rid,
+        'inventory_id': iid, 'environment_id': eid, 'type': ''}), 201, 'create template')['body']['id']
+    expect(srv.call('POST', base + '/schedules', {
+        'project_id': pid, 'template_id': tid, 'name': 'nightly', 'cron_format': '0 3 * * *', 'active': True}),
+        201, 'create schedule')
+
+    out['backup_projects'] = keep(expect(srv.call('GET', '/projects'), 200, 'projects'), own)
+    out['backup_project_get'] = expect(srv.call('GET', base), 200, 'project')
+    out['backup_get'] = expect(srv.call('GET', base + '/backup'), 200, 'backup')
+    backup = out['backup_get']['body']
+
+    # Restoring creates a project, and refuses the name of one that exists.
+    out['backup_restore_exists'] = expect(srv.call('POST', '/projects/restore', backup), 400, 'restore, same name')
+    renamed = json.loads(json.dumps(backup))
+    renamed['meta']['name'] = 'bk-fixtures-restored'
+    out['backup_restore'] = expect(srv.call('POST', '/projects/restore', renamed), 200, 'restore')
+    out['backup_projects_restored'] = keep(expect(srv.call('GET', '/projects'), 200, 'projects'), own)
+    new = '/project/%d' % out['backup_restore']['body']['id']
+    # What a restored project has: keys without their secrets, and no secret variables.
+    out['backup_restored_keys'] = expect(srv.call('GET', new + '/keys'), 200, 'restored keys')
+    out['backup_restored_environments'] = expect(srv.call('GET', new + '/environment'), 200, 'restored environments')
+    expect(srv.call('DELETE', new), 204, 'delete restored project')
+
+    # A reference to a name that is not in the backup is found before anything is created ...
+    broken = json.loads(json.dumps(backup))
+    broken['meta']['name'] = 'bk-fixtures-broken'
+    broken['templates'][0]['repository'] = 'no-such-repository'
+    out['backup_restore_broken'] = expect(srv.call('POST', '/projects/restore', broken), 400, 'restore, broken')
+    out['backup_projects_after_broken'] = keep(expect(srv.call('GET', '/projects'), 200, 'projects'), own)
+    # ... but not every one is: a schedule's template is only looked up after the project was created.
+    partial = {'meta': {'name': 'bk-fixtures-partial'},
+               'schedules': [{'name': 'nightly', 'template': 'no-such-template', 'cron_format': '0 3 * * *'}]}
+    out['backup_restore_partial'] = expect(srv.call('POST', '/projects/restore', partial), 400, 'restore, partial')
+    out['backup_projects_after_partial'] = keep(expect(srv.call('GET', '/projects'), 200, 'projects'), own)
+
+
+# -- the activity log ----------------------------------------------------------
+
+EVENT_PROJECT = 'ev-fixtures'
+
+
+def sweep_event(srv):
+    """Delete project ev-fixtures."""
+    delete_projects(srv, EVENT_PROJECT)
+
+
+def record_event(srv, out):
+    """Events of a project, and the same ones in the lists across projects.
+
+    Works next to anything else: it keeps only the events of project
+    ev-fixtures. They name the account the recorder logs in with.
+    """
+    pid = expect(srv.call('POST', '/projects', {'name': EVENT_PROJECT}), 201, 'create project')['body']['id']
+    base = '/project/%d' % pid
+    kid = expect(srv.call('POST', base + '/keys', {'project_id': pid, 'name': 'none', 'type': 'none'}),
+                 201, 'create key')['body']['id']
+    expect(srv.call('POST', base + '/repositories', {
+        'project_id': pid, 'name': 'ansible', 'git_url': 'https://github.com/example/ansible.git',
+        'git_branch': 'main', 'ssh_key_id': kid}), 201, 'create repository')
+    expect(srv.call('PUT', base, {'id': pid, 'name': EVENT_PROJECT, 'alert': False, 'max_parallel_tasks': 1}),
+           204, 'update project')
+
+    def own(event):
+        return event.get('project_id') == pid
+
+    out['event_projects'] = keep(expect(srv.call('GET', '/projects'), 200, 'projects'),
+                                 lambda project: project['name'] == EVENT_PROJECT)
+    out['events_project_last'] = expect(srv.call('GET', base + '/events/last'), 200, 'project events')
+    out['events_project'] = expect(srv.call('GET', base + '/events'), 200, 'project events')
+    out['events_last'] = keep(expect(srv.call('GET', '/events/last'), 200, 'events'), own)
+    out['events'] = keep(expect(srv.call('GET', '/events'), 200, 'events'), own)
+
+
+# -- API tokens ----------------------------------------------------------------
+
+TOKEN_PREFIX = 'tk-fixture'
+# Written in place of a token: Semaphore's own shape, and nothing a server ever made.
+RECORDED_API_TOKEN = '%s-recorded-not-a-real-api-token-000000='
+
+
+def sweep_token(srv):
+    """Revoke the API tokens named tk-fixture* of the account the recorder logs in with."""
+    for token in expect(srv.call('GET', '/user/tokens'), 200, 'tokens')['body'] or []:
+        if (token.get('name') or '').startswith(TOKEN_PREFIX):
+            expect(srv.call('DELETE', '/user/tokens/%s' % token['id']), 204, 'delete leftover token %s' % token['name'])
+
+
+def record_token(srv, out):
+    """The API tokens of the account the recorder logs in with.
+
+    Works next to the account's other tokens: it keeps only those named
+    tk-fixture*. A new token's answer is the token itself, and the list has
+    the first eight characters of each; both are replaced before anything is
+    written, the same stand-in start for the same token.
+    """
+    stand_ins = {}
+
+    def masked(result):
+        """The answer with every token of this run, whole or as its listed start, replaced."""
+        def stand_in(value):
+            start = stand_ins.setdefault(value[:8], 'tkfix%03d' % (len(stand_ins) + 1))
+            return start if len(value) <= 8 else RECORDED_API_TOKEN % start
+        body = result['body']
+        if isinstance(body, list):
+            body = [dict(token, id=stand_in(token['id'])) for token in body]
+        elif isinstance(body, dict) and 'id' in body:
+            body = dict(body, id=stand_in(body['id']))
+        return dict(result, body=body)
+
+    def own(token):
+        return (token.get('name') or '').startswith(TOKEN_PREFIX)
+
+    def listing():
+        return masked(keep(expect(srv.call('GET', '/user/tokens'), 200, 'tokens'), own))
+
+    out['tokens_none'] = listing()
+    created = expect(srv.call('POST', '/user/tokens', {'name': TOKEN_PREFIX}), 201, 'create token')
+    token = created['body']['id']
+    srv.secrets.append(token)
+    out['token_create'] = masked(created)
+    out['tokens_one'] = listing()
+    # The token works, and the start the list shows of it does not.
+    expect(srv.call('GET', '/user', token=token), 200, 'the token is taken')
+    expiring = expect(srv.call('POST', '/user/tokens', {
+        'name': TOKEN_PREFIX + '-expiring', 'expires_at': '2099-01-01T00:00:00Z'}), 201, 'create expiring token')
+    srv.secrets.append(expiring['body']['id'])
+    out['token_create_expiring'] = masked(expiring)
+    out['tokens_two'] = listing()
+    out['token_create_past'] = expect(srv.call('POST', '/user/tokens', {
+        'name': TOKEN_PREFIX + '-past', 'expires_at': '2001-01-01T00:00:00Z'}), 400, 'create token, past expiry')
+    # Deleting goes by the start of a token, and answers the same when no token starts that way.
+    out['token_delete'] = expect(srv.call('DELETE', '/user/tokens/%s' % token[:8]), 204, 'delete token')
+    out['token_delete_unknown'] = expect(srv.call('DELETE', '/user/tokens/%s' % token[:8]), 204, 'delete it again')
+    out['tokens_after_delete'] = listing()
+    expect(srv.call('DELETE', '/user/tokens/%s' % expiring['body']['id'][:8]), 204, 'delete expiring token')
+
+
 # Area name -> recorder. Each writes fixtures/<major.minor>/<area>.json.
 AREAS = {
+    'backup': record_backup,
     'core': record_core,
+    'event': record_event,
     'team': record_team,
+    'token': record_token,
     'runner': record_runner,
     'user': record_user,
 }
 # Area name -> what takes the area's own objects off the server (see run_area).
 SWEEPS = {
+    'backup': sweep_backup,
     'core': sweep_core,
+    'event': sweep_event,
     'team': sweep_team,
+    'token': sweep_token,
     'runner': sweep_runner,
     'user': sweep_user,
 }

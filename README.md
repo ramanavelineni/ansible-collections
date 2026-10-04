@@ -237,7 +237,9 @@ lists them under "Connecting".
 | Area | Modules |
 |---|---|
 | Server | `info` |
+| Activity log | `event_info` |
 | Projects | `project`, `project_info` |
+| Project backups | `project_backup`, `project_restore` |
 | Key Store | `key_store`, `key_store_info` |
 | Repositories | `repository`, `repository_info` |
 | Inventories | `inventory`, `inventory_info` |
@@ -247,6 +249,7 @@ lists them under "Connecting".
 | Schedules and commit pollers | `schedule`, `schedule_info` |
 | Integrations (inbound webhooks) | `integration`, `integration_info` |
 | Team | `team_member`, `team_member_info` |
+| API tokens | `user_token` |
 | Runners | `runner`, `runner_info` |
 | Users | `user`, `user_info` |
 

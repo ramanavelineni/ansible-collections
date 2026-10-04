@@ -148,6 +148,29 @@ each module logs in and out within its own run.
 - `state: absent` needs `confirm_delete: true`, because it deletes everything
   inside.
 
+### project_backup, project_restore
+- `GET /project/<id>/backup` and `POST /projects/restore`, the two requests
+  behind **Backup** and **Restore Project** in the UI.
+- A backup names everything (a repository's key, a template's inventory) and
+  has no ids. It holds no secrets: a key is its name and type, a secret
+  variable only its name, among the keys with `owner: variable`. A restored
+  project has keys that are `empty`, and no secret variables at all.
+- Restoring always creates a project and refuses the name of one that exists
+  (400, `project with name '...' already exists`). The module looks for the
+  name first and then does nothing, without comparing anything (decided
+  2026-10-04).
+- Semaphore takes a backup without `meta.name` and creates a project with an
+  empty name, so the module refuses one before any request.
+- A reference to a name that is not in the backup is refused before anything
+  is created (a bare 400), but not every one is checked up front: a
+  schedule's template is looked up after the project exists, and the failure
+  leaves the project behind. The module looks for it after a failed restore
+  and says which of the two happened.
+- The restore answers 200 with the project, not 201.
+- 2.19 adds a `workflows` section; the rest of the format is the same.
+- The returned file path is `file`, not `dest`: Ansible adds owner, size and
+  more to any result that has a `dest` or `path` key.
+
 ### key_store
 - The update needs `id` and `project_id` in the body and
   `override_secret: true`, or Semaphore silently ignores the secret.
@@ -251,6 +274,33 @@ each module logs in and out within its own run.
 - Semaphore 2.18 can't delete a user who has ever logged in (no
   `ON DELETE CASCADE` on sessions until 2.19; a bare 500). The failure
   explains it.
+
+### user_token
+- `/user/tokens` lists, creates and deletes the tokens of the user that is
+  logged in. There is no endpoint for another user's tokens.
+- The answer to a create is the token: its `id` is the value. The list
+  returns only the first eight characters of each `id`, which do not work as
+  a token. So the value is returned once, by the task that creates it.
+- A token has a `name` on both tested versions; that is what the module
+  finds it by. Names are not unique.
+- Delete goes by the start of a token (`id LIKE '<start>%'`, at least eight
+  characters) and answers 204 whether or not anything matched.
+- A past `expires_at` is a bare 400, so it is refused before the request.
+  An expiry cannot be changed afterwards.
+- A token that no longer works (revoked, or past its time) is replaced: the
+  name stands for a working token.
+- Revoking the token the task itself connects with is refused.
+
+### event_info
+- `/events/last` returns the newest 200 events and `/events` all of them,
+  newest first; there is no paging and no query parameter. Both exist under
+  `/project/<id>` too.
+- Without a project the list holds the events of the projects the user is a
+  member of, and those without a project, for an administrator as well.
+- An event carries the id of what it is about. `object_name` is filled only
+  for a task, with its playbook; the name of anything else is in the
+  description, if anywhere.
+- Creating a template is recorded with `object_type: schedule`.
 
 ### runner
 - A new runner has no credentials. The module asks for a one-time
