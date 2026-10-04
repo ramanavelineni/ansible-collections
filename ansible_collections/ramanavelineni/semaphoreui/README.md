@@ -109,7 +109,9 @@ Run it with `--check --diff` first to see what would change.
 | Area | Module | Read-only |
 |---|---|---|
 | Server | | `info`: version, tested flag, registered apps |
+| Activity log | | `event_info` |
 | Projects | `project` | `project_info` |
+| Project backups | `project_restore`: a new project from a backup | `project_backup`: reads it, writes it to a file |
 | Key Store | `key_store`: `ssh`, `login_password`, `none` | `key_store_info` |
 | Repositories | `repository` | `repository_info` |
 | Inventories | `inventory`: `file`, `static`, `static-yaml` | `inventory_info` |
@@ -120,6 +122,7 @@ Run it with `--check --diff` first to see what would change.
 | Tasks (runs of a template) | `task`: start, wait for the result, stop | `task_info` |
 | Integrations (inbound webhooks) | `integration`: returns the webhook URL | `integration_info` |
 | Team | `team_member` | `team_member_info` |
+| API tokens | `user_token`: of the user that logs in | |
 | Runners | `runner`: global, and project runners on Pro | `runner_info` |
 | Users | `user` | `user_info` |
 

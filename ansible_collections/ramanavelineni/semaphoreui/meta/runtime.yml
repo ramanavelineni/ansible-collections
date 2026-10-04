@@ -8,6 +8,7 @@ requires_ansible: ">=2.18.0"
 #       api_token: "{{ semaphore_api_token }}"
 action_groups:
   semaphoreui:
+    - event_info
     - info
     - integration
     - integration_info
@@ -16,7 +17,9 @@ action_groups:
     - key_store
     - key_store_info
     - project
+    - project_backup
     - project_info
+    - project_restore
     - repository
     - repository_info
     - runner
@@ -31,6 +34,7 @@ action_groups:
     - template_info
     - user
     - user_info
+    - user_token
     - variable_group
     - variable_group_info
     - view

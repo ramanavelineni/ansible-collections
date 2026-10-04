@@ -1,0 +1,256 @@
+{
+  "recorded_from": "v2.18.30-9dcfe85-1788086332",
+  "responses": {
+    "backup_get": {
+      "body": {
+        "environments": [
+          {
+            "env": "{\"TZ\": \"UTC\"}",
+            "json": "{}",
+            "name": "vars"
+          }
+        ],
+        "integration_aliases": [],
+        "integrations": [],
+        "inventories": [
+          {
+            "inventory": "localhost",
+            "name": "hosts",
+            "ssh_key": "deploy",
+            "type": "static"
+          }
+        ],
+        "keys": [
+          {
+            "name": "API_KEY",
+            "owner": "variable",
+            "synchronized": false,
+            "type": "string"
+          },
+          {
+            "name": "None",
+            "owner": "",
+            "synchronized": false,
+            "type": "none"
+          },
+          {
+            "name": "deploy",
+            "owner": "",
+            "synchronized": false,
+            "type": "ssh"
+          }
+        ],
+        "meta": {
+          "alert": false,
+          "max_parallel_tasks": 2,
+          "name": "bk-fixtures",
+          "type": ""
+        },
+        "repositories": [
+          {
+            "git_branch": "main",
+            "git_url": "git@github.com:example/ansible.git",
+            "name": "ansible",
+            "ssh_key": "deploy"
+          }
+        ],
+        "roles": [],
+        "runners": [],
+        "schedules": [
+          {
+            "active": true,
+            "cron_format": "0 3 * * *",
+            "delete_after_run": false,
+            "name": "nightly",
+            "template": "site",
+            "type": ""
+          }
+        ],
+        "secret_storages": [],
+        "templates": [
+          {
+            "allow_override_args_in_task": false,
+            "allow_override_branch_in_task": false,
+            "allow_parallel_tasks": false,
+            "app": "ansible",
+            "autorun": false,
+            "environments": [
+              "vars"
+            ],
+            "inventory": "hosts",
+            "name": "site",
+            "playbook": "site.yml",
+            "repository": "ansible",
+            "roles": [],
+            "suppress_success_alerts": false,
+            "survey_vars": [],
+            "task_params": {},
+            "type": "",
+            "vaults": []
+          }
+        ],
+        "views": [
+          {
+            "hidden": false,
+            "position": 0,
+            "sort_reverse": false,
+            "title": "All",
+            "type": "all"
+          }
+        ]
+      },
+      "status": 200
+    },
+    "backup_project_get": {
+      "body": {
+        "created": "2026-10-04T16:01:35.48979Z",
+        "id": 70,
+        "max_parallel_tasks": 2,
+        "name": "bk-fixtures",
+        "type": ""
+      },
+      "status": 200
+    },
+    "backup_projects": {
+      "body": [
+        {
+          "created": "2026-10-04T16:01:35.48979Z",
+          "id": 70,
+          "max_parallel_tasks": 2,
+          "name": "bk-fixtures",
+          "type": ""
+        }
+      ],
+      "status": 200
+    },
+    "backup_projects_after_broken": {
+      "body": [
+        {
+          "created": "2026-10-04T16:01:35.48979Z",
+          "id": 70,
+          "max_parallel_tasks": 2,
+          "name": "bk-fixtures",
+          "type": ""
+        }
+      ],
+      "status": 200
+    },
+    "backup_projects_after_partial": {
+      "body": [
+        {
+          "created": "2026-10-04T16:01:35.48979Z",
+          "id": 70,
+          "max_parallel_tasks": 2,
+          "name": "bk-fixtures",
+          "type": ""
+        },
+        {
+          "created": "2026-10-04T16:01:35.567156Z",
+          "id": 72,
+          "name": "bk-fixtures-partial",
+          "type": ""
+        }
+      ],
+      "status": 200
+    },
+    "backup_projects_restored": {
+      "body": [
+        {
+          "created": "2026-10-04T16:01:35.48979Z",
+          "id": 70,
+          "max_parallel_tasks": 2,
+          "name": "bk-fixtures",
+          "type": ""
+        },
+        {
+          "created": "2026-10-04T16:01:35.540291Z",
+          "id": 71,
+          "max_parallel_tasks": 2,
+          "name": "bk-fixtures-restored",
+          "type": ""
+        }
+      ],
+      "status": 200
+    },
+    "backup_restore": {
+      "body": {
+        "created": "2026-10-04T16:01:35.540291642Z",
+        "id": 71,
+        "max_parallel_tasks": 2,
+        "name": "bk-fixtures-restored",
+        "type": ""
+      },
+      "status": 200
+    },
+    "backup_restore_broken": {
+      "body": null,
+      "status": 400
+    },
+    "backup_restore_exists": {
+      "body": {
+        "error": "project with name 'bk-fixtures' already exists"
+      },
+      "status": 400
+    },
+    "backup_restore_partial": {
+      "body": null,
+      "status": 400
+    },
+    "backup_restored_environments": {
+      "body": [
+        {
+          "env": "{\"TZ\": \"UTC\"}",
+          "id": 60,
+          "json": "{}",
+          "name": "vars",
+          "password": null,
+          "project_id": 71,
+          "sync_enabled": false,
+          "sync_interval": 0,
+          "sync_paths": []
+        }
+      ],
+      "status": 200
+    },
+    "backup_restored_keys": {
+      "body": [
+        {
+          "IgnorePlain": false,
+          "id": 194,
+          "login_password": {
+            "login": "",
+            "password": ""
+          },
+          "name": "None",
+          "project_id": 71,
+          "ssh": {
+            "login": "",
+            "passphrase": "",
+            "private_key": ""
+          },
+          "string": "",
+          "type": "none"
+        },
+        {
+          "IgnorePlain": false,
+          "empty": true,
+          "id": 195,
+          "login_password": {
+            "login": "",
+            "password": ""
+          },
+          "name": "deploy",
+          "project_id": 71,
+          "ssh": {
+            "login": "",
+            "passphrase": "",
+            "private_key": ""
+          },
+          "string": "",
+          "type": "ssh"
+        }
+      ],
+      "status": 200
+    }
+  }
+}
