@@ -1,0 +1,87 @@
+---
+# The project tests/roles/roundtrip.yml starts from: an entry in every
+# section, with two secrets. Nothing here is a real secret or a real address.
+name: roletest-roundtrip
+max_parallel_tasks: 2
+
+_template: &template
+  repository: roletest-repo
+  inventory: roletest-inventory
+  variable_groups:
+    - roletest-vars
+
+key_store:
+  roletest-none:
+    type: none
+  roletest-login:
+    type: login_password
+    login_password:
+      login: deploy
+      password: roletest-pw-1
+    update_secret: on_create
+
+repository:
+  roletest-repo:
+    git_url: https://git.example.com/roletest/site.git
+    git_branch: main
+    ssh_key: roletest-none
+
+inventory:
+  roletest-inventory:
+    type: static
+    inventory: localhost ansible_connection=local
+    ssh_key: roletest-none
+    become_key: roletest-login
+
+variable_group:
+  roletest-vars:
+    json:
+      region: eu
+      replicas: 2
+    env:
+      TZ: UTC
+    secrets:
+      - name: TOKEN
+        type: env
+        value: roletest-tok-1
+    update_secret: on_create
+
+view:
+  roletest-view:
+    position: 1
+
+template:
+  roletest-site:
+    <<: *template
+    playbook: site.yml
+    description: Applied by the role test
+    view: roletest-view
+    arguments:
+      - -v
+  roletest-other:
+    <<: *template
+    playbook: other.yml
+
+schedule:
+  roletest-nightly:
+    template: roletest-site
+    cron: "0 3 * * *"
+
+integration:
+  roletest-hook:
+    template: roletest-other
+    auth_method: token
+    auth_key: roletest-login
+    auth_header: X-Token
+    matchers:
+      - name: main
+        key: ref
+        value: refs/heads/main
+    extract_values:
+      - name: sha
+        key: after
+        variable: COMMIT_SHA
+
+team_member:
+  roletest-roundtrip-user:
+    role: manager

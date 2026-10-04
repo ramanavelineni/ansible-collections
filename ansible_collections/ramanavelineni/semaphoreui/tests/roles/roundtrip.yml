@@ -1,0 +1,213 @@
+---
+# The three roles together, against a real Semaphore: project_apply builds a
+# project from a description, project_export writes that project out, and
+# project_apply reads what was written. An exported project has to describe
+# the server it came from exactly: applying it changes nothing.
+#
+# CI runs it against a throwaway server (the "Role tests" job);
+# `make role-test` runs it against the server named in the environment
+# (SEMAPHORE_URL and SEMAPHORE_USERNAME / SEMAPHORE_PASSWORD, or
+# SEMAPHORE_API_TOKEN, which the modules read themselves). Everything it
+# creates is named roletest-roundtrip..., and it removes all of that before it
+# starts and when it ends. Throwaway servers only.
+- name: Test that an exported project can be applied
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    roundtrip_project: roletest-roundtrip
+    roundtrip_source: "{{ playbook_dir }}/files/roundtrip"
+    roundtrip_users:
+      roletest-roundtrip-user:
+        name: Role Test Round Trip
+        email: roletest-roundtrip-user@example.com
+        user_password: roletest-roundtrip-pw-1
+        update_secret: on_create
+  tasks:
+    - name: Check that a server is named
+      ansible.builtin.assert:
+        that: lookup('ansible.builtin.env', 'SEMAPHORE_URL') | length > 0
+        fail_msg: Set SEMAPHORE_URL and SEMAPHORE_USERNAME / SEMAPHORE_PASSWORD (or SEMAPHORE_API_TOKEN) to a throwaway Semaphore.
+        quiet: true
+
+    - name: Run the test and clean up after it
+      block:
+        - name: Remove the project an earlier run left behind
+          ramanavelineni.semaphoreui.project:
+            name: "{{ roundtrip_project }}"
+            state: absent
+            confirm_delete: true
+
+        - name: Make a directory to export into
+          ansible.builtin.tempfile:
+            state: directory
+            prefix: roletest-roundtrip-
+          register: roundtrip_directory
+
+        # ---- build the project from its description --------------------------
+
+        - name: Create the user the project's team names
+          ansible.builtin.include_role:
+            name: ramanavelineni.semaphoreui.server_apply
+          vars:
+            server_apply_users: "{{ roundtrip_users }}"
+
+        - name: Apply the description
+          ansible.builtin.include_role:
+            name: ramanavelineni.semaphoreui.project_apply
+          vars:
+            project_apply_path: "{{ roundtrip_source }}"
+
+        - name: Applying the description created the project
+          ansible.builtin.assert:
+            that:
+              - project_apply_changed
+              - project_apply_projects == [roundtrip_project]
+            fail_msg: "changed={{ project_apply_changed }}, projects={{ project_apply_projects }}"
+            quiet: true
+
+        # ---- write it out ----------------------------------------------------
+
+        - name: Export the project
+          ansible.builtin.include_role:
+            name: ramanavelineni.semaphoreui.project_export
+          vars:
+            project_export_project: "{{ roundtrip_project }}"
+            project_export_dest: "{{ roundtrip_directory.path }}/projects"
+
+        - name: Read the exported file as text
+          ansible.builtin.slurp:
+            src: "{{ roundtrip_directory.path }}/projects/{{ roundtrip_project }}.yml"
+          register: roundtrip_exported
+
+        - name: Read the list of vault variables
+          ansible.builtin.include_vars:
+            file: "{{ roundtrip_directory.path }}/projects/{{ roundtrip_project }}.vault.example"
+            name: roundtrip_listed
+
+        - name: The export names the secrets it could not read
+          ansible.builtin.assert:
+            that: roundtrip_listed | length >= 2
+            fail_msg: "The vault list has {{ roundtrip_listed | length }} variable(s): {{ roundtrip_listed.keys() | join(', ') }}"
+            quiet: true
+
+        # The exported file refers to its secrets as vault variables. Semaphore
+        # never shows a stored secret, so the test cannot fill in the real ones;
+        # any value will do, because the drift check below leaves the secrets of
+        # objects that exist alone.
+        - name: Write a vault file with a value for every listed variable
+          ansible.builtin.copy:
+            dest: "{{ roundtrip_directory.path }}/vault.yml"
+            mode: "0600"
+            content: "{{ dict(roundtrip_listed.keys() | zip_longest([], fillvalue='roletest-roundtrip-any')) | to_nice_yaml }}"
+
+        - name: Read the vault file
+          ansible.builtin.include_vars:
+            file: "{{ roundtrip_directory.path }}/vault.yml"
+
+        # ---- read it back ----------------------------------------------------
+
+        - name: The exported project describes the server exactly
+          check_mode: true
+          block:
+            - name: Check the server for drift from the exported project
+              ansible.builtin.include_role:
+                name: ramanavelineni.semaphoreui.project_apply
+              vars:
+                project_apply_path: "{{ roundtrip_directory.path }}/projects"
+                project_apply_drift_check: true
+
+        - name: The exported project is the one that was read
+          ansible.builtin.assert:
+            that:
+              - not project_apply_changed
+              - project_apply_projects == [roundtrip_project]
+            fail_msg: "changed={{ project_apply_changed }}, projects={{ project_apply_projects }}"
+            quiet: true
+
+        # ---- a difference is seen, and applying the export removes it --------
+
+        - name: Change the project on the server
+          ramanavelineni.semaphoreui.project:
+            name: "{{ roundtrip_project }}"
+            max_parallel_tasks: 5
+
+        - name: The drift check sees the change
+          check_mode: true
+          block:
+            - name: Check the changed server for drift from the exported project
+              ansible.builtin.include_role:
+                name: ramanavelineni.semaphoreui.project_apply
+              vars:
+                project_apply_path: "{{ roundtrip_directory.path }}/projects"
+                project_apply_drift_check: true
+
+            - name: The drift check should have failed
+              ansible.builtin.fail:
+                msg: project_apply did not fail although the project was changed on the server
+          rescue:
+            - name: The drift check failed for the right reason
+              ansible.builtin.assert:
+                that: "'Semaphore differs from' in ansible_failed_result.msg"
+                fail_msg: "{{ ansible_failed_result.msg }}"
+                quiet: true
+
+        - name: Apply the exported project
+          ansible.builtin.include_role:
+            name: ramanavelineni.semaphoreui.project_apply
+          vars:
+            project_apply_path: "{{ roundtrip_directory.path }}/projects"
+
+        - name: Applying the exported project changed the server
+          ansible.builtin.assert:
+            that: project_apply_changed
+            fail_msg: project_apply reported no change although the project differed from the export
+            quiet: true
+
+        - name: Read the project
+          ramanavelineni.semaphoreui.project_info:
+            name: "{{ roundtrip_project }}"
+          register: roundtrip_read
+
+        - name: The project is as exported again
+          ansible.builtin.assert:
+            that: roundtrip_read.projects[0].max_parallel_tasks == 2
+            fail_msg: "max_parallel_tasks is {{ roundtrip_read.projects[0].max_parallel_tasks }}"
+            quiet: true
+
+        # ---- and exporting it again gives the same file ----------------------
+
+        - name: Export the project again
+          ansible.builtin.include_role:
+            name: ramanavelineni.semaphoreui.project_export
+          vars:
+            project_export_project: "{{ roundtrip_project }}"
+            project_export_dest: "{{ roundtrip_directory.path }}/projects"
+
+        - name: Read the exported file again
+          ansible.builtin.slurp:
+            src: "{{ roundtrip_directory.path }}/projects/{{ roundtrip_project }}.yml"
+          register: roundtrip_exported_again
+
+        - name: The second export is the first
+          ansible.builtin.assert:
+            that: roundtrip_exported_again.content == roundtrip_exported.content
+            fail_msg: The exported file changed after the export was applied
+            quiet: true
+      always:
+        - name: Remove the project
+          ramanavelineni.semaphoreui.project:
+            name: "{{ roundtrip_project }}"
+            state: absent
+            confirm_delete: true
+
+        - name: Remove the user
+          ramanavelineni.semaphoreui.user:
+            login: roletest-roundtrip-user
+            state: absent
+
+        - name: Remove the directory
+          ansible.builtin.file:
+            path: "{{ roundtrip_directory.path }}"
+            state: absent
+          when: roundtrip_directory.path is defined
