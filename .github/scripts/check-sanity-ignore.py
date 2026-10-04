@@ -6,8 +6,8 @@ validate-modules expects the GPL header. Nothing else may sit in these files
 without saying why, because an ignore entry switches a check off for good.
 
 Checked, for the collection given as the only argument:
-  - there is one file for each ansible-core version in the CI matrix
-    (.github/workflows/ci.yml), and no file for another version
+  - there is one file for each ansible-core version the sanity job of CI goes
+    through (.github/workflows/ci.yml), and no file for another version
   - each file has exactly one licence entry for every module, and none for a
     file that doesn't exist
   - every line carries a comment that explains it
@@ -24,14 +24,16 @@ LICENCE = 'validate-modules:missing-gplv3-license'
 
 
 def matrix_versions(workflow):
-    """ansible-core versions of the sanity job's matrix, as '2.18', '2.19', ..."""
+    """ansible-core versions the sanity job goes through, as '2.18', '2.19', ..."""
     with open(workflow) as f:
         text = f.read()
-    job = text.split('\n  sanity:\n', 1)[1].split('\n\n', 1)[0]
-    line = re.search(r'^\s+ansible: \[(.*)\]\s*$', job, re.M)
+    # The job, up to the next one: jobs sit at two spaces of indentation.
+    job = re.split(r'\n  [a-z][a-z-]*:\n', text.split('\n  sanity:\n', 1)[1], maxsplit=1)[0]
+    line = re.search(r'^\s+for version in ([0-9. ]+); do\s*$', job, re.M)
     if not line:
-        raise SystemExit('cannot find the sanity matrix in %s' % workflow)
-    return [v.strip().replace('stable-', '') for v in line.group(1).split(',')]
+        raise SystemExit('cannot find the versions the sanity job goes through in %s '
+                         '(a line "for version in 2.18 2.19 ...; do")' % workflow)
+    return line.group(1).split()
 
 
 def check(collection_dir, versions):
@@ -43,10 +45,10 @@ def check(collection_dir, versions):
     wanted = sorted('ignore-%s.txt' % v for v in versions)
     for name in wanted:
         if name not in found:
-            errors.append('%s is missing: ansible-core %s is in the CI matrix' % (name, name[7:-4]))
+            errors.append('%s is missing: the sanity job of CI runs ansible-core %s' % (name, name[7:-4]))
     for name in found:
         if name not in wanted:
-            errors.append('%s is for a version that is not in the CI matrix' % name)
+            errors.append('%s is for a version that the sanity job of CI does not run' % name)
 
     for name in found:
         path = os.path.join(sanity, name)
