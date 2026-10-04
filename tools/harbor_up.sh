@@ -204,6 +204,19 @@ find_compose() {
   fi
 }
 
+# Whether containers of the compose project are there already, running or not.
+# docker-compose labels them com.docker.compose.project, podman-compose
+# io.podman.compose.project.
+project_in_use() {
+  local eng="$1" label
+  for label in com.docker.compose.project io.podman.compose.project; do
+    if [ -n "$("${eng}" ps -a -q --filter "label=${label}=${project}")" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 random_hex() {
   head -c 12 /dev/urandom | od -An -tx1 | tr -d ' \n'
 }
@@ -214,6 +227,12 @@ up() {
   [ ! -e "${dir}" ] || die "${dir} exists already; run 'down ${version}' first"
   eng="$(engine)"
   find_compose
+  # The project name comes from the version alone. A Harbor of this version
+  # started from another directory has the same one: "up" would replace its
+  # containers with ours, and "down" would stop them.
+  if project_in_use "${eng}"; then
+    die "containers of a compose project ${project} exist already: a Harbor ${version} set up elsewhere. Take that one down first, or use another version"
+  fi
 
   # The services run as users of their own and have to get into the data and
   # configuration directories, so those are not closed to others. What holds

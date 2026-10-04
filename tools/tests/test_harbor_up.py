@@ -339,6 +339,31 @@ class Arguments(unittest.TestCase):
             self.assertIn('exists already', result.stderr)
             self.assertFalse(os.path.exists(called))
 
+    def test_up_refuses_a_version_that_runs_from_another_directory(self):
+        with tempfile.TemporaryDirectory() as base:
+            bin_dir = os.path.join(base, 'bin')
+            os.mkdir(bin_dir)
+            called = os.path.join(base, 'called')
+            # A podman that has a compose provider and lists a container of the project harborv2152.
+            path = os.path.join(bin_dir, 'podman')
+            with open(path, 'w') as f:
+                f.write('#!/bin/sh\n'
+                        '[ "$1 $2" = "compose version" ] && exit 0\n'
+                        'if [ "$1" = ps ]; then\n'
+                        '  case "$*" in *com.docker.compose.project=harborv2152*) echo 7328b8a3d9cb;; esac\n'
+                        '  exit 0\n'
+                        'fi\n'
+                        'echo "$*" >> "%s"\n' % called)
+            os.chmod(path, 0o755)
+            env = dict(os.environ, HARBOR_UP_DIR=os.path.join(base, 'lab'), PATH=bin_dir + os.pathsep + os.environ['PATH'])
+            result = subprocess.run(['bash', SCRIPT, 'up', 'v2.15.2', '8016'], capture_output=True, text=True,
+                                    check=False, env=env)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn('containers of a compose project harborv2152 exist already', result.stderr)
+            # Nothing was made and nothing but the two questions was asked of podman.
+            self.assertFalse(os.path.exists(os.path.join(base, 'lab')))
+            self.assertFalse(os.path.exists(called))
+
 
 if __name__ == '__main__':
     unittest.main()
