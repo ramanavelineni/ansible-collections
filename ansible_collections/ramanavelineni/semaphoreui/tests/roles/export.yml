@@ -267,7 +267,12 @@
             - name: Note that the role stopped
               ansible.builtin.set_fact:
                 export_refused: true
-                export_refusal: "{{ ansible_failed_result.msg | default('') }}"
+                # The refusal comes from a task with a loop: its own message
+                # only says that items failed, and each item carries its reason.
+                export_refusal: >-
+                  {{ ([ansible_failed_result.msg | default('')]
+                      + (ansible_failed_result.results | default([]) | map(attribute='msg', default='') | list))
+                     | join(' ') }}
 
         - name: Read the file after the refusal
           ansible.builtin.slurp:
