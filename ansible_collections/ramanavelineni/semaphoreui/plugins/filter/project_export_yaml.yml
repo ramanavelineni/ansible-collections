@@ -1,0 +1,72 @@
+---
+DOCUMENTATION:
+  name: project_export_yaml
+  version_added: 0.4.0
+  short_description: Write a Semaphore project as the YAML file the project_apply role reads
+  author:
+    - ramanavelineni (@ramanavelineni)
+  description:
+    - Gives the text of a project file, block style, from what the C(_info) modules of this collection return.
+      It is what P(ramanavelineni.semaphoreui.project_export_config#filter)
+      gives, written out, with a comment at the top.
+    - The same project always gives the same text, objects in the order of their names. Templates are the one
+      exception, a build template comes before the deploy templates that name it.
+    - A value Semaphore stores that looks like a template (it has C({{), C({%) or C({#) in it) is written with
+      the C(!unsafe) tag, so that loading the file does not try to render it.
+    - Use the result in the same expression that produces it, for example as the C(content) of
+      M(ansible.builtin.copy). Kept in a variable, the references to vault variables in it would be rendered
+      when the variable is used.
+  positional: _input, part
+  options:
+    _input:
+      description:
+        - The project as the C(_info) modules return it. A mapping with the project under C(project) (one entry of
+          RV(ramanavelineni.semaphoreui.project_info#module:projects)) and the list each C(_info) module returns
+          under the name of its section, C(key_store), C(repository), C(inventory), C(variable_group), C(view),
+          C(template), C(schedule), C(integration) and C(team_member).
+        - A section that is missing counts as empty.
+      type: dict
+      required: true
+    vault_prefix:
+      description:
+        - What the name of every variable that stands for a secret starts with, in lower case. The name goes on with the
+          project, the section, the object and the field, as in
+          C(vault_homelab_key_deploy_ssh_private_key).
+      type: str
+      default: vault
+    part:
+      description:
+        - What to write. Without it, the whole project.
+        - V(project) gives the project's own options only, and the name of a section gives that section, for a
+          project kept as a directory of files.
+        - A section without objects gives an empty text.
+      type: str
+      choices:
+        - project
+        - key_store
+        - repository
+        - inventory
+        - variable_group
+        - view
+        - template
+        - schedule
+        - integration
+        - team_member
+
+EXAMPLES: |
+  - name: Write the project file
+    ansible.builtin.copy:
+      dest: config/projects/homelab.yml
+      mode: "0644"
+      content: "{{ exported | ramanavelineni.semaphoreui.project_export_yaml }}"
+
+  - name: Write the templates only, for a project kept as a directory
+    ansible.builtin.copy:
+      dest: config/projects/homelab/template.yml
+      mode: "0644"
+      content: "{{ exported | ramanavelineni.semaphoreui.project_export_yaml('template') }}"
+
+RETURN:
+  _value:
+    description: The YAML text, or an empty text for a section without objects.
+    type: str

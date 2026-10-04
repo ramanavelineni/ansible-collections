@@ -1,0 +1,85 @@
+---
+argument_specs:
+  main:
+    short_description: Write a Semaphore project as the YAML configuration the project_apply role reads
+    description:
+      - Reads one project from a Semaphore server with the C(_info) modules of this collection and writes it as
+        YAML, in the layout the C(project_apply) role reads. The top of the file holds the project's own options.
+        Below that is one section per kind of object, keyed by object name, with the options of the module that
+        manages it.
+      - Semaphore never returns a stored secret. Each secret becomes a reference to a variable, and the role
+        writes the list of those variables, empty, to a second file. Fill them in and keep them in an Ansible
+        Vault file. The exported project can be applied as soon as they are defined.
+      - The same project always gives the same files, so a second run reports no change.
+      - The connection options are not role variables. Set them once with C(module_defaults) for the action
+        group C(ramanavelineni.semaphoreui.semaphoreui), or in the environment.
+      - Global users and runners are not part of a project and are not exported.
+    author:
+      - ramanavelineni (@ramanavelineni)
+    version_added: 0.4.0
+    options:
+      project_export_project:
+        description:
+          - Name of the project to export.
+          - One of O(project_export_project) and O(project_export_project_id) has to be set.
+        type: str
+        default: ""
+      project_export_project_id:
+        description:
+          - Id of the project to export, as an alternative to its name.
+          - On a server with 200 or more projects a project cannot be found by name. Semaphore cuts the list
+            of projects off there.
+        type: int
+        default: 0
+      project_export_dest:
+        description:
+          - Directory the project is written into, on the host the role runs on.
+          - It is created if it does not exist. Point it at the directory the C(project_apply) role reads.
+        type: path
+        required: true
+      project_export_layout:
+        description:
+          - V(file) writes one file, C(<dest>/<name>.yml).
+          - V(directory) writes the directory C(<dest>/<name>/) with C(project.yml) for the project's own options
+            and one file per section that has objects, such as C(template.yml).
+        type: str
+        choices:
+          - file
+          - directory
+        default: file
+      project_export_file_name:
+        description:
+          - Name of the file or directory, without C(.yml).
+          - Empty means the name of the project.
+        type: str
+        default: ""
+      project_export_vault_prefix:
+        description:
+          - What the name of every variable that stands for a secret starts with, in lower case. The name goes on with the
+            project, the section, the object and the field, as in C(vault_homelab_key_deploy_ssh_private_key).
+        type: str
+        default: vault
+      project_export_vault_file:
+        description:
+          - File the variables that stand for secrets are listed in, each empty, with a comment that says what it
+            is the secret of.
+          - Empty means C(<dest>/<name>.vault.example).
+          - Inside the directory C(project_apply) reads, its name must not end in C(.yml) or C(.yaml), or it
+            would be taken for a project.
+        type: path
+        default: ""
+      project_export_overwrite:
+        description:
+          - Whether a file that exists and differs from what would be written may be replaced, and a section
+            file of a section that has no objects any more removed.
+          - Without it, the role stops before it writes anything and names the files.
+        type: bool
+        default: false
+      project_export_file_mode:
+        description: Mode of the files the role writes.
+        type: str
+        default: "0644"
+      project_export_directory_mode:
+        description: Mode of the directories the role creates.
+        type: str
+        default: "0755"

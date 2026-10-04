@@ -1,0 +1,240 @@
+---
+# Reads one project with the _info modules and writes it as the YAML that
+# project_apply reads. What goes into the files is decided by the filters in
+# plugins/filter/project_export.py; the tasks here only read, check and write.
+
+- name: Check what to export
+  ansible.builtin.assert:
+    that:
+      - (project_export_project | string | length > 0) != (project_export_project_id | int > 0)
+      - project_export_dest | string | length > 0
+      - project_export_layout in ['file', 'directory']
+    fail_msg: >-
+      Set project_export_dest, and either project_export_project (a name) or
+      project_export_project_id (an id above 0), not both.
+      project_export_layout is file or directory.
+    quiet: true
+
+- name: Find the project
+  ramanavelineni.semaphoreui.project_info:
+    name: "{{ (project_export_project | string) if project_export_project | string | length > 0 else omit }}"
+  register: __project_export_projects
+
+- name: Check that the project exists
+  ansible.builtin.assert:
+    that: __project_export_matches | length == 1
+    fail_msg: >-
+      {{ 'No project' if __project_export_matches | length == 0 else 'More than one project' }}
+      {{ ('named ' ~ project_export_project) if project_export_project | string | length > 0
+         else ('with the id ' ~ project_export_project_id) }} on this server.
+    quiet: true
+  vars:
+    __project_export_matches: >-
+      {{ __project_export_projects.projects
+         if project_export_project | string | length > 0
+         else (__project_export_projects.projects | selectattr('id', 'equalto', project_export_project_id | int) | list) }}
+
+- name: Export the project
+  vars:
+    __project_export_found: >-
+      {{ (__project_export_projects.projects
+          if project_export_project | string | length > 0
+          else (__project_export_projects.projects | selectattr('id', 'equalto', project_export_project_id | int) | list))
+         | first }}
+    __project_export_name: >-
+      {{ (project_export_file_name | string) if project_export_file_name | string | length > 0
+         else __project_export_found.name }}
+    __project_export_vault_path: >-
+      {{ (project_export_vault_file | string) if project_export_vault_file | string | length > 0
+         else (project_export_dest ~ '/' ~ __project_export_name ~ '.vault.example') }}
+    # What the _info modules returned, under the names the filters know.
+    __project_export_info:
+      project: "{{ __project_export_found }}"
+      key_store: "{{ __project_export_keys.key_store }}"
+      repository: "{{ __project_export_repositories.repositories }}"
+      inventory: "{{ __project_export_inventories.inventories }}"
+      variable_group: "{{ __project_export_variable_groups.variable_groups }}"
+      view: "{{ __project_export_views.views }}"
+      template: "{{ __project_export_templates.templates }}"
+      schedule: "{{ __project_export_schedules.schedules }}"
+      integration: "{{ __project_export_integrations.integrations }}"
+      team_member: "{{ __project_export_members.members }}"
+    # The files of the export: each a part of the project and where it goes.
+    __project_export_files: >-
+      {%- set files = [] -%}
+      {%- if project_export_layout == 'file' -%}
+      {%-   set _ = files.append({'part': 'all', 'path': project_export_dest ~ '/' ~ __project_export_name ~ '.yml'}) -%}
+      {%- else -%}
+      {%-   for part in ['project', 'key_store', 'repository', 'inventory', 'variable_group', 'view', 'template',
+                         'schedule', 'integration', 'team_member'] -%}
+      {%-     set _ = files.append({'part': part,
+                                    'path': project_export_dest ~ '/' ~ __project_export_name ~ '/' ~ part ~ '.yml'}) -%}
+      {%-   endfor -%}
+      {%- endif -%}
+      {%- set _ = files.append({'part': 'vault', 'path': __project_export_vault_path}) -%}
+      {{ files }}
+    # The text of one of those files; the task that uses it says which, in
+    # __project_export_part. A section without objects has no text. This is
+    # an expression, not a stored value, on purpose: the text refers to vault
+    # variables in double braces, and a value kept in a variable would be
+    # rendered again when it is used.
+    __project_export_text: >-
+      {{ (__project_export_info | ramanavelineni.semaphoreui.project_export_vault(project_export_vault_prefix))
+         if __project_export_part == 'vault'
+         else (__project_export_info
+               | ramanavelineni.semaphoreui.project_export_yaml(none if __project_export_part == 'all'
+                                                                else __project_export_part,
+                                                                project_export_vault_prefix)) }}
+  block:
+    - name: Check the name the project is written under
+      ansible.builtin.assert:
+        that:
+          - __project_export_name is match('^[^/\\\\"]+$')
+          - __project_export_name not in ['.', '..']
+        fail_msg: >-
+          {{ __project_export_name }} cannot be the name of a file: set
+          project_export_file_name to a name without a slash, a backslash or a
+          double quote.
+        quiet: true
+
+    - name: Read the keys
+      ramanavelineni.semaphoreui.key_store_info:
+        project_id: "{{ __project_export_found.id }}"
+      register: __project_export_keys
+
+    - name: Read the repositories
+      ramanavelineni.semaphoreui.repository_info:
+        project_id: "{{ __project_export_found.id }}"
+      register: __project_export_repositories
+
+    - name: Read the inventories
+      ramanavelineni.semaphoreui.inventory_info:
+        project_id: "{{ __project_export_found.id }}"
+      register: __project_export_inventories
+
+    - name: Read the variable groups
+      ramanavelineni.semaphoreui.variable_group_info:
+        project_id: "{{ __project_export_found.id }}"
+      register: __project_export_variable_groups
+
+    - name: Read the views
+      ramanavelineni.semaphoreui.view_info:
+        project_id: "{{ __project_export_found.id }}"
+      register: __project_export_views
+
+    - name: Read the templates
+      ramanavelineni.semaphoreui.template_info:
+        project_id: "{{ __project_export_found.id }}"
+      register: __project_export_templates
+
+    - name: Read the schedules
+      ramanavelineni.semaphoreui.schedule_info:
+        project_id: "{{ __project_export_found.id }}"
+      register: __project_export_schedules
+
+    - name: Read the integrations
+      ramanavelineni.semaphoreui.integration_info:
+        project_id: "{{ __project_export_found.id }}"
+      register: __project_export_integrations
+
+    - name: Read the team
+      ramanavelineni.semaphoreui.team_member_info:
+        project_id: "{{ __project_export_found.id }}"
+      register: __project_export_members
+
+    - name: Create the directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "{{ project_export_directory_mode }}"
+      loop: >-
+        {{ [project_export_dest]
+           + ([project_export_dest ~ '/' ~ __project_export_name] if project_export_layout == 'directory' else []) }}
+      register: __project_export_directories
+
+    - name: Look at the files that are there
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+      loop: "{{ __project_export_files }}"
+      loop_control:
+        label: "{{ item.path }}"
+      register: __project_export_present
+
+    # The task that writes a file, run in check mode: it changes nothing and
+    # tells whether the file differs from what would be written.
+    - name: Compare the files that are there with the project
+      ansible.builtin.copy:
+        dest: "{{ item.item.path }}"
+        mode: "{{ project_export_file_mode }}"
+        content: "{{ __project_export_text }}"
+      check_mode: true
+      diff: false
+      loop: "{{ __project_export_present.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+      vars:
+        __project_export_part: "{{ item.item.part }}"
+      when:
+        - item.stat.exists
+        - __project_export_text | length > 0
+      register: __project_export_compared
+
+    # A file that was skipped above and exists belongs to a section that has
+    # no objects any more: it would be removed.
+    - name: Refuse to replace a file that differs
+      ansible.builtin.assert:
+        that: >-
+          project_export_overwrite | bool
+          or not item.item.stat.exists
+          or (item is not skipped and item is not changed)
+        fail_msg: >-
+          {{ item.item.item.path }} exists and differs from the project on the
+          server{{ ' (the section has no objects any more)' if item is skipped else '' }}.
+          Nothing was written. Set project_export_overwrite to true to replace
+          what differs.
+        quiet: true
+      loop: "{{ __project_export_compared.results }}"
+      loop_control:
+        label: "{{ item.item.item.path }}"
+
+    - name: Write the files
+      ansible.builtin.copy:
+        dest: "{{ item.item.path }}"
+        mode: "{{ project_export_file_mode }}"
+        content: "{{ __project_export_text }}"
+      loop: "{{ __project_export_present.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+      vars:
+        __project_export_part: "{{ item.item.part }}"
+      when:
+        - __project_export_text | length > 0
+        # In check mode the directories were not created, and there is nothing to compare a new file with.
+        - not (ansible_check_mode and __project_export_directories is changed)
+
+    - name: Remove the files of sections that have no objects any more
+      ansible.builtin.file:
+        path: "{{ item.item.path }}"
+        state: absent
+      loop: "{{ __project_export_present.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+      vars:
+        __project_export_part: "{{ item.item.part }}"
+      when:
+        - item.stat.exists
+        - __project_export_text | length == 0
+
+    - name: Show where the project is and which variables to define
+      ansible.builtin.debug:
+        msg: >-
+          {{ __project_export_found.name }} is written to
+          {{ project_export_dest ~ '/' ~ __project_export_name ~ ('.yml' if project_export_layout == 'file' else '/') }}.
+          {{ 'It has no secrets.' if __project_export_variables | length == 0
+             else ('Define these ' ~ (__project_export_variables | length) ~ ' variables, listed in '
+                   ~ __project_export_vault_path ~ ', in an Ansible Vault file: '
+                   ~ (__project_export_variables | map(attribute='name') | join(', '))) }}
+      vars:
+        __project_export_variables: >-
+          {{ __project_export_info
+             | ramanavelineni.semaphoreui.project_export_vault_variables(project_export_vault_prefix) }}

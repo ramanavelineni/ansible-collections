@@ -1,0 +1,10 @@
+---
+galaxy_info:
+  author: ramanavelineni
+  description: Write a Semaphore project as the YAML configuration the project_apply role reads
+  license: Apache-2.0
+  min_ansible_version: "2.18"
+  galaxy_tags:
+    - semaphore
+    - semaphoreui
+dependencies: []

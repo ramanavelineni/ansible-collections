@@ -307,6 +307,34 @@ also needs `confirm_delete: true`, because it deletes everything inside.
 
 </details>
 
+## Exporting a project
+
+The role `project_export` reads a project from the server and writes it as the
+YAML the `project_apply` role reads: the project's options, and one section per
+kind of object, keyed by object name, with the options of the module that
+manages it.
+
+```yaml
+- name: Export a Semaphore project
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: ramanavelineni.semaphoreui.project_export
+      vars:
+        project_export_project: homelab
+        project_export_dest: "{{ playbook_dir }}/config/projects"
+```
+
+Semaphore never returns a stored secret, so each one becomes a reference to a
+variable (`"{{ vault_homelab_key_deploy_ssh_private_key }}"`), and the role
+lists those variables in a second file for you to fill in and keep in an Ansible
+Vault. The same project always gives the same files, and a file that differs is
+not replaced unless `project_export_overwrite` is set. See the
+[role's README](roles/project_export/README.md) for the variables and for what
+is left out. The filters behind it (`project_export_config`,
+`project_export_yaml`, `project_export_vault` and
+`project_export_vault_variables`) can be used on their own.
+
 ## More
 
 - [Repository and other collections](https://github.com/ramanavelineni/ansible-collections)

@@ -1,0 +1,43 @@
+---
+DOCUMENTATION:
+  name: project_export_vault
+  version_added: 0.4.0
+  short_description: Write the list of vault variables an exported Semaphore project needs
+  author:
+    - ramanavelineni (@ramanavelineni)
+  description:
+    - Gives the text of a YAML file with one variable per secret of the project, each empty, with a comment
+      above it that says what it is the secret of.
+    - Semaphore never returns a stored secret, so the project file that
+      P(ramanavelineni.semaphoreui.project_export_yaml#filter)
+      writes refers to these variables. Fill them in and keep the result in an Ansible Vault file.
+  positional: _input
+  options:
+    _input:
+      description:
+        - The project as the C(_info) modules return it. A mapping with the project under C(project) (one entry of
+          RV(ramanavelineni.semaphoreui.project_info#module:projects)) and the list each C(_info) module returns
+          under the name of its section, C(key_store), C(repository), C(inventory), C(variable_group), C(view),
+          C(template), C(schedule), C(integration) and C(team_member).
+        - A section that is missing counts as empty.
+      type: dict
+      required: true
+    vault_prefix:
+      description:
+        - What the name of every variable that stands for a secret starts with, in lower case. The name goes on with the
+          project, the section, the object and the field, as in
+          C(vault_homelab_key_deploy_ssh_private_key).
+      type: str
+      default: vault
+
+EXAMPLES: |
+  - name: Write the variables to fill in
+    ansible.builtin.copy:
+      dest: config/homelab.vault.example
+      mode: "0644"
+      content: "{{ exported | ramanavelineni.semaphoreui.project_export_vault }}"
+
+RETURN:
+  _value:
+    description: The YAML text.
+    type: str
