@@ -19,6 +19,7 @@ other is a matter of leaving things out:
 Only the Python standard library is used: no YAML library, no ansible import.
 """
 
+import math
 import re
 
 # In the order project_apply applies them: what is referred to comes first.
@@ -295,7 +296,7 @@ def scalar(value, indent):
     if isinstance(value, int):
         return '%d' % value
     if isinstance(value, float):
-        if value != value:
+        if math.isnan(value):
             return '.nan'
         if value in (float('inf'), float('-inf')):
             return '.inf' if value > 0 else '-.inf'

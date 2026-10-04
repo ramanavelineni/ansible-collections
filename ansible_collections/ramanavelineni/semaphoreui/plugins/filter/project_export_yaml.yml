@@ -14,7 +14,7 @@ DOCUMENTATION:
     - A value Semaphore stores that looks like a template (it has C({{), C({%) or C({#) in it) is written with
       the C(!unsafe) tag, so that loading the file does not try to render it.
     - Use the result in the same expression that produces it, for example as the C(content) of
-      M(ansible.builtin.copy). Kept in a variable, the references to vault variables in it would be rendered
+      the C(copy) module. Kept in a variable, the references to vault variables in it would be rendered
       when the variable is used.
   positional: _input, part
   options:
