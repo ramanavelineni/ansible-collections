@@ -41,15 +41,16 @@
 # ($HARBOR_UP_COMPOSE_IMAGE, default docker.io/library/docker:cli) against
 # podman's API socket.
 #
-# WHAT IS PROVEN AND WHAT IS NOT. The two edits this script makes itself are
-# tested without a server (tools/tests/test_harbor_up.py): the edited
-# harbor.yml, and the adjusted docker-compose.yml, which for 2.14.4 and 2.15.2
-# equals the compose file of the working servers. Starting and stopping a
-# stack with this script has NOT been run end to end yet: the prepare call,
-# the compose command found on the machine, the wait and the removal of the
-# data are written from Harbor's own prepare script and from the working
-# setup, and are the parts to watch on the first run. Take this paragraph out
-# after that run.
+# What it was checked with. The two edits this script makes itself are tested
+# without a server (tools/tests/test_harbor_up.py): the edited harbor.yml, and
+# the adjusted docker-compose.yml, which for 2.14.4 and 2.15.2 equals the
+# compose file of the servers the fixtures were recorded from. "up" and "down"
+# were run in a podman machine on macOS (rootless podman, no compose command,
+# so compose came from the docker CLI image) with Harbor v2.15.1, and the
+# harbor collection's live suite passed against that server, including the
+# registry endpoint that points at http://proxy:8080. Not run so far: docker
+# as the engine, a compose command installed on the machine, and Linux
+# without a podman machine.
 
 set -euo pipefail
 
