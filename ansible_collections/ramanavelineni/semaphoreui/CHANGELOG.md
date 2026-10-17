@@ -2,43 +2,61 @@
 
 **Topics**
 
-- <a href="#v0-5-0">v0\.5\.0</a>
+- <a href="#v0-5-1">v0\.5\.1</a>
     - <a href="#release-summary">Release Summary</a>
+    - <a href="#bugfixes">Bugfixes</a>
+- <a href="#v0-5-0">v0\.5\.0</a>
+    - <a href="#release-summary-1">Release Summary</a>
     - <a href="#minor-changes">Minor Changes</a>
     - <a href="#security-fixes">Security Fixes</a>
-    - <a href="#bugfixes">Bugfixes</a>
-- <a href="#v0-4-0">v0\.4\.0</a>
-    - <a href="#release-summary-1">Release Summary</a>
-    - <a href="#security-fixes-1">Security Fixes</a>
     - <a href="#bugfixes-1">Bugfixes</a>
+- <a href="#v0-4-0">v0\.4\.0</a>
+    - <a href="#release-summary-2">Release Summary</a>
+    - <a href="#security-fixes-1">Security Fixes</a>
+    - <a href="#bugfixes-2">Bugfixes</a>
     - <a href="#new-plugins">New Plugins</a>
         - <a href="#filter">Filter</a>
     - <a href="#new-modules">New Modules</a>
     - <a href="#new-roles">New Roles</a>
 - <a href="#v0-3-1">v0\.3\.1</a>
-    - <a href="#release-summary-2">Release Summary</a>
-    - <a href="#bugfixes-2">Bugfixes</a>
+    - <a href="#release-summary-3">Release Summary</a>
+    - <a href="#bugfixes-3">Bugfixes</a>
     - <a href="#known-issues">Known Issues</a>
 - <a href="#v0-3-0">v0\.3\.0</a>
-    - <a href="#release-summary-3">Release Summary</a>
-    - <a href="#minor-changes-1">Minor Changes</a>
-    - <a href="#bugfixes-3">Bugfixes</a>
-- <a href="#v0-2-1">v0\.2\.1</a>
     - <a href="#release-summary-4">Release Summary</a>
+    - <a href="#minor-changes-1">Minor Changes</a>
     - <a href="#bugfixes-4">Bugfixes</a>
-- <a href="#v0-2-0">v0\.2\.0</a>
+- <a href="#v0-2-1">v0\.2\.1</a>
     - <a href="#release-summary-5">Release Summary</a>
+    - <a href="#bugfixes-5">Bugfixes</a>
+- <a href="#v0-2-0">v0\.2\.0</a>
+    - <a href="#release-summary-6">Release Summary</a>
     - <a href="#breaking-changes--porting-guide">Breaking Changes / Porting Guide</a>
     - <a href="#security-fixes-2">Security Fixes</a>
-    - <a href="#bugfixes-5">Bugfixes</a>
+    - <a href="#bugfixes-6">Bugfixes</a>
 - <a href="#v0-1-0">v0\.1\.0</a>
-    - <a href="#release-summary-6">Release Summary</a>
+    - <a href="#release-summary-7">Release Summary</a>
     - <a href="#new-modules-1">New Modules</a>
+
+<a id="v0-5-1"></a>
+## v0\.5\.1
+
+<a id="release-summary"></a>
+### Release Summary
+
+A task the module waited for now always comes back with its end time\, and the fields Semaphore stores as JSON in a string are read with one rule in every module\.
+
+<a id="bugfixes"></a>
+### Bugfixes
+
+* task \- a task the module waited for could come back with an empty <code>end</code>\. Semaphore saves a task\'s final status a moment before its end time\, and the module stopped reading at the status\. It now reads the task again\, at most four times half a second apart\, until the end time is there\.
+* task\, task\_info\, template\, template\_info\, variable\_group\, variable\_group\_info \- the fields Semaphore stores as JSON in a string \(a task\'s <code>arguments</code> and <code>variables</code>\, a template\'s <code>arguments</code>\, a variable group\'s <code>json</code> and <code>env</code>\) are now read with one rule\. Valid JSON is returned parsed\, and any other text is returned as Semaphore stores it\. Before\, a template wrapped such text in a list\, a task returned valid JSON of an unexpected kind as text\, and variable\_group\_info failed on a group with broken JSON\. An unset field is still an empty list or dict\. The return documentation now says so\.
+* template \- <code>arguments</code> stored as anything other than a JSON list\, for example plain text that Semaphore refuses to run\, no longer counts as equal to the list given\. The module writes the list once\, and the next run reports no change\.
 
 <a id="v0-5-0"></a>
 ## v0\.5\.0
 
-<a id="release-summary"></a>
+<a id="release-summary-1"></a>
 ### Release Summary
 
 Exported projects apply again without changes\, projects past the first 200 can be reached by id\, the roles no longer print webhook URLs or registration tokens with \-v\, and the modules gain secret survey variables\, settled run\_at schedules and a shared transport that stops at once on certificate errors\.
@@ -55,7 +73,7 @@ Exported projects apply again without changes\, projects past the first 200 can 
 
 * project\_apply\, server\_apply \- with <code>project\_apply\_no\_log</code> or <code>server\_apply\_no\_log</code> on\, a run with <code>\-v</code> printed the skipped items of the tasks that show new webhook URLs and registration tokens\, the URLs and tokens included\. These tasks now loop over nothing when no\_log is on\.
 
-<a id="bugfixes"></a>
+<a id="bugfixes-1"></a>
 ### Bugfixes
 
 * project\_apply role \- two files or directories that declare the same project <code>name</code> now fail before anything changes\, and the message names both\. Before\, both were applied to the one project\, one after the other\.
@@ -73,7 +91,7 @@ Exported projects apply again without changes\, projects past the first 200 can 
 <a id="v0-4-0"></a>
 ## v0\.4\.0
 
-<a id="release-summary-1"></a>
+<a id="release-summary-2"></a>
 ### Release Summary
 
 New roles that apply whole projects and servers from YAML descriptions and export a project as one\, six new modules for tasks\, project backups\, API tokens and the event log\, and fixes that keep runner tokens\, webhook URLs and echoed secrets out of task output\.
@@ -86,7 +104,7 @@ New roles that apply whole projects and servers from YAML descriptions and expor
 * project\_backup \- the returned <code>backup</code> and the diff showed each project runner\'s auth token and every integration alias \(the secret part of a webhook URL\)\. They are now shown as <code>\*\*\*\*\*\*\*\*</code>\. The file written at <code>dest</code> still holds them\, and the module documentation no longer says a backup holds no secrets\.
 * server\_apply \- the runners task\, whose result holds a new runner\'s registration token\, was not covered by <code>server\_apply\_no\_log</code>\, and new tokens were always printed\. Both now follow <code>server\_apply\_no\_log</code>\.
 
-<a id="bugfixes-1"></a>
+<a id="bugfixes-2"></a>
 ### Bugfixes
 
 * runner\, user\_token \- the examples used a string as a <code>when</code> condition\, which ansible\-core 2\.19 and later refuse \(<code>Conditional result was derived from value of type \'str\'</code>\)\. They now test <code>\| length \> 0</code>\.
@@ -122,12 +140,12 @@ New roles that apply whole projects and servers from YAML descriptions and expor
 <a id="v0-3-1"></a>
 ## v0\.3\.1
 
-<a id="release-summary-2"></a>
+<a id="release-summary-3"></a>
 ### Release Summary
 
 Bug fixes found by running the modules against real servers\. One of them changes what a task does on some servers\: <code>integration</code> now fails when a task drops a matcher or an extracted value and the server keeps it\, where it used to report a change on every run\. See the known issue below for the servers this applies to\.
 
-<a id="bugfixes-2"></a>
+<a id="bugfixes-3"></a>
 ### Bugfixes
 
 * all modules \- a token or password taken from <code>SEMAPHORE\_API\_TOKEN</code> or <code>SEMAPHORE\_PASSWORD</code> that the server repeats in an error is now taken out of the failure message and of <code>request\_details\.response</code> by the client itself\. Until now this relied on ansible\-core masking the result\, which the development version of ansible\-core \(2\.23\.0\.dev0\) no longer does for values a module registers at run time\. No released ansible\-core version from 2\.18 to 2\.21 showed such a value\.
@@ -142,7 +160,7 @@ Bug fixes found by running the modules against real servers\. One of them change
 <a id="v0-3-0"></a>
 ## v0\.3\.0
 
-<a id="release-summary-3"></a>
+<a id="release-summary-4"></a>
 ### Release Summary
 
 New connection options \(<code>client\_cert</code>\, <code>client\_key</code>\, <code>use\_proxy</code>\)\, <code>project\_id</code> as an alternative to the project name\, custom apps in <code>template</code>\, and a round of bug fixes\. Some checks are stricter than in 0\.2\.1 and can make a task fail that ran before\: <code>template</code> refuses <code>start\_version</code> and <code>build\_template</code> on a template type that does not take them\, <code>schedule</code> refuses a <code>run\_at</code> without a time zone\, and negative <code>retries</code> or <code>retry\_delay</code> are refused\. Run with <code>\-\-check</code> once after upgrading\.
@@ -156,7 +174,7 @@ New connection options \(<code>client\_cert</code>\, <code>client\_key</code>\, 
 * integration\, inventory\, key\_store\, repository\, schedule\, team\_member\, template\, variable\_group\, view and their <code>\_info</code> modules \- a task that names no project now fails with <code>one of the following is required\: project\, project\_id</code> instead of <code>missing required arguments\: project</code>\.
 * key\_store\, schedule\, team\_member \- the rules between options that the argument spec can express are now part of it\: <code>type</code> and <code>role</code> are required with <code>state\=present</code>\, and <code>cron</code> and <code>run\_at</code> exclude each other\. A task that breaks one fails during argument validation\, before the module logs in\, with Ansible\'s own wording \(<code>state is present but all of the following are missing\: type</code>\, <code>parameters are mutually exclusive\: cron\|run\_at</code>\) instead of the module\'s\.
 
-<a id="bugfixes-3"></a>
+<a id="bugfixes-4"></a>
 ### Bugfixes
 
 * all modules \- <code>SEMAPHORE\_API\_TOKEN</code> in the environment no longer makes a task that sets <code>username</code> and <code>password</code> fail with \"parameters are mutually exclusive\"\, and <code>SEMAPHORE\_USERNAME</code> or <code>SEMAPHORE\_PASSWORD</code> no longer does that to a task that sets <code>api\_token</code>\. What the task sets wins\; the environment is read only for what the task leaves out\. With nothing set in the task and both kinds in the environment\, the token is used\, where this failed before\.
@@ -183,12 +201,12 @@ New connection options \(<code>client\_cert</code>\, <code>client\_key</code>\, 
 <a id="v0-2-1"></a>
 ## v0\.2\.1
 
-<a id="release-summary-4"></a>
+<a id="release-summary-5"></a>
 ### Release Summary
 
 Check mode now works for a play that builds a project from nothing\.
 
-<a id="bugfixes-4"></a>
+<a id="bugfixes-5"></a>
 ### Bugfixes
 
 * integration\, inventory\, key\_store\, repository\, runner\, schedule\, team\_member\, template\, variable\_group\, view \- check mode no longer fails when the project\, or another object the task refers to by name\, does not exist yet\. An earlier task of the same run may create it\, so the task is reported as changed with a warning and an empty result\. Outside check mode it fails as before\. This makes <code>\-\-check</code> usable for a play that builds a project from nothing\.
@@ -196,7 +214,7 @@ Check mode now works for a play that builds a project from nothing\.
 <a id="v0-2-0"></a>
 ## v0\.2\.0
 
-<a id="release-summary-5"></a>
+<a id="release-summary-6"></a>
 ### Release Summary
 
 A security release\. A failed request no longer shows secrets\, and the collection now includes its <code>LICENSE</code>\. Also several fixes to the client and the <code>\_info</code> modules\. Two results changed form\, see the breaking changes\.
@@ -212,7 +230,7 @@ A security release\. A failed request no longer shows secrets\, and the collecti
 
 * All modules \- a failed request no longer shows secrets\. The request body in <code>request\_details</code> was returned as JSON text\, where a secret containing a newline\, a quote\, a backslash or a non\-ASCII character is escaped and so was not masked\: every SSH private key of <code>key\_store</code>\, and such values of <code>variable\_group</code> secrets\, <code>user\_password</code> and the login <code>password</code>\. The body is now returned as a dictionary with secret values replaced by <code>\*\*\*\*\*\*\*\*</code>\.
 
-<a id="bugfixes-5"></a>
+<a id="bugfixes-6"></a>
 ### Bugfixes
 
 * Add the <code>LICENSE</code> file to the collection\, so that installs and release tarballs include the license text\.
@@ -225,7 +243,7 @@ A security release\. A failed request no longer shows secrets\, and the collecti
 <a id="v0-1-0"></a>
 ## v0\.1\.0
 
-<a id="release-summary-6"></a>
+<a id="release-summary-7"></a>
 ### Release Summary
 
 First release\. 25 modules that manage Semaphore UI 2\.18 and 2\.19 declaratively\: projects\, the Key Store\, repositories\, inventories\, variable groups\, views\, task templates\, schedules and commit pollers\, integrations\, team members\, runners and users\, each with an <code>\_info</code> module\. Objects are found and referenced by name\, only the options you set are compared\, and every module supports check mode and diff\.

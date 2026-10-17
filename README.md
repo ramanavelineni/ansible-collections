@@ -114,10 +114,10 @@ looks up its id.
 collections:
   - name: https://github.com/ramanavelineni/ansible-collections.git#/ansible_collections/ramanavelineni/semaphoreui
     type: git
-    version: semaphoreui-v0.5.0
+    version: semaphoreui-v0.5.1
   - name: https://github.com/ramanavelineni/ansible-collections.git#/ansible_collections/ramanavelineni/harbor
     type: git
-    version: harbor-v0.4.0
+    version: harbor-v0.4.1
 ```
 
 ```sh

@@ -328,3 +328,16 @@ releases:
     - release-summary.yml
     - shared-transport.yml
     release_date: '2026-10-17'
+  0.4.1:
+    changes:
+      bugfixes:
+      - 'scan_all, scan_all_info - the return docs said ``next_scheduled_time`` is
+        always null. Harbor doesn''t compute the next run of Scan All: with a schedule
+        it sends ``0001-01-01T00:00:00.000Z``, which the modules return as it is.
+        The value is null only without a schedule, or in check mode for ``scan_all``.'
+      release_summary: The scan_all and scan_all_info docs now say what Harbor returns
+        for ``next_scheduled_time``.
+    fragments:
+    - release-summary.yml
+    - scan-all-next-scheduled-time.yml
+    release_date: '2026-10-17'

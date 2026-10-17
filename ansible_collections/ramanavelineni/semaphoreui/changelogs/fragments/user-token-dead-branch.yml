@@ -1,5 +1,0 @@
----
-trivial:
-  - >-
-    user_token - removed a branch that read an expiry without a time zone as UTC. The module already
-    normalizes every expiry to UTC before it checks whether the token has expired, so the branch never ran.
