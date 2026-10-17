@@ -535,6 +535,35 @@ def test_info_one_task_with_output(project, run_module):
     assert sleeps() == []
 
 
+# Semaphore keeps arguments and variables as JSON in a string, and does not
+# check a task's arguments when the task is started. A value that is valid
+# JSON comes back parsed, the map form Semaphore also runs included. Any other
+# text comes back as Semaphore stores it. An unset field is empty.
+@pytest.mark.parametrize('stored, arguments', [
+    ('["--check"]', ['--check']),
+    ('{"default": ["--check"]}', dict(default=['--check'])),
+    ('--check', '--check'),
+    ('', []),
+    (None, []),
+], ids=['json-list', 'json-map', 'plain-text', 'empty', 'null'])
+def test_info_returns_stored_arguments_parsed_or_as_stored(project, run_module, stored, arguments):
+    project.route('GET', task_path(project), edited(project, 'task_get_success', arguments=stored))
+    result = run_module(task_info.main, dict(project=PROJECT, task_id=tid(project)))
+    assert result['tasks'][0]['arguments'] == arguments
+
+
+@pytest.mark.parametrize('stored, variables', [
+    ('{"who": "world"}', dict(who='world')),
+    ('who=world', 'who=world'),
+    ('', {}),
+    (None, {}),
+], ids=['json-map', 'plain-text', 'empty', 'null'])
+def test_info_returns_stored_variables_parsed_or_as_stored(project, run_module, stored, variables):
+    project.route('GET', task_path(project), edited(project, 'task_get_success', environment=stored))
+    result = run_module(task_info.main, dict(project=PROJECT, task_id=tid(project)))
+    assert result['tasks'][0]['variables'] == variables
+
+
 def test_info_a_task_that_does_not_exist(project, run_module):
     missing = tid(project) + 100000
     project.route('GET', '%s/tasks/%d' % (base(project), missing), 'task_get_missing')

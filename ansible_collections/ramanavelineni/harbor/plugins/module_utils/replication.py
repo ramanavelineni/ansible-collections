@@ -8,8 +8,8 @@
 REGISTRY_TYPES = ('ali-acr', 'aws-ecr', 'azure-acr', 'docker-hub', 'docker-registry', 'github-ghcr',
                   'google-gcr', 'harbor', 'huawei-SWR', 'jfrog-artifactory', 'tencent-tcr', 'volcengine-cr')
 
-FILTER_TYPES = ('name', 'tag', 'label', 'resource')
-DECORATIONS = ('matches', 'excludes')
+# A filter's type and decoration are chosen from the replication module's
+# argument spec, the one place that lists them.
 # The filter types that take a decoration. Without one they match.
 DECORATED = ('tag', 'label')
 RESOURCE_VALUES = ('image', 'artifact')
@@ -58,12 +58,15 @@ def filter_decoration(ftype, decoration):
 
 
 def normalize_filter(item):
-    """A replication filter in a comparable shape, after checking it."""
+    """A replication filter in a comparable shape, after checking it.
+
+    The argument spec has already refused an unknown type or decoration. What
+    is checked here is what depends on the type: the value, and whether the
+    type takes a decoration at all.
+    """
     ftype = item.get('type')
     value = item.get('value')
     decoration = item.get('decoration') or ''
-    if ftype not in FILTER_TYPES:
-        raise ValueError('Filter type must be one of %s, not %r.' % (', '.join(FILTER_TYPES), ftype))
     if ftype == 'label':
         if isinstance(value, str):
             value = [value]
@@ -75,11 +78,8 @@ def normalize_filter(item):
             raise ValueError('A %s filter takes a string as its value, not %r.' % (ftype, value))
         if ftype == 'resource' and value not in RESOURCE_VALUES:
             raise ValueError('A resource filter value must be one of %s, not %r.' % (', '.join(RESOURCE_VALUES), value))
-    if decoration:
-        if ftype not in DECORATED:
-            raise ValueError('Only tag and label filters take a decoration (matches or excludes).')
-        if decoration not in DECORATIONS:
-            raise ValueError('Filter decoration must be matches or excludes, not %r.' % decoration)
+    if decoration and ftype not in DECORATED:
+        raise ValueError('Only tag and label filters take a decoration (matches or excludes).')
     return dict(type=ftype, value=value, decoration=filter_decoration(ftype, decoration))
 
 

@@ -73,11 +73,17 @@ variable_groups:
       description: Id of the project.
       type: int
     json:
-      description: Extra variables passed to Ansible.
-      type: dict
+      description:
+        - Extra variables passed to Ansible, parsed from the JSON text Semaphore stores.
+        - The text as Semaphore stores it when it is not valid JSON.
+        - An empty dict when there are none.
+      type: raw
     env:
-      description: Environment variables for the task's process.
-      type: dict
+      description:
+        - Environment variables for the task's process, parsed from the JSON text Semaphore stores.
+        - The text as Semaphore stores it when it is not valid JSON.
+        - An empty dict when there are none.
+      type: raw
     secrets:
       description: The group's secrets, sorted by name. Values are never returned.
       type: list

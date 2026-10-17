@@ -423,22 +423,26 @@ def inventory_view(inv, names):
     return out
 
 
-def _parse_json_field(text, what, name):
-    if not text:
-        return {}
+def json_field(text, empty):
+    """A field Semaphore stores as JSON in a string: the parsed value, or the string as stored when it isn't valid JSON.
+
+    `empty` stands in for a field that is not set (null or ""). Every module
+    that returns such a field reads it with this, so bad input gets one rule.
+    """
+    if text is None or text == '':
+        return empty
     try:
-        value = json.loads(text)
+        return json.loads(text)
     except ValueError:
-        raise ValueError('Variable group %r holds %s that are not valid JSON; fix them in Semaphore first.' % (name, what))
-    return value if isinstance(value, dict) else {}
+        return text
 
 
 def variable_group_view(group, secrets):
-    """A variable group as modules return it: json/env parsed, secrets as name/type."""
+    """A variable group as modules return it: json/env parsed (see json_field), secrets as name/type."""
     return dict(
         id=group.get('id'), name=group.get('name'), project_id=group.get('project_id'),
-        json=_parse_json_field(group.get('json'), 'extra variables', group.get('name')),
-        env=_parse_json_field(group.get('env'), 'environment variables', group.get('name')),
+        json=json_field(group.get('json'), {}),
+        env=json_field(group.get('env'), {}),
         secrets=sorted((dict(name=s['name'], type=s['type']) for s in secrets), key=lambda s: s['name']),
     )
 

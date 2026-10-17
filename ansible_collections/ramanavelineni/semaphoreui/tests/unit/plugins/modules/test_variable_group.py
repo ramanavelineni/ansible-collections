@@ -223,3 +223,26 @@ def test_variable_group_info(server, project, run_module):
     assert group['env'] == dict(TZ='Europe/Oslo')
     assert group['json'] == dict(harbor_url='https://harbor.example.com')
     assert group['secrets'] == [dict(name='TOKEN', type='var'), dict(name='db_pw', type='var')]
+
+
+# Semaphore keeps a group's extra and environment variables as JSON in a
+# string. A value that is valid JSON comes back parsed, any other text as
+# Semaphore stores it, and an unset field is empty. The info module only
+# reads, so a broken field doesn't fail it. Hand-edited: the recorded group
+# holds JSON objects.
+@pytest.mark.parametrize('stored, shown', [
+    ('{"a": 1}', dict(a=1)),
+    ('["--check"]', ['--check']),
+    ('--check', '--check'),
+    ('', {}),
+    (None, {}),
+], ids=['json-map', 'json-list', 'plain-text', 'empty', 'null'])
+@pytest.mark.parametrize('field', ['json', 'env'])
+def test_variable_group_info_returns_stored_fields_parsed_or_as_stored(server, project, run_module, field, stored, shown):
+    group = server.response('variable_group_get')
+    group['body'][field] = stored
+    server.route('GET', project + '/environment', 'variable_groups_one')
+    server.route('GET', '%s/environment/%d' % (project, group_id(server)), group)
+    result = run_module(variable_group_info.main, dict(project='homelab'))
+    assert result.get('failed') is not True
+    assert result['variable_groups'][0][field] == shown

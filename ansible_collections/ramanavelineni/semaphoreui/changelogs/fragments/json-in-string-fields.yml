@@ -1,0 +1,11 @@
+---
+bugfixes:
+  - task, task_info, template, template_info, variable_group, variable_group_info - the fields Semaphore stores as
+    JSON in a string (a task's ``arguments`` and ``variables``, a template's ``arguments``, a variable group's
+    ``json`` and ``env``) are now read with one rule. Valid JSON is returned parsed, and any other text is returned
+    as Semaphore stores it. Before, a template wrapped such text in a list, a task returned valid JSON of an
+    unexpected kind as text, and variable_group_info failed on a group with broken JSON. An unset field is still an
+    empty list or dict. The return documentation now says so.
+  - template - ``arguments`` stored as anything other than a JSON list, for example plain text that Semaphore
+    refuses to run, no longer counts as equal to the list given. The module writes the list once, and the next run
+    reports no change.

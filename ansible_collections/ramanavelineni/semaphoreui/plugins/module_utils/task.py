@@ -3,10 +3,9 @@
 
 """Tasks (runs of a template) as the task and task_info modules read them."""
 
-import json
 import time
 
-from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import SemaphoreError
+from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import SemaphoreError, json_field
 
 # A task in one of these is over. Every other status still changes by itself,
 # except waiting_confirmation, which waits for a person.
@@ -28,17 +27,6 @@ def template_names(templates):
     return dict((tpl.get('id'), tpl.get('name')) for tpl in templates)
 
 
-def _json_field(text, empty):
-    """A field Semaphore stores as a JSON string, parsed. `empty` when unset; the text itself when it isn't JSON."""
-    if not text:
-        return empty
-    try:
-        value = json.loads(text)
-    except ValueError:
-        return text
-    return value if isinstance(value, type(empty)) else text
-
-
 def task_view(task, project, names, output=None):
     """A task as task and task_info return it.
 
@@ -57,8 +45,8 @@ def task_view(task, project, names, output=None):
         message=task.get('message') or '',
         playbook=task.get('playbook') or '',
         git_branch=task.get('git_branch') or '',
-        arguments=_json_field(task.get('arguments'), []),
-        variables=_json_field(task.get('environment'), {}),
+        arguments=json_field(task.get('arguments'), []),
+        variables=json_field(task.get('environment'), {}),
         task_params=dict(task.get('params') or {}),
         inventory_id=task.get('inventory_id'),
         version=task.get('version') or '',

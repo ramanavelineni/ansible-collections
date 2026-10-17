@@ -302,6 +302,36 @@ def test_changed_arguments_are_written_as_a_list(server, project, run_module):
     assert server.calls('PUT')[0]['body']['arguments'] == '["-v", "--diff"]'
 
 
+@pytest.mark.parametrize('stored, given', [
+    ('["--check"]', ['--check']),
+    ('', []),
+    (None, []),
+], ids=['json-list', 'empty', 'null'])
+def test_arguments_that_match_the_stored_ones_are_no_change(server, project, run_module, stored, given):
+    with_stored(server, arguments=stored)
+    existing(server, project)
+    result = run_module(template.main, dict(project='homelab', name='site', arguments=given))
+    assert result['changed'] is False
+    assert server.calls('PUT') == []
+
+
+@pytest.mark.parametrize('stored, before', [
+    ('--check', '--check'),
+    ('"--check"', '--check'),
+    ('{"default": ["--check"]}', dict(default=['--check'])),
+], ids=['plain-text', 'json-string', 'json-map'])
+def test_arguments_stored_as_anything_but_that_list_are_rewritten_as_the_list(server, project, run_module, stored, before):
+    # Only a JSON list equals the list the option takes. Semaphore refuses to
+    # run plain text (local_executor.go getCLIArgs), so writing the list once
+    # repairs it, and the next run is no change.
+    with_stored(server, arguments=stored)
+    existing(server, project)
+    result = run_module(template.main, dict(project='homelab', name='site', arguments=['--check']))
+    assert result['changed'] is True
+    assert result['diff']['before']['arguments'] == before
+    assert server.calls('PUT')[0]['body']['arguments'] == '["--check"]'
+
+
 # -- options that belong to one template type -----------------------------------
 
 @pytest.mark.parametrize('args, option, only', [
