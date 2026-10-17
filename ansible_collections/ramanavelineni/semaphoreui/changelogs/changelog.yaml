@@ -301,3 +301,84 @@ releases:
     - integration-remove-matchers.yml
     - template-check-mode-name.yml
     release_date: '2026-10-04'
+  0.4.0:
+    changes:
+      bugfixes:
+      - runner, user_token - the examples used a string as a ``when`` condition, which
+        ansible-core 2.19 and later refuse (``Conditional result was derived from
+        value of type 'str'``). They now test ``| length > 0``.
+      release_summary: New roles that apply whole projects and servers from YAML descriptions
+        and export a project as one, six new modules for tasks, project backups, API
+        tokens and the event log, and fixes that keep runner tokens, webhook URLs
+        and echoed secrets out of task output.
+      security_fixes:
+      - a failed request now masks every ``no_log`` value of the task in what the
+        server answered, as written and in the escaped forms JSON from Python and
+        from Go use. Before, only the API token and the password were masked there,
+        so a server that repeated a private key or a secret in an error showed it.
+      - project_apply - the webhook URLs of every integration were printed on every
+        run, and the integrations task was not covered by ``project_apply_no_log``.
+        The task is now hidden by ``project_apply_no_log``, and only the URLs of integrations
+        created in the run are shown, and only with ``project_apply_no_log=false``.
+      - project_backup - the returned ``backup`` and the diff showed each project
+        runner's auth token and every integration alias (the secret part of a webhook
+        URL). They are now shown as ``********``. The file written at ``dest`` still
+        holds them, and the module documentation no longer says a backup holds no
+        secrets.
+      - server_apply - the runners task, whose result holds a new runner's registration
+        token, was not covered by ``server_apply_no_log``, and new tokens were always
+        printed. Both now follow ``server_apply_no_log``.
+    fragments:
+    - apply-roles.yml
+    - docs-examples-when.yml
+    - release-summary.yml
+    - security-output-masking.yml
+    modules:
+    - description: Read the activity log of Semaphore UI.
+      name: event_info
+      namespace: ''
+    - description: Read a Semaphore UI project's backup, and write it to a file.
+      name: project_backup
+      namespace: ''
+    - description: Create a Semaphore UI project from a backup.
+      name: project_restore
+      namespace: ''
+    - description: Run a Semaphore UI template, or stop a task.
+      name: task
+      namespace: ''
+    - description: Read Semaphore UI tasks and their output.
+      name: task_info
+      namespace: ''
+    - description: Manage the API tokens of the user that logs in.
+      name: user_token
+      namespace: ''
+    objects:
+      role:
+      - description: Apply a directory of project descriptions to Semaphore UI.
+        name: project_apply
+        namespace: null
+      - description: Write a Semaphore project as the YAML configuration the project\_apply
+          role reads.
+        name: project_export
+        namespace: null
+      - description: Apply users and runners to a Semaphore UI server.
+        name: server_apply
+        namespace: null
+    plugins:
+      filter:
+      - description: Turn what the Semaphore \_info modules return into a project
+          configuration.
+        name: project_export_config
+        namespace: null
+      - description: Write the list of vault variables an exported Semaphore project
+          needs.
+        name: project_export_vault
+        namespace: null
+      - description: List the vault variables an exported Semaphore project needs.
+        name: project_export_vault_variables
+        namespace: null
+      - description: Write a Semaphore project as the YAML file the project\_apply
+          role reads.
+        name: project_export_yaml
+        namespace: null
+    release_date: '2026-10-16'

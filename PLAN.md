@@ -24,8 +24,7 @@ along the way. Each quirk is handled inside a module and covered by a test.
       review of every module
 - [x] Roles `project_apply`, `server_apply` and `project_export`, and the
       modules `task`, `task_info`, `project_backup`, `project_restore`,
-      `user_token` and `event_info` (merged, to be released in semaphoreui
-      0.4.0)
+      `user_token` and `event_info` (semaphoreui 0.4.0)
 - [ ] Switch the homelab `harbor_config` role to the collection
 
 ---
@@ -539,5 +538,5 @@ or an OIDC user's CLI secret.
   collections:
     - name: https://github.com/ramanavelineni/ansible-collections.git#/ansible_collections/ramanavelineni/semaphoreui
       type: git
-      version: semaphoreui-v0.3.1
+      version: semaphoreui-v0.4.0
   ```
