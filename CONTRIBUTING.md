@@ -51,9 +51,15 @@ for the collections a change touches. It also runs, for those collections:
 All of these are part of "CI result", the one check a pull request needs.
 
 A pull request runs a little less than a push to `main`, the weekly run and a
-release: the install test on the oldest ansible-core only (elsewhere also on
-the newest), and the role tests against the newest Semaphore only (elsewhere
-against every tested version).
+release:
+
+- the unit tests on the oldest and the newest Python each ansible-core version
+  supports for modules (elsewhere on every one), and coverage on Python 3.13
+  only (elsewhere on every one)
+- the install test on the oldest ansible-core only (elsewhere also on the
+  newest)
+- the role tests against the newest Semaphore only (elsewhere against every
+  tested version)
 
 A
 change to the CI workflow or the `Makefile` runs both collections, a change
@@ -88,16 +94,18 @@ module sends.
 A role is tasks, so it can only be tested by running it against a server. The
 playbooks in a collection's `tests/roles/` do that: they apply sample
 descriptions, apply them again and expect no change, run in check mode, and
-feed the roles what they must refuse. CI runs them in the "Role tests" jobs,
-against a Semaphore container it starts for the run, once per tested Semaphore
-version. Locally:
+feed the roles what they must refuse. CI runs them in the "Role tests" jobs:
+one job per playbook and tested Semaphore version, each against a Semaphore
+container it starts for itself, so the playbooks run side by side. Locally:
 
 ```sh
 SEMAPHORE_URL=http://127.0.0.1:3019 SEMAPHORE_USERNAME=admin SEMAPHORE_PASSWORD=... \
     make role-test COLLECTION=semaphoreui
 ```
 
-Every playbook in `tests/roles/` is run, so a new one needs no other change.
+Every playbook in `tests/roles/` is run; `ROLE_TEST_PLAYBOOK=apply` runs only
+`apply.yml`. A new playbook also needs its name in the `roles` job's matrix in
+`.github/workflows/ci.yml`, or CI never runs it.
 Each has to stand alone: it only touches objects named `roletest-...`, and
 removes them before it starts and when it ends. Throwaway servers only.
 
@@ -279,7 +287,10 @@ the repo changes by itself. The steps, in one pull request:
 2. In `.github/workflows/ci.yml`, add the version to the list the Sanity job
    goes through, and to the units: the newest version is the job with
    coverage, which installs `ansible-core~=` itself, so the version before it
-   moves into the `ansible:` list of the other unit job. Make it the newer of
+   moves into the `ansible:` list of the other unit job, with an `include:`
+   line naming the oldest and the newest Python it supports for modules
+   (`REMOTE_ONLY_PYTHON_VERSIONS` and `CONTROLLER_PYTHON_VERSIONS` in
+   ansible-core's `test/lib/ansible_test/_util/target/common/constants.py`). Make it the newer of
    the two versions of the install test, and
    move the Lint job's `ansible-core~=` to it. The Lint job fails until the
    ignore files from step 1 and the sanity list agree.
@@ -288,9 +299,9 @@ the repo changes by itself. The steps, in one pull request:
 4. Update the version badge at the top of the three READMEs, the "Compatibility"
    table in the root README, and the version lists in this file and in
    `PLAN.md`.
-5. Check that the pinned `ansible-community/ansible-test-gh-action` knows the
-   new branch; an older pin tests it with the wrong Python. Dependabot proposes
-   newer pins.
+5. Check that the pinned `ansible-community/ansible-test-gh-action`, which
+   the weekly devel job uses, knows the new branch; an older pin tests it with
+   the wrong Python. Dependabot proposes newer pins.
 
 Dropping a version that no longer gets releases is the reverse, plus
 `requires_ansible` in both `meta/runtime.yml` files.

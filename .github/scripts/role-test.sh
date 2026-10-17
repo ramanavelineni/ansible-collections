@@ -5,6 +5,7 @@
 # removes them before it starts and when it ends, so the playbooks can run in
 # any order on one server.
 # Usage: role-test.sh <collection> [ansible-playbook options]   (from the repository root)
+# ROLE_TEST_PLAYBOOK=<name> runs only tests/roles/<name>.yml, as each CI job does.
 # Needs ansible-core on the PATH, and for semaphoreui SEMAPHORE_URL with
 # SEMAPHORE_USERNAME and SEMAPHORE_PASSWORD (or SEMAPHORE_API_TOKEN). The
 # modules read those themselves. Throwaway servers only.
@@ -18,7 +19,12 @@ test -f "ansible_collections/${namespace}/${collection}/galaxy.yml" \
   || { echo "no collection at ansible_collections/${namespace}/${collection}" >&2; exit 1; }
 
 shopt -s nullglob
-playbooks=("${tests_dir}"/*.yml)
+if [ -n "${ROLE_TEST_PLAYBOOK:-}" ]; then
+  playbooks=("${tests_dir}/${ROLE_TEST_PLAYBOOK}.yml")
+  test -f "${playbooks[0]}" || { echo "no role test ${playbooks[0]}" >&2; exit 1; }
+else
+  playbooks=("${tests_dir}"/*.yml)
+fi
 if [ "${#playbooks[@]}" -eq 0 ]; then
   echo "${collection} has no role tests (${tests_dir}/*.yml)"
   exit 0
