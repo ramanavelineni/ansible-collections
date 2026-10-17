@@ -134,7 +134,6 @@ def test_output_is_read_until_it_stops_growing(lifecycle, run_module):
     assert sleeps()[3:] == [task_utils.OUTPUT_SETTLE] * 2
 
 
-
 # Hand-edited: Semaphore saves the final status before the end time, so a read can catch success without an end
 # (seen live on 2.19). Breaks when the module returns that read: end is then empty for a task that ended.
 def test_a_finished_task_is_read_again_until_it_has_its_end_time(lifecycle, run_module):
@@ -145,6 +144,7 @@ def test_a_finished_task_is_read_again_until_it_has_its_end_time(lifecycle, run_
     # Waiting, running, success without an end, success with one: four reads.
     assert len(lifecycle.calls('GET', task_path(lifecycle))) == 4
     assert sleeps()[3] == task_utils.OUTPUT_SETTLE
+
 
 @pytest.mark.parametrize('lines, expected', [(2, ['tk-slow started', 'tk-slow done']), (-1, None), (200, None)])
 def test_output_lines_caps_the_output(lifecycle, run_module, lines, expected):
