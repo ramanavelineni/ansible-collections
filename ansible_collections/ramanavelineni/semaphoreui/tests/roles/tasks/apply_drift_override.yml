@@ -108,6 +108,15 @@
 # The task's own username and password replace SEMAPHORE_* for these two
 # reads. A refused login fails the module, and a failed result holds no
 # `projects`.
+#
+# The refused login alone proves the drift check sent no password. The second
+# login, which succeeds, runs only on Semaphore 2.19 and later: before 2.19 a
+# user who has ever logged in cannot be deleted (their login sessions still
+# refer to them), so the cleanup would fail.
+- name: Read the Semaphore version
+  ramanavelineni.semaphoreui.info:
+  register: roletest_drift_server
+
 - name: Log in as the user with the password of the drift check
   ramanavelineni.semaphoreui.project_info:
     username: roletest-drift-user
@@ -121,12 +130,13 @@
     password: roletest-drift-user-pw-1
   register: roletest_drift_login_old
   failed_when: false
+  when: roletest_drift_server.version | regex_replace('^v?([0-9]+[.][0-9]+).*$', '\\1') is version('2.19', '>=')
 
 - name: The user still has the password it was created with
   ansible.builtin.assert:
     that:
       - roletest_drift_login_new.projects is not defined
-      - roletest_drift_login_old.projects is defined
+      - roletest_drift_login_old is skipped or roletest_drift_login_old.projects is defined
     fail_msg: >-
       Login with the password of the drift check: {{ roletest_drift_login_new.msg | default('accepted') }}.
       Login with the first password: {{ roletest_drift_login_old.msg | default('accepted') }}.
