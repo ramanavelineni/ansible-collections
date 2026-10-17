@@ -56,6 +56,8 @@
   loop_control:
     label: "{{ item.key }}"
   register: __server_apply_done_runners
+  # The result carries a new runner's registration token.
+  no_log: "{{ server_apply_no_log | bool }}"
 
 - name: Show the registration tokens of new runners (shown once)
   ansible.builtin.debug:
@@ -63,6 +65,7 @@
   loop: "{{ __server_apply_done_runners.results | default([]) | selectattr('registration_token', 'defined') | selectattr('registration_token') | list }}"
   loop_control:
     label: "{{ item.item.key }}"
+  when: not server_apply_no_log | bool
 
 - name: Note what was done
   ansible.builtin.set_fact:

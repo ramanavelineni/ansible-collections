@@ -208,3 +208,14 @@ def test_type_required_when_present(server, project, run_module):
     assert result['msg'] == 'state is present but all of the following are missing: type'
     # The argument spec refuses it, so not even the login is sent.
     assert server.requests == []
+
+
+def test_a_server_that_repeats_the_key_in_an_error_does_not_show_it(server, project, run_module):
+    # Not the api_token or password: a no_log value of the task, written back as JSON escapes it.
+    server.route('GET', project + '/keys', 'keys_with_deploy')
+    server.route('PUT', '%s/keys/%d' % (project, key_id(server)),
+                 dict(status=400, body=dict(error='cannot parse %s' % PRIVATE_KEY)))
+    result = run_module(key_store.main, SSH)
+    assert result['failed'] is True
+    assert 'unit-test' not in json.dumps(result)
+    assert 'cannot parse ********' in json.dumps(result)

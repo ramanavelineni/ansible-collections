@@ -395,3 +395,14 @@ def test_another_type_for_an_existing_endpoint_is_not_looked_up(server, run_modu
     assert result['failed'] is True
     assert 'Harbor cannot change the type' in result['msg']
     assert server.calls('GET', '/replication/adapters') == []
+
+
+def test_a_server_that_repeats_the_secret_in_an_error_does_not_show_it(server, run_module):
+    # Harbor answers in Go's JSON: a quote is escaped, and so are <, > and &.
+    secret = 'wr"ng<&>Zebra7'
+    server.route('GET', '/registries', 'registry_list')
+    server.route('PUT', '/registries/%d' % aid(server),
+                 dict(status=400, body=dict(errors=[dict(code='BAD_REQUEST', message='secret %s refused' % secret)])))
+    result = run_module(registry.main, dict(name='rr-fixtures-auth', access_secret=secret))
+    assert result['failed'] is True
+    assert 'Zebra7' not in json.dumps(result)

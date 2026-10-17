@@ -12,9 +12,12 @@ description:
   - A backup describes the project's keys, repositories, inventories, variable groups, views, templates,
     schedules and integrations, and names what they refer to instead of using ids. It holds no task history
     and no team members.
-  - B(A backup holds no secrets.) Semaphore writes a key as its name and type only, and leaves out the values
-    of secret variables. A project restored from it has keys that are empty. See
-    M(ramanavelineni.semaphoreui.project_restore).
+  - Semaphore writes a key as its name and type only, and leaves out the values of secret variables. A
+    project restored from it has keys that are empty. See M(ramanavelineni.semaphoreui.project_restore).
+  - B(A backup does hold some secrets.) Semaphore writes each runner's auth token (C(runners[].token)) and
+    every integration alias, which is the secret part of an integration's webhook URL
+    (C(integration_aliases) and C(integrations[].aliases)). The file at O(dest) keeps them, so a restore
+    gets them back. The returned RV(backup) and the diff show each of them as C(********).
 author:
   - ramanavelineni (@ramanavelineni)
 extends_documentation_fragment:
@@ -52,7 +55,8 @@ options:
   mode:
     description:
       - Permissions of the file at O(dest), as an octal number in quotes.
-      - A backup holds no secrets, but it does describe the whole project; the default keeps it to the owner.
+      - The file holds runner tokens and integration aliases, and describes the whole project. The default
+        keeps it to the owner.
     type: str
     default: "0600"
 notes:
@@ -88,7 +92,9 @@ backup:
       C(repositories), C(inventories), C(environments) (variable groups), C(views), C(templates),
       C(schedules), C(integrations), C(integration_aliases), C(secret_storages), C(roles), C(runners) and,
       from Semaphore 2.19, C(workflows).
-    - Objects refer to each other by name, and nothing has an id.
+    - Objects refer to each other by name. Only runners keep their id.
+    - Runner tokens and integration aliases are shown as C(********). The file at O(dest) holds the real
+      values.
   returned: always
   type: dict
   sample:
@@ -122,6 +128,29 @@ from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semapho
     semaphore_argument_spec,
     semaphore_module_kwargs,
 )
+
+
+MASK = '********'
+
+
+def masked(backup):
+    """A copy of the backup to show: runner tokens and integration aliases replaced by MASK.
+
+    A runner's token lets anyone act as that runner, and an alias is the secret part of an
+    integration's webhook URL. The file keeps them; output that ends up in logs does not.
+    """
+    if not isinstance(backup, dict):
+        return backup
+    shown = json.loads(json.dumps(backup))
+    for runner in shown.get('runners') or []:
+        if isinstance(runner, dict) and runner.get('token'):
+            runner['token'] = MASK
+    if shown.get('integration_aliases'):
+        shown['integration_aliases'] = [MASK for _ in shown['integration_aliases']]
+    for integration in shown.get('integrations') or []:
+        if isinstance(integration, dict) and integration.get('aliases'):
+            integration['aliases'] = [MASK for _ in integration['aliases']]
+    return shown
 
 
 def file_mode(text):
@@ -172,7 +201,7 @@ def read_backup(module, client):
 
     dest = params['dest']
     if not dest:
-        return dict(changed=False, backup=backup, file='', diff=dict(before={}, after={}))
+        return dict(changed=False, backup=masked(backup), file='', diff=dict(before={}, after={}))
     if os.path.isdir(dest):
         raise ValueError('dest %r is a directory. Name the file to write.' % dest)
 
@@ -187,8 +216,8 @@ def read_backup(module, client):
         except OSError as e:
             raise ValueError('Cannot write dest %r on the host this module runs on: %s' % (dest, e))
     # Not under "dest": Ansible adds a file's owner, size and more to a result that has that key.
-    return dict(changed=content_changed or permissions != mode, backup=backup, file=dest,
-                diff=dict(before=before if before is not None else {}, after=backup))
+    return dict(changed=content_changed or permissions != mode, backup=masked(backup), file=dest,
+                diff=dict(before=masked(before) if before is not None else {}, after=masked(backup)))
 
 
 def main():

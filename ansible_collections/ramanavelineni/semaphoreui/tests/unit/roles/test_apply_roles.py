@@ -158,7 +158,10 @@ def test_a_drift_check_sends_secrets_only_on_create(role, switch, modules):
     assert sorted(seen) == sorted(modules)
 
 
-@pytest.mark.parametrize('role, modules', [('project_apply', ('key_store', 'variable_group')), ('server_apply', ('user',))])
+@pytest.mark.parametrize('role, modules', [
+    ('project_apply', ('key_store', 'variable_group', 'integration')),
+    ('server_apply', ('user', 'runner')),
+])
 def test_tasks_that_carry_secrets_can_be_hidden(role, modules):
     tasks = module_tasks(load(role, 'tasks', 'project.yml' if role == 'project_apply' else 'main.yml'))
     for module, arguments, task in tasks:
@@ -175,3 +178,13 @@ def test_every_variable_is_documented_with_its_default(role):
         assert options[name]['default'] == value, name
     for name in options:
         assert name.startswith(role + '_'), name
+
+
+@pytest.mark.parametrize('role, shown', [('project_apply', 'webhook_urls'), ('server_apply', 'registration_token')])
+def test_webhook_urls_and_registration_tokens_are_shown_only_without_no_log(role, shown):
+    # A webhook URL can start a task, and a registration token can register a runner.
+    tasks = load(role, 'tasks', 'project.yml' if role == 'project_apply' else 'main.yml')
+    shows = [t for t in tasks if 'ansible.builtin.debug' in t and shown in t['ansible.builtin.debug']['msg']]
+    assert shows, role
+    for task in shows:
+        assert task['when'] == 'not %s_no_log | bool' % role, task['name']

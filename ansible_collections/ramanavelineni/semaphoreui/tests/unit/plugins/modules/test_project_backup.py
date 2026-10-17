@@ -165,3 +165,49 @@ def test_one_of_project_and_project_id(server, run_module):
 def test_result_has_the_documented_keys(server, backed_up, run_module, tmp_path, check_mode):
     result = run_module(project_backup.main, dict(project=PROJECT, dest=str(tmp_path / 'b.json')), check_mode=check_mode)
     assert set(result) - set(['changed', 'diff', 'invocation', 'warnings', 'deprecations']) == set(yaml.safe_load(project_backup.RETURN))
+
+
+RUNNER_TOKEN = 'runner-token-unit-test'
+ALIAS = 'alias-unit-test'
+
+
+@pytest.fixture
+def with_secrets(server):
+    """The recorded backup plus what Semaphore Pro writes: a project runner and integration aliases."""
+    answer = server.response('backup_get')
+    body = answer['body']
+    body['runners'] = [dict(id=3, name='build', token=RUNNER_TOKEN, webhook='', max_parallel_tasks=0,
+                            active=True, tags=[])]
+    body['integration_aliases'] = [ALIAS]
+    body['integrations'] = [dict(name='deploy', auth_method='', auth_header='', searchable=False,
+                                 aliases=[ALIAS + '-2'], matchers=[], extract_values=[], template='deploy')]
+    server.route('GET', '/projects', 'backup_projects')
+    server.route('GET', '/project/%d/backup' % pid(server), answer)
+    return body
+
+
+def test_runner_tokens_and_aliases_are_masked_in_the_result(server, with_secrets, run_module):
+    result = run_module(project_backup.main, dict(project=PROJECT))
+    text = json.dumps(result)
+    assert RUNNER_TOKEN not in text and ALIAS not in text
+    assert result['backup']['runners'][0]['token'] == project_backup.MASK
+    assert result['backup']['integration_aliases'] == [project_backup.MASK]
+    assert result['backup']['integrations'][0]['aliases'] == [project_backup.MASK]
+    # Everything else is as Semaphore wrote it.
+    assert result['backup']['runners'][0]['name'] == 'build'
+
+
+def test_the_file_keeps_them_and_the_diff_does_not_show_them(server, with_secrets, run_module, tmp_path):
+    dest = tmp_path / 'backup.json'
+    result = run_module(project_backup.main, dict(project=PROJECT, dest=str(dest)))
+    assert json.loads(dest.read_text()) == with_secrets
+    assert RUNNER_TOKEN not in json.dumps(result) and ALIAS not in json.dumps(result)
+
+    # A file that differs: its old secrets stay out of the diff too.
+    old = json.loads(dest.read_text())
+    old['runners'][0]['token'] = 'old-' + RUNNER_TOKEN
+    dest.write_text(json.dumps(old))
+    again = run_module(project_backup.main, dict(project=PROJECT, dest=str(dest)))
+    assert again['changed'] is True
+    assert RUNNER_TOKEN not in json.dumps(again['diff'])
+    assert json.loads(dest.read_text()) == with_secrets

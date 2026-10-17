@@ -11,13 +11,16 @@ role.
 | `server_apply_users` | `{}` | Users, keyed by login name. An entry takes the options of the `user` module |
 | `server_apply_runners` | `{}` | Runners, keyed by name. An entry takes the options of the `runner` module |
 | `server_apply_drift_check` | `false` | Fail at the end when something changed, or would have changed with `--check`. Passwords are then only sent for users that don't exist yet |
-| `server_apply_no_log` | `true` | Hide the output of the task that carries the users' passwords |
+| `server_apply_no_log` | `true` | Hide the output of the tasks that carry the users' passwords and the runners' registration tokens, and don't show new registration tokens |
 
 Every entry is created or updated; an entry marked `state: absent` is deleted.
 Users and runners that are not mentioned are left alone. An option a module
 doesn't have fails before anything is changed.
 
-A new runner's registration token is shown once, in the output of the run.
+A new runner's registration token is shown once, in the output of the run, and
+only with `server_apply_no_log: false`. It is valid for one hour. With the
+default the token stays out of the logs. To get one later, set
+`regenerate_token: true` on the runner and run with `server_apply_no_log: false`.
 
 Afterwards `server_apply_changed` says whether anything changed.
 

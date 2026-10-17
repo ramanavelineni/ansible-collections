@@ -258,13 +258,20 @@
     label: "{{ item.key }}"
   when: (item.value | default({}, true)).state | default('present') != 'absent'
   register: __project_apply_done_integration
+  # A webhook URL is enough to start the task when auth_method is none.
+  no_log: "{{ project_apply_no_log | bool }}"
 
-- name: "Show webhook URLs ({{ __project_apply_project.name }})"
+- name: "Show the webhook URLs of new integrations ({{ __project_apply_project.name }})"
   ansible.builtin.debug:
     msg: "{{ item.item.key }}: {{ item.webhook_urls | join(', ') }}"
-  loop: "{{ __project_apply_done_integration.results | default([]) | selectattr('webhook_urls', 'defined') | list }}"
+  loop: >-
+    {{ __project_apply_done_integration.results | default([])
+       | selectattr('changed', 'defined') | selectattr('changed')
+       | selectattr('diff', 'defined') | selectattr('diff.before', 'equalto', {})
+       | selectattr('webhook_urls', 'defined') | selectattr('webhook_urls') | list }}
   loop_control:
     label: "{{ item.item.key }}"
+  when: not project_apply_no_log | bool
 
 - name: "Team ({{ __project_apply_project.name }})"
   ramanavelineni.semaphoreui.team_member:
