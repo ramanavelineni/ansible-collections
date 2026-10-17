@@ -150,6 +150,37 @@ def test_text_survey_needs_2_19(server, project, run_module):
         assert server.calls('PUT')[0]['body']['survey_vars'][0]['type'] == 'text'
 
 
+def test_a_secret_survey_var_is_sent_as_secret_on_every_version(server, project, run_module):
+    # Breaks when type secret is refused, or sent as another type: the task's secret_variables then have
+    # no variable to fill. Semaphore 2.18 and 2.19 both offer it (web/src/components/SurveyVars.vue).
+    existing(server, project)
+    result = run_module(template.main, dict(project='homelab', name='site',
+                                            survey_vars=[dict(name='token', title='Token', type='secret')]))
+    assert result['changed'] is True
+    assert result['template']['survey_vars'][0]['type'] == 'secret'
+    assert server.calls('PUT')[0]['body']['survey_vars'] == [
+        dict(name='token', title='Token', type='secret', required=False, description='', default_value='')]
+
+
+def test_a_stored_secret_survey_var_declared_again_is_no_change(server, project, run_module):
+    with_stored(server, survey_vars=[dict(name='token', title='Token', type='secret', required=True)])
+    existing(server, project)
+    result = run_module(template.main, dict(project='homelab', name='site', survey_vars=[
+        dict(name='token', title='Token', type='secret', required=True)]))
+    assert result['changed'] is False
+    assert server.calls('PUT') == []
+
+
+def test_a_secret_survey_var_takes_no_default_value(server, project, run_module):
+    # A default would sit in the template as plain text, which is what a secret variable avoids.
+    existing(server, project)
+    result = run_module(template.main, dict(project='homelab', name='site', survey_vars=[
+        dict(name='token', title='Token', type='secret', default_value='hunter2')]))
+    assert result['failed'] is True
+    assert "'token'" in result['msg'] and 'default_value' in result['msg']
+    assert server.calls('PUT') == []
+
+
 def test_deploy_needs_build_template(server, project, run_module):
     server.route('GET', project + '/templates', 'templates_empty')
     result = run_module(template.main, dict(SITE, name='deploy', type='deploy'))
@@ -237,11 +268,12 @@ def test_changed_survey_var_keeps_unmanaged_fields(server, project, run_module):
 
 
 def test_unknown_survey_type_round_trips(server, project, run_module):
-    stored = with_stored(server, survey_vars=[dict(name='host', title='Host', type='secret')])
+    # `colour` stands for a type a later Semaphore adds.
+    stored = with_stored(server, survey_vars=[dict(name='host', title='Host', type='colour')])
     existing(server, project)
     result = run_module(template.main, dict(project='homelab', name='site', description='updated'))
     assert result['changed'] is True
-    assert result['template']['survey_vars'][0]['type'] == 'secret'
+    assert result['template']['survey_vars'][0]['type'] == 'colour'
     assert server.calls('PUT')[0]['body']['survey_vars'] == stored['survey_vars']
 
 

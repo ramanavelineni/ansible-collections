@@ -12,7 +12,7 @@ BOOLS = ('autorun', 'allow_override_args_in_task', 'allow_override_branch_in_tas
 # The API spells an ordinary template's type and a string survey variable's
 # type as "".
 TYPE_TO_API = dict(task='', build='build', deploy='deploy')
-SURVEY_TO_API = dict(string='', int='int', enum='enum', text='text')
+SURVEY_TO_API = dict(string='', int='int', enum='enum', text='text', secret='secret')
 
 
 class Lookups(object):

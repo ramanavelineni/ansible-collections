@@ -288,8 +288,10 @@ restore gets them back. Keep that file private (`mode: "0600"`, the default).
 - A Terraform/OpenTofu template created without an inventory gets a
   workspace inventory named `default` from Semaphore, and keeps it through
   later updates.
-- `type` is `task`, `build` or `deploy`; survey variable types are `string`,
-  `int`, `enum` and `text` (`text` needs 2.19).
+- `type` is `task`, `build` or `deploy`. Survey variable types are `string`,
+  `int`, `enum`, `text` (`text` needs 2.19) and `secret`. A task gives a
+  `secret` variable its value in `secret_variables`, and a `secret` variable
+  takes no `default_value`.
 
 </details>
 
@@ -299,11 +301,15 @@ restore gets them back. Keep that file private (`mode: "0600"`, the default).
 - `schedule` also finds commit pollers, which Semaphore's own project list
   leaves out, and refuses `active: false` on a poller, because Semaphore keeps
   running pollers whatever `active` says. Use `state: absent` to stop one.
+- A `run_at` schedule runs once. When its time has passed and the schedule is
+  gone or inactive, `schedule` reports no change and warns, instead of failing
+  on Semaphore's refusal of a past time. A schedule that never existed looks
+  the same as one deleted after its run, so a past `run_at` never creates one.
 - `task` starts a new run of a template every time it runs: it is not
   idempotent. By default it waits for the run and fails when the run failed or
   was stopped. What a run may set for itself (branch, arguments, inventory,
-  limit, tags) has to be allowed by the template; Semaphore ignores it
-  otherwise, so the module fails instead. `wait: false` returns the task id
+  limit, tags, `skip_galaxy_install`) has to be allowed by the template.
+  Semaphore ignores it otherwise, so the module fails instead. `wait: false` returns the task id
   for `task_info`.
 - `integration` makes sure the integration has a webhook URL and returns it.
   Matchers and extracted values are complete lists.

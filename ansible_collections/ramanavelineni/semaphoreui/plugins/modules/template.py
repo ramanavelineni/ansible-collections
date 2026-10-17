@@ -190,10 +190,14 @@ options:
         required: true
       type:
         description:
-          - V(string) (the default), V(int), V(enum) (choose from O(survey_vars[].values)), or
-            V(text) (multi-line). V(text) needs Semaphore 2.19.
+          - V(string) (the default), V(int), V(enum) (choose from O(survey_vars[].values)),
+            V(text) (multi-line), or V(secret). V(text) needs Semaphore 2.19.
+          - The value of a V(secret) variable is given with the task, in
+            O(ramanavelineni.semaphoreui.task#module:secret_variables), and Semaphore does not store it with
+            the task. A V(secret) variable takes no O(survey_vars[].default_value), because that would be
+            stored in the template as plain text.
         type: str
-        choices: [string, int, enum, text]
+        choices: [string, int, enum, text, secret]
         default: string
       required:
         description: Whether a value must be given.
@@ -508,6 +512,9 @@ def validate(params, app, server_version, tpl_type):
     for var in params['survey_vars'] or []:
         if var['type'] == 'enum' and not var['values']:
             raise ValueError('Survey variable %r of type enum needs values.' % var['name'])
+        if var['type'] == 'secret' and var['default_value']:
+            raise ValueError('Survey variable %r of type secret takes no default_value: Semaphore would store it in '
+                             'the template as plain text.' % var['name'])
         if var['type'] == 'text' and (server_minor(server_version) or (2, 19)) < (2, 19):
             raise ValueError('Survey variable %r uses type text, which Semaphore %s does not support '
                              '(it needs 2.19).' % (var['name'], server_version))
@@ -733,7 +740,7 @@ def main():
         survey_vars=dict(type='list', elements='dict', options=dict(
             name=dict(type='str', required=True),
             title=dict(type='str', required=True),
-            type=dict(type='str', default='string', choices=['string', 'int', 'enum', 'text']),
+            type=dict(type='str', default='string', choices=['string', 'int', 'enum', 'text', 'secret']),
             required=dict(type='bool', default=False),
             description=dict(type='str', default=''),
             default_value=dict(type='str', default=''),

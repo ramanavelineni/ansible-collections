@@ -9,8 +9,11 @@ version_added: 0.4.0
 description:
   - Creates a project from a backup, as B(Restore Project) in the UI does. The backup comes from
     M(ramanavelineni.semaphoreui.project_backup) or from the UI.
-  - Restoring always creates a new project. B(When a project of that name exists already, the module does
-    nothing) and reports no change. It does not compare that project with the backup.
+  - Restoring always creates a new project. B(When the user the module logs in as can see a project of that
+    name, the module does nothing) and reports no change. It does not compare that project with the backup.
+  - Semaphore refuses a name that any project on the server has, also a project the user is not a member of.
+    A user who is not an administrator sees only their own projects, so for them the module fails on such a
+    name and says so. Restore under another O(name) then, or as an administrator.
   - B(A backup holds no secrets), so the keys of the restored project are empty, and the secret variables of
     its variable groups are gone. Set them afterwards, for example with
     M(ramanavelineni.semaphoreui.key_store) and M(ramanavelineni.semaphoreui.variable_group).
@@ -152,8 +155,18 @@ def load(params):
 def what_is_left(client, name, error):
     """What a failed restore left on the server, for the failure message."""
     if 'already exists' in (error.response or ''):
-        # Semaphore's own check of the name: the project appeared after this task looked for it.
-        return 'Nothing was created. Run the task again; it then finds the project and leaves it alone.'
+        # Semaphore checks the name against every project on the server, and a user who is not an
+        # administrator lists only their own (services/project/restore.go, api/projects/projects.go).
+        try:
+            seen = find_by_name(client.list('/projects'), name, 'project')
+        except (SemaphoreError, ValueError):
+            return 'Nothing was created. A project %r exists on the server.' % name
+        if seen:
+            # The project appeared after this task looked for it.
+            return 'Nothing was created. Run the task again. It then finds the project and leaves it alone.'
+        return ('Nothing was created. A project %r exists on the server that the user this module logs in as '
+                'cannot see, because it is not a member of it. Restore under another name, or as an '
+                'administrator.' % name)
     try:
         left = find_by_name(client.list('/projects'), name, 'project')
     except (SemaphoreError, ValueError):

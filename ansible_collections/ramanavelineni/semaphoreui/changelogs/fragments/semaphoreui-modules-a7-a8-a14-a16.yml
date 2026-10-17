@@ -1,0 +1,14 @@
+---
+bugfixes:
+  - template - accept ``secret`` as a survey variable type, which Semaphore 2.18 and 2.19 offer and the task module's
+    ``secret_variables`` fill. Before, declaring the survey variables deleted a secret variable made in the UI, or
+    turned it into a plain one. A ``secret`` variable takes no ``default_value``.
+  - task - refuse ``task_params.skip_galaxy_install`` when the template does not set
+    ``allow_override_skip_galaxy_install`` and the value differs from the template's own, because Semaphore ignores
+    it then.
+  - schedule - a past ``run_at`` for a schedule that is missing or inactive reports no change with a warning, instead
+    of failing with HTTP 400 on every run after a one-time schedule ran. A past ``run_at`` on an active schedule fails
+    before anything is sent.
+  - project_restore - when Semaphore refuses the name because of a project the user can't see, the message no longer
+    says that a re-run will work. It says to restore under another name or as an administrator. The documentation
+    says that only projects the user can see are found.

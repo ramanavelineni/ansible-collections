@@ -315,6 +315,36 @@ def test_ansible_task_params_need_the_templates_switch(project, run_module, para
     assert posts(project)[0]['body']['params'] == {param: value}
 
 
+@pytest.mark.parametrize('template_params, given', [
+    ({}, True),
+    (dict(skip_galaxy_install=True), False),
+], ids=['skip-on-a-template-that-installs', 'install-on-a-template-that-skips'])
+def test_skip_galaxy_install_that_the_template_would_ignore_is_refused(project, run_module, template_params, given):
+    # Breaks when the task is started anyway: Semaphore then runs the template's own Galaxy setting
+    # and the task's value has no effect (db_lib/AnsibleApp.go skipGalaxyInstall).
+    with_template(project, 'tk-quick', app='ansible', task_params=template_params)
+    result = run_module(task.main, dict(project=PROJECT, template='tk-quick', task_params=dict(skip_galaxy_install=given)))
+    assert result['failed'] is True
+    assert 'does not let a task set task_params.skip_galaxy_install' in result['msg']
+    assert 'allow_override_skip_galaxy_install: true' in result['msg']
+    assert posts(project) == []
+
+
+@pytest.mark.parametrize('template_params, given', [
+    (dict(allow_override_skip_galaxy_install=True), True),
+    (dict(allow_override_skip_galaxy_install=True, skip_galaxy_install=True), False),
+    (dict(skip_galaxy_install=True), True),
+    ({}, False),
+], ids=['allowed-skip', 'allowed-install', 'same-as-template-skip', 'same-as-template-install'])
+def test_skip_galaxy_install_that_takes_effect_is_sent(project, run_module, template_params, given):
+    with_template(project, 'tk-quick', app='ansible', task_params=template_params)
+    project.route('POST', base(project) + '/tasks', 'task_start_quick')
+    result = run_module(task.main, dict(project=PROJECT, template='tk-quick', wait=False,
+                                        task_params=dict(skip_galaxy_install=given)))
+    assert result.get('failed') is not True
+    assert posts(project)[0]['body']['params'] == dict(skip_galaxy_install=given)
+
+
 def test_ansible_task_params_without_a_switch_and_a_limit_as_text(project, run_module):
     with_template(project, 'tk-quick', app='ansible', task_params=dict(allow_override_limit=True))
     project.route('POST', base(project) + '/tasks', 'task_start_quick')
