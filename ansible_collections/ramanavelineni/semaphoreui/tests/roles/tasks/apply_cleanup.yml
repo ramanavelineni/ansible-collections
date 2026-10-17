@@ -14,13 +14,21 @@
     - roletest-twice
     - roletest-repeated
     - roletest-renamed
+    - roletest-output
+    - roletest-drift
 
-- name: Delete the user of the role test
+- name: Delete the users of the role test
   ramanavelineni.semaphoreui.user:
-    login: roletest-user
+    login: "{{ item }}"
     state: absent
+  loop:
+    - roletest-user
+    - roletest-drift-user
 
-- name: Delete the runner of the role test
+- name: Delete the runners of the role test
   ramanavelineni.semaphoreui.runner:
-    name: roletest-runner
+    name: "{{ item }}"
     state: absent
+  loop:
+    - roletest-runner
+    - roletest-output-runner
