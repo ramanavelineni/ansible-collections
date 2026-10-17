@@ -19,6 +19,7 @@ from ansible_collections.ramanavelineni.harbor.tests.live.conftest import GC_CRO
 
 GC_PATH = '/system/gc/schedule'
 PURGE_PATH = '/system/purgeaudit/schedule'
+SCAN_PATH = '/system/scanAll/schedule'
 
 
 @pytest.fixture
@@ -174,13 +175,57 @@ def test_log_rotation_schedule(api, run, restore_schedule):
     assert changed(run(log_rotation.main, dict(schedule='none'))) is False
 
 
+def test_scan_all_schedule_with_a_scanner(api, run, restore_schedule):
+    """With a scanner, scan_all sets a custom schedule and removes it again, and both read back.
+
+    Fails when Harbor refuses the body scan_all sends, or stores another
+    schedule than the one asked for (a missing type, a wrong cron). The module
+    has no option to start a scan now, and the cron (February 29th) keeps the
+    schedule from starting one while the test runs. Skipped on a Harbor without
+    a scanner, which refuses every Scan All request (the next test).
+    """
+    if api.call('GET', SCAN_PATH)[0] == 412:
+        pytest.skip('this Harbor has no scanner, so it has no scan-all schedule to set')
+    restore_schedule(SCAN_PATH)
+    before = run(scan_all_info.main, dict())
+    assert not before.get('failed'), before.get('msg')
+    wanted = dict(schedule='custom', cron=SCAN_CRON)
+
+    predicted = run(scan_all.main, wanted, check=True)
+    assert changed(predicted) is True
+    assert run(scan_all_info.main, dict())['scan_all'] == before['scan_all']
+
+    stored = run(scan_all.main, wanted)
+    assert changed(stored) is True
+    assert stored['scan_all']['schedule'] == 'custom'
+    assert stored['scan_all']['cron'] == SCAN_CRON
+    # What Harbor stored, read beside the module.
+    assert api.schedule(SCAN_PATH)['schedule']['type'] == 'Custom'
+    assert cron_now(api, SCAN_PATH) == SCAN_CRON
+
+    again = run(scan_all.main, wanted)
+    assert changed(again) is False
+    read = run(scan_all_info.main, dict())
+    assert read['scan_all']['schedule'] == 'custom'
+    assert read['scan_all']['cron'] == SCAN_CRON
+    assert isinstance(read['metrics'], dict)
+
+    removed = run(scan_all.main, dict(schedule='none'))
+    assert changed(removed) is True
+    assert removed['scan_all']['schedule'] == 'none'
+    assert (api.schedule(SCAN_PATH).get('schedule') or {}).get('type') in (None, 'None')
+    gone = run(scan_all_info.main, dict())['scan_all']
+    assert gone['schedule'] == 'none'
+    assert gone['cron'] == ''
+    assert changed(run(scan_all.main, dict(schedule='none'))) is False
+
+
 def test_scan_all_without_a_scanner(api, run):
     """A Harbor without a scanner has no scan-all schedule; the modules say so instead of crashing.
 
-    With a scanner installed this test is skipped: the suite does not set a
-    scan schedule on a server that would then scan.
+    With a scanner installed this test is skipped, and the test before it runs.
     """
-    status = api.call('GET', '/system/scanAll/schedule')[0]
+    status = api.call('GET', SCAN_PATH)[0]
     if status != 412:
         pytest.skip('this Harbor has a scanner; the scan-all schedule is left alone')
     read = run(scan_all_info.main, dict())

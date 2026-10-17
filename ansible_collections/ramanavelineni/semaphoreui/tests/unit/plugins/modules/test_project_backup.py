@@ -140,6 +140,18 @@ def test_a_directory_that_takes_no_file_fails_with_a_message(server, backed_up, 
     assert result['failed'] is True and 'Cannot write dest' in result['msg']
 
 
+def test_a_write_that_fails_leaves_no_temporary_file_and_the_old_file_as_it_was(server, backed_up, run_module, tmp_path, mocker):
+    # The disk fills up as the new file is put in place. Breaks when the temporary file stays behind.
+    dest = tmp_path / 'backup.json'
+    dest.write_text('{"old": true}')
+    mocker.patch.object(project_backup.os, 'replace', side_effect=OSError(28, 'No space left on device'))
+    result = run_module(project_backup.main, dict(project=PROJECT, dest=str(dest)))
+    assert result['failed'] is True and 'Cannot write dest' in result['msg']
+    assert 'No space left on device' in result['msg']
+    assert os.listdir(str(tmp_path)) == ['backup.json']
+    assert dest.read_text() == '{"old": true}'
+
+
 def test_missing_project_fails_in_check_mode_too(server, run_module):
     server.route('GET', '/projects', 'backup_projects')
     for check_mode in (False, True):
