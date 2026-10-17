@@ -16,8 +16,14 @@ from ansible_collections.ramanavelineni.harbor.plugins.modules import info, proj
 UNAUTHORIZED = dict(status=401, body=dict(errors=[dict(code='UNAUTHORIZED', message='UnAuthorized')]))
 
 
+# Harbor locks a username for 1.5 s after a failed login (frozenTime in
+# src/core/auth/authenticator.go). A wait that ends sooner asks again during the lock.
+HARBOR_LOGIN_LOCK = 1.5
+
+
 def lock_waits():
-    return [c for c in time.sleep.call_args_list if c.args == (LOGIN_LOCK_WAIT,)]
+    """The sleeps long enough to outlast Harbor's lock. No request in these tests is retried for another reason."""
+    return [c for c in time.sleep.call_args_list if c.args[0] > HARBOR_LOGIN_LOCK]
 
 
 def test_login_check_asks_again_after_the_lock(server, run_module):

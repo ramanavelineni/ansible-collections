@@ -165,6 +165,7 @@ def test_delete(server, run_module):
     server.route('DELETE', '/registries/%d' % rid(server), 'registry_delete')
     result = run_module(registry.main, dict(name='rr-fixtures-self', state='absent'))
     assert result['changed'] is True
+    assert len(server.calls('DELETE', '/registries/%d' % rid(server))) == 1
 
 
 def test_delete_in_use_reported(server, run_module):

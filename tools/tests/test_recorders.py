@@ -377,8 +377,10 @@ class HarborSweeps(unittest.TestCase):
         harbor.sweep_system(srv)
         self.assertEqual(srv.writes(), [
             ('PUT', '/configurations', dict(banner_message='', session_timeout=60)),
-            ('PUT', '/system/gc/schedule', harbor.NO_GC_SCHEDULE),
-            ('PUT', '/system/purgeaudit/schedule', harbor.NO_PURGE_SCHEDULE)])
+            ('PUT', '/system/gc/schedule', dict(schedule=dict(type='None'))),
+            # Harbor refuses a purge schedule without parameters, removing one included.
+            ('PUT', '/system/purgeaudit/schedule', dict(schedule=dict(type='None'),
+                                                        parameters=dict(audit_retention_hour=720, include_event_types='')))])
 
     def test_system_sweep_leaves_a_sites_own_settings_and_schedules(self):
         srv = self.system('Maintenance on Sunday', '0 0 2 * * *', None)

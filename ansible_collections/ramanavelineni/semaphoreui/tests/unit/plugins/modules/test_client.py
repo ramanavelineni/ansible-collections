@@ -15,7 +15,6 @@ from urllib.error import HTTPError
 
 import pytest
 
-from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils import semaphore
 from ansible_collections.ramanavelineni.semaphoreui.plugins.modules import info, project
 from ansible_collections.ramanavelineni.semaphoreui.tests.unit.plugins.conftest import (
     PATCH_TARGET,
@@ -179,17 +178,14 @@ def test_a_redirect_names_its_target(server, run_module, status):
 
 # -- retries -------------------------------------------------------------------
 
-@pytest.mark.parametrize('status', semaphore.RETRY_STATUSES)
+# The gateway statuses, written out: a list taken from the client would shrink with it.
+@pytest.mark.parametrize('status', [502, 503, 504])
 def test_reads_are_retried_after_a_gateway_status(server, run_module, status):
     server.route('GET', '/info', unavailable(status), 'info')
     result = run_module(info.main, dict(retry_delay=5))
     assert result.get('failed') is not True
     assert len(server.calls('GET', '/info')) == 2
     assert waits() == [5]
-
-
-def test_retry_statuses_are_the_gateway_ones():
-    assert semaphore.RETRY_STATUSES == (502, 503, 504)
 
 
 @pytest.mark.parametrize('status', [400, 404, 500])
@@ -296,8 +292,7 @@ def test_a_long_error_body_is_cut_in_the_message_and_whole_in_the_details(server
     server.route('GET', '/info', http_error(500, page.encode()))
     result = run_module(info.main, {})
     assert result['failed'] is True
-    limit = semaphore.MESSAGE_BODY_LIMIT
-    assert limit == 500
+    limit = 500  # characters of the body that the message shows
     assert result['msg'] == (
         'GET https://semaphore.example.com/api/info returned HTTP 500: %s... (%d more characters; the whole body '
         'is in request_details.response)' % (page[:limit], len(page) - limit))
@@ -306,7 +301,7 @@ def test_a_long_error_body_is_cut_in_the_message_and_whole_in_the_details(server
 
 
 def test_a_body_at_the_limit_is_not_cut(server, run_module):
-    page = 'y' * semaphore.MESSAGE_BODY_LIMIT
+    page = 'y' * 500
     server.route('GET', '/info', http_error(500, page.encode()))
     result = run_module(info.main, {})
     assert result['msg'] == 'GET https://semaphore.example.com/api/info returned HTTP 500: ' + page

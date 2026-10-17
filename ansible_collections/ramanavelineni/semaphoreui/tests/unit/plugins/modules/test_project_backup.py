@@ -190,9 +190,9 @@ def test_runner_tokens_and_aliases_are_masked_in_the_result(server, with_secrets
     result = run_module(project_backup.main, dict(project=PROJECT))
     text = json.dumps(result)
     assert RUNNER_TOKEN not in text and ALIAS not in text
-    assert result['backup']['runners'][0]['token'] == project_backup.MASK
-    assert result['backup']['integration_aliases'] == [project_backup.MASK]
-    assert result['backup']['integrations'][0]['aliases'] == [project_backup.MASK]
+    assert result['backup']['runners'][0]['token'] == '********'
+    assert result['backup']['integration_aliases'] == ['********']
+    assert result['backup']['integrations'][0]['aliases'] == ['********']
     # Everything else is as Semaphore wrote it.
     assert result['backup']['runners'][0]['name'] == 'build'
 

@@ -124,7 +124,8 @@ def test_update_sends_full_name_and_every_field(server, run_module):
     assert body['name'] == current['name'] and body['name'] != 'fixtures-robot-sys'
     assert body['level'] == 'system'
     assert body['description'] == 'pulls everything'
-    assert body['permissions'] == canonical_permissions(current['permissions'])
+    # The stored permissions, sent back unchanged.
+    assert body['permissions'] == [dict(kind='project', namespace='*', access=[dict(resource='repository', action='pull')])]
     assert body['duration'] == -1 and body['disable'] is False
 
 

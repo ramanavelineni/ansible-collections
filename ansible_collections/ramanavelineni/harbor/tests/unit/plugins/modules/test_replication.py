@@ -197,6 +197,7 @@ def test_delete(server, run_module):
     server.route('DELETE', '/replication/policies/%d' % rule_id(server), 'registry_replication_delete')
     result = run_module(replication.main, dict(name='rr-fixtures-pull', state='absent'))
     assert result['changed'] is True
+    assert len(server.calls('DELETE', '/replication/policies/%d' % rule_id(server))) == 1
 
 
 def test_delete_missing(server, run_module):

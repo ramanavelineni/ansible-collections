@@ -75,14 +75,18 @@ def test_no_change(server, project, run_module):
 
 def test_update_fields_keeps_task_params(server, project, run_module):
     path = existing(server, project)
+    # Hand-edited: the recorded integration has no task-parameter overrides, and only the
+    # single read (not the list) carries them, so this one gets some.
+    single = server.response('integration_get')
+    single['body']['task_params'] = dict(limit='web', debug=True)
+    server.route('GET', path, single)
     server.route('PUT', path, 'integration_update')
     result = run_module(integration.main, dict(project='homelab', name='gh', searchable=True))
     assert result['changed'] is True
     body = server.calls('PUT', path)[0]['body']
-    current = server.fixtures['integration_get']['body']
     assert body['searchable'] is True
-    assert body.get('task_params') == current.get('task_params')
-    assert body['id'] == current['id']
+    assert body['task_params'] == dict(limit='web', debug=True)
+    assert body['id'] == server.fixtures['integration_get']['body']['id']
 
 
 def test_matchers_exact(server, project, run_module):
