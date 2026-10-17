@@ -7,7 +7,15 @@ repos:
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
+      # The role test playbooks use Ansible's !unsafe tag, which a full YAML
+      # load rejects. They get a syntax-only check (--unsafe); every other
+      # YAML file is still loaded in full, which also catches duplicate keys.
       - id: check-yaml
+        exclude: ^ansible_collections/[^/]+/[^/]+/tests/roles/
+      - id: check-yaml
+        name: check yaml syntax (role tests, with !unsafe)
+        args: [--unsafe]
+        files: ^ansible_collections/[^/]+/[^/]+/tests/roles/
       - id: check-added-large-files
       - id: check-merge-conflict
 

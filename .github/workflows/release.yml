@@ -32,9 +32,10 @@ jobs:
       version: ${{ steps.meta.outputs.version }}
       dir: ${{ steps.meta.outputs.dir }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Check the tag is on main
         run: |
@@ -84,13 +85,20 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-python@v7.0.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
 
-      - run: pip install "ansible-core>=2.18,<2.22"
+      # This job can write to the repository, so what it installs is pinned
+      # exactly: ansible-core and everything it pulls in. Raise them together.
+      - run: >-
+          pip install ansible-core==2.21.5 jinja2==3.1.6 MarkupSafe==3.0.4
+          PyYAML==6.0.3 cryptography==50.0.2 cffi==2.1.1 pycparser==3.11
+          packaging==26.3 resolvelib==1.2.1
 
       - name: Build the collection
         run: ansible-galaxy collection build "${{ needs.meta.outputs.dir }}" --output-path dist

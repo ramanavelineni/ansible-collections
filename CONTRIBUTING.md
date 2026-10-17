@@ -33,7 +33,8 @@ in a virtual environment instead. `lint`, `docs-lint` and `install-test` need
 `ansible-lint`, `antsibull-docs` and `ansible-core` installed.
 
 CI runs sanity and the unit tests on ansible-core 2.18, 2.19, 2.20 and 2.21
-for the collections a change touches. It also runs, for those collections:
+for the collections a change touches, with one job for each collection and
+version. It also runs, for those collections:
 
 - **Lint:** one job with four checks: the changelog fragments, `ansible-lint`
   with the production profile, a check that each
@@ -62,9 +63,13 @@ release:
   tested version)
 
 A
-change to the CI workflow or the `Makefile` runs both collections, a change
-under `tools/` runs the recorder tests, and a change that only touches Markdown
-runs none of them. Once a week everything runs for both collections, so a new
+change to the CI or release workflow, `.github/dependabot.yml`,
+`.github/scripts/` or the `Makefile` runs both collections and the recorder
+tests. A change under `tools/` runs the recorder tests. So does a change to a
+collection's `tests/unit/plugins/utils.py`, `tests/unit/plugins/conftest.py`
+or `plugins/module_utils/transport.py`, because the recorder tests also check that
+these files have not drifted apart between the collections. A change that only
+touches Markdown runs none of them. Once a week everything runs for both collections, so a new
 ansible-core patch release that breaks something is noticed.
 
 The weekly run also has jobs named "Units (..., devel)": the unit tests on
@@ -96,7 +101,10 @@ playbooks in a collection's `tests/roles/` do that: they apply sample
 descriptions, apply them again and expect no change, run in check mode, and
 feed the roles what they must refuse. CI runs them in the "Role tests" jobs:
 one job per playbook and tested Semaphore version, each against a Semaphore
-container it starts for itself, so the playbooks run side by side. Locally:
+container it starts for itself, so the playbooks run side by side. The job
+logs in once as the admin, makes an API token and runs the playbook with
+`SEMAPHORE_API_TOKEN` only. With a username and password every module call
+would log in and out again. Locally either works:
 
 ```sh
 SEMAPHORE_URL=http://127.0.0.1:3019 SEMAPHORE_USERNAME=admin SEMAPHORE_PASSWORD=... \
@@ -284,8 +292,8 @@ the repo changes by itself. The steps, in one pull request:
    both collections. Sanity fails without it, because the entries (the
    Apache-2.0 licence header instead of the GPL one) are needed on every
    version.
-2. In `.github/workflows/ci.yml`, add the version to the list the Sanity job
-   goes through, and to the units: the newest version is the job with
+2. In `.github/workflows/ci.yml`, add the version to the `ansible:` list of
+   the Sanity job, and to the units: the newest version is the job with
    coverage, which installs `ansible-core~=` itself, so the version before it
    moves into the `ansible:` list of the other unit job, with an `include:`
    line naming the oldest and the newest Python it supports for modules
@@ -294,14 +302,17 @@ the repo changes by itself. The steps, in one pull request:
    the two versions of the install test, and
    move the Lint job's `ansible-core~=` to it. The Lint job fails until the
    ignore files from step 1 and the sanity list agree.
-3. Raise the upper bound in the `pip install "ansible-core>=...,<..."` line of
-   `.github/workflows/release.yml`.
+3. In `.github/workflows/release.yml`, raise the `ansible-core==` pin of the
+   publish job's `pip install` to the new version. The packages next to it are
+   what that version installs, pinned too, because the job can write to the
+   repository. Dependabot doesn't update them.
 4. Update the version badge at the top of the three READMEs, the "Compatibility"
    table in the root README, and the version lists in this file and in
    `PLAN.md`.
 5. Check that the pinned `ansible-community/ansible-test-gh-action`, which
    the weekly devel job uses, knows the new branch; an older pin tests it with
-   the wrong Python. Dependabot proposes newer pins.
+   the wrong Python. Every action is pinned to a commit SHA, with its tag in a
+   comment after it. Dependabot proposes newer pins and updates both.
 
 Dropping a version that no longer gets releases is the reverse, plus
 `requires_ansible` in both `meta/runtime.yml` files.
