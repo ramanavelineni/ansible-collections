@@ -75,13 +75,17 @@ def semaphore_argument_spec():
 MODULE_CONSTRAINTS = ('mutually_exclusive', 'required_if', 'required_together', 'required_one_of')
 
 
-def semaphore_module_kwargs(**constraints):
+def semaphore_module_kwargs(project=None, **constraints):
     """AnsibleModule keyword arguments that go with semaphore_argument_spec().
 
     A module passes the constraints between its own options by name, for
     example required_if=[('state', 'present', ('role',))]. They are added to
     the shared ones, so that the argument spec holds them and ansible-doc and
     the sanity tests see them.
+
+    A module that takes project_argument_spec() passes project=PROJECT_REQUIRED
+    or project=PROJECT_OPTIONAL. project and project_id then exclude each
+    other, and with PROJECT_REQUIRED one of them must be set.
     """
     # Only what must hold for the options a task passes itself. That a
     # credential is there at all, and that a username has its password, is
@@ -89,6 +93,13 @@ def semaphore_module_kwargs(**constraints):
     kwargs = dict(
         mutually_exclusive=[('api_token', 'username'), ('api_token', 'password')],
     )
+    if project not in (None, PROJECT_REQUIRED, PROJECT_OPTIONAL):
+        raise TypeError('semaphore_module_kwargs() takes project=%r or %r, not %r'
+                        % (PROJECT_REQUIRED, PROJECT_OPTIONAL, project))
+    if project is not None:
+        kwargs['mutually_exclusive'].append(PROJECT_OPTIONS)
+    if project == PROJECT_REQUIRED:
+        kwargs['required_one_of'] = [PROJECT_OPTIONS]
     for name, rules in constraints.items():
         if name not in MODULE_CONSTRAINTS:
             raise TypeError('semaphore_module_kwargs() takes %s, not %r' % (', '.join(MODULE_CONSTRAINTS), name))
@@ -297,10 +308,18 @@ def resolve_project(client, name, missing_ok=False):
     return project['id']
 
 
-# The two ways a task names its project. A module passes this to
-# semaphore_module_kwargs() as a mutually_exclusive rule, and as a
-# required_one_of rule when it cannot work without a project.
+# The two ways a task names its project (see doc fragment project).
 PROJECT_OPTIONS = ('project', 'project_id')
+
+# What semaphore_module_kwargs(project=...) takes: whether a module needs a
+# project (doc fragment project) or also works without one (project.optional).
+PROJECT_REQUIRED = 'required'
+PROJECT_OPTIONAL = 'optional'
+
+
+def project_argument_spec():
+    """The options project and project_id, which every module that works in a project takes."""
+    return dict(project=dict(type='str'), project_id=dict(type='int'))
 
 
 def project_ref(client, params, missing_ok=False):

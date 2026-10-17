@@ -21,6 +21,7 @@ author:
 extends_documentation_fragment:
   - ramanavelineni.semaphoreui.auth
   - ramanavelineni.semaphoreui.attributes
+  - ramanavelineni.semaphoreui.project.optional
 attributes:
   check_mode:
     support: full
@@ -33,20 +34,7 @@ options:
         the project's runners.
     type: str
     required: true
-  project:
-    description:
-      - Name of the project the runner belongs to. Leave it unset for a global runner.
-      - Project runners need Semaphore Pro. A Community server lists none and refuses to create one
-        (HTTP 403, "Your plan does not allow adding more runners"), and the module fails with that message.
-      - Mutually exclusive with O(project_id).
-    type: str
   project_id:
-    description:
-      - Id of the project, as an alternative to O(project).
-      - With it the list of projects is not read, so a project is found on a server with 200 or more
-        projects too. Semaphore cuts that list off at 200, and O(project) fails there.
-      - Mutually exclusive with O(project).
-    type: int
     version_added: 0.3.0
   state:
     description:
@@ -87,6 +75,8 @@ options:
     type: bool
     default: false
 notes:
+  - Project runners need Semaphore Pro. A Community server lists none and refuses to create one
+    (HTTP 403, "Your plan does not allow adding more runners"), and the module fails with that message.
   - The registration token is returned in the task result. Set C(no_log) on the task so it is
     not shown in the output.
   - Semaphore's update replaces every field of a runner, so the module always sends the whole
@@ -187,9 +177,10 @@ registration_token:
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
-    PROJECT_OPTIONS,
+    PROJECT_OPTIONAL,
     SemaphoreError,
     find_by_name,
+    project_argument_spec,
     project_ref,
     run_module,
     semaphore_argument_spec,
@@ -322,9 +313,8 @@ def ensure(module, client):
 def main():
     argument_spec = semaphore_argument_spec()
     argument_spec.update(
+        project_argument_spec(),
         name=dict(type='str', required=True),
-        project=dict(type='str'),
-        project_id=dict(type='int'),
         state=dict(type='str', default='present', choices=['present', 'absent']),
         max_parallel_tasks=dict(type='int'),
         active=dict(type='bool'),
@@ -334,7 +324,7 @@ def main():
         regenerate_token=dict(type='bool', default=False, no_log=False),
     )
     module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True,
-                           **semaphore_module_kwargs(mutually_exclusive=[PROJECT_OPTIONS]))
+                           **semaphore_module_kwargs(project=PROJECT_OPTIONAL))
     run_module(module, lambda client: ensure(module, client), placeholder=dict(runner={}, registration_token=''))
 
 

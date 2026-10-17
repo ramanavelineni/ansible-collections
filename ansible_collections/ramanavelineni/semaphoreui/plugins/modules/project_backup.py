@@ -23,6 +23,7 @@ author:
 extends_documentation_fragment:
   - ramanavelineni.semaphoreui.auth
   - ramanavelineni.semaphoreui.attributes
+  - ramanavelineni.semaphoreui.project
 attributes:
   check_mode:
     support: full
@@ -33,18 +34,8 @@ attributes:
     details:
       - With O(dest), the diff is between what the file holds and the backup.
 options:
-  project:
-    description:
-      - Name of the project.
-      - Mutually exclusive with O(project_id); one of the two is required.
-    type: str
   project_id:
-    description:
-      - Id of the project, as an alternative to O(project).
-      - With it the list of projects is not read, so a project is found on a server with 200 or more
-        projects too. Semaphore cuts that list off at 200, and O(project) fails there.
-      - Mutually exclusive with O(project). One of the two is required.
-    type: int
+    version_added: 0.4.0
   dest:
     description:
       - File to write the backup to, as JSON, on the host the module runs on. Its directory must exist.
@@ -122,7 +113,8 @@ import tempfile
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
-    PROJECT_OPTIONS,
+    PROJECT_REQUIRED,
+    project_argument_spec,
     project_ref,
     run_module,
     semaphore_argument_spec,
@@ -223,14 +215,13 @@ def read_backup(module, client):
 def main():
     argument_spec = semaphore_argument_spec()
     argument_spec.update(
-        project=dict(type='str'),
-        project_id=dict(type='int'),
+        project_argument_spec(),
         dest=dict(type='path'),
         mode=dict(type='str', default='0600'),
     )
     module = AnsibleModule(
         argument_spec=argument_spec, supports_check_mode=True,
-        **semaphore_module_kwargs(mutually_exclusive=[PROJECT_OPTIONS], required_one_of=[PROJECT_OPTIONS])
+        **semaphore_module_kwargs(project=PROJECT_REQUIRED)
     )
     run_module(module, lambda client: read_backup(module, client))
 
