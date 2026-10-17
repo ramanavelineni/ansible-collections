@@ -2,27 +2,43 @@
 
 **Topics**
 
-- <a href="#v0-3-1">v0\.3\.1</a>
+- <a href="#v0-3-2">v0\.3\.2</a>
     - <a href="#release-summary">Release Summary</a>
+    - <a href="#security-fixes">Security Fixes</a>
+- <a href="#v0-3-1">v0\.3\.1</a>
+    - <a href="#release-summary-1">Release Summary</a>
     - <a href="#bugfixes">Bugfixes</a>
 - <a href="#v0-3-0">v0\.3\.0</a>
-    - <a href="#release-summary-1">Release Summary</a>
+    - <a href="#release-summary-2">Release Summary</a>
     - <a href="#minor-changes">Minor Changes</a>
-    - <a href="#security-fixes">Security Fixes</a>
+    - <a href="#security-fixes-1">Security Fixes</a>
     - <a href="#bugfixes-1">Bugfixes</a>
 - <a href="#v0-2-0">v0\.2\.0</a>
-    - <a href="#release-summary-2">Release Summary</a>
+    - <a href="#release-summary-3">Release Summary</a>
     - <a href="#breaking-changes--porting-guide">Breaking Changes / Porting Guide</a>
-    - <a href="#security-fixes-1">Security Fixes</a>
+    - <a href="#security-fixes-2">Security Fixes</a>
     - <a href="#bugfixes-2">Bugfixes</a>
 - <a href="#v0-1-0">v0\.1\.0</a>
-    - <a href="#release-summary-3">Release Summary</a>
+    - <a href="#release-summary-4">Release Summary</a>
     - <a href="#new-modules">New Modules</a>
+
+<a id="v0-3-2"></a>
+## v0\.3\.2
+
+<a id="release-summary"></a>
+### Release Summary
+
+A security fix\: a failed request no longer shows a no\_log value that Harbor repeats in its answer\.
+
+<a id="security-fixes"></a>
+### Security Fixes
+
+* a failed request now masks every <code>no\_log</code> value of the task in what Harbor answered\, as written and in the escaped forms JSON from Python and from Go use\. Before\, Harbor\'s answer was shown unmasked\, and Ansible\'s own masking misses a secret with a quote\, a backslash\, <code>\<</code>\, <code>\></code>\, <code>\&</code> or a newline\.
 
 <a id="v0-3-1"></a>
 ## v0\.3\.1
 
-<a id="release-summary"></a>
+<a id="release-summary-1"></a>
 ### Release Summary
 
 <code>registry</code> accepts a registry type the server offers\, not only the twelve the module knows\. No other change\.
@@ -35,7 +51,7 @@
 <a id="v0-3-0"></a>
 ## v0\.3\.0
 
-<a id="release-summary-1"></a>
+<a id="release-summary-2"></a>
 ### Release Summary
 
 New connection options \(<code>client\_cert</code>\, <code>client\_key</code>\, <code>use\_proxy</code>\, <code>warn\_untested\_version</code>\)\, modules that work for users who are not administrators\, and a round of bug fixes\. Some checks are stricter than in 0\.2\.0 and can make a task fail that ran before\: <code>configuration</code> refuses to change a setting Harbor reports as not editable\, <code>registry</code> takes only <code>basic</code> or <code>oauth</code> as <code>credential\_type</code>\, and negative <code>retries</code> or <code>retry\_delay</code> are refused\. Run with <code>\-\-check</code> once after upgrading\.
@@ -49,7 +65,7 @@ New connection options \(<code>client\_cert</code>\, <code>client\_key</code>\, 
 * registry \- <code>credential\_type</code> now takes <code>basic</code> or <code>oauth</code> only\, and anything else fails before a request is sent\.
 * robot\_account \- <code>level</code> <code>project</code> without <code>project</code> is now refused by the argument check\, before the login\, with <code>level is project but all of the following are missing\: project</code>\.
 
-<a id="security-fixes"></a>
+<a id="security-fixes-1"></a>
 ### Security Fixes
 
 * configuration\, configuration\_info \- a key that Harbor returns and these modules have no name for is left out of <code>configuration</code> when its name contains <code>secret</code>\, <code>password</code>\, <code>passwd</code>\, <code>token</code>\, <code>credential</code> or <code>private\_key</code>\. The secrets were recognised by a fixed list of names\, so a readable secret added by a newer Harbor would have been returned in clear text\. No Harbor version tested so far returns such a key\.
@@ -88,7 +104,7 @@ New connection options \(<code>client\_cert</code>\, <code>client\_key</code>\, 
 <a id="v0-2-0"></a>
 ## v0\.2\.0
 
-<a id="release-summary-2"></a>
+<a id="release-summary-3"></a>
 ### Release Summary
 
 A security release\. A failed request no longer shows secrets\, and the collection now includes its <code>LICENSE</code>\. Also fixes to <code>project</code> quotas and robot account lookups\. One result changed form\, see the breaking changes\.
@@ -98,7 +114,7 @@ A security release\. A failed request no longer shows secrets\, and the collecti
 
 * All modules \- <code>request\_details\.request</code> in a failed result is now a dictionary\, not a JSON string\.
 
-<a id="security-fixes-1"></a>
+<a id="security-fixes-2"></a>
 ### Security Fixes
 
 * All modules \- a failed request no longer shows secrets\. The request body in <code>request\_details</code> was returned as JSON text\, where a secret containing a quote\, a backslash or a non\-ASCII character is escaped and so was not masked\: such values of <code>robot\_account</code> <code>secret</code>\, <code>registry</code> <code>access\_secret</code>\, <code>configuration</code> <code>oidc\_client\_secret</code> and <code>ldap\_search\_password</code>\. The body is now returned as a dictionary with secret values replaced by <code>\*\*\*\*\*\*\*\*</code>\.
@@ -114,7 +130,7 @@ A security release\. A failed request no longer shows secrets\, and the collecti
 <a id="v0-1-0"></a>
 ## v0\.1\.0
 
-<a id="release-summary-3"></a>
+<a id="release-summary-4"></a>
 ### Release Summary
 
 First release\. 23 modules that manage Harbor 2\.14 and 2\.15 declaratively\: projects\, robot accounts\, registries\, replication rules\, webhooks\, tag retention and immutability\, system configuration\, and the garbage collection\, scan\-all and audit\-log rotation schedules\, each with an <code>\_info</code> module\. Objects are found and referenced by name\, only the options you set are compared\, and every module supports check mode and diff\.

@@ -283,3 +283,16 @@ releases:
     - 0.3.1.yml
     - registry-types-from-server.yml
     release_date: '2026-10-04'
+  0.3.2:
+    changes:
+      release_summary: 'A security fix: a failed request no longer shows a no_log
+        value that Harbor repeats in its answer.'
+      security_fixes:
+      - a failed request now masks every ``no_log`` value of the task in what Harbor
+        answered, as written and in the escaped forms JSON from Python and from Go
+        use. Before, Harbor's answer was shown unmasked, and Ansible's own masking
+        misses a secret with a quote, a backslash, ``<``, ``>``, ``&`` or a newline.
+    fragments:
+    - release-summary.yml
+    - security-output-masking.yml
+    release_date: '2026-10-16'

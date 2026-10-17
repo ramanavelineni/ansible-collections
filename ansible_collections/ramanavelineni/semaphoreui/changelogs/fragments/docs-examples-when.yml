@@ -1,4 +1,0 @@
----
-bugfixes:
-  - runner, user_token - the examples used a string as a ``when`` condition, which ansible-core 2.19 and later refuse
-    (``Conditional result was derived from value of type 'str'``). They now test ``| length > 0``.

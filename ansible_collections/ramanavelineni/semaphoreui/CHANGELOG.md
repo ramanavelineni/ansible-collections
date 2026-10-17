@@ -2,35 +2,92 @@
 
 **Topics**
 
-- <a href="#v0-3-1">v0\.3\.1</a>
+- <a href="#v0-4-0">v0\.4\.0</a>
     - <a href="#release-summary">Release Summary</a>
+    - <a href="#security-fixes">Security Fixes</a>
     - <a href="#bugfixes">Bugfixes</a>
+    - <a href="#new-plugins">New Plugins</a>
+        - <a href="#filter">Filter</a>
+    - <a href="#new-modules">New Modules</a>
+    - <a href="#new-roles">New Roles</a>
+- <a href="#v0-3-1">v0\.3\.1</a>
+    - <a href="#release-summary-1">Release Summary</a>
+    - <a href="#bugfixes-1">Bugfixes</a>
     - <a href="#known-issues">Known Issues</a>
 - <a href="#v0-3-0">v0\.3\.0</a>
-    - <a href="#release-summary-1">Release Summary</a>
-    - <a href="#minor-changes">Minor Changes</a>
-    - <a href="#bugfixes-1">Bugfixes</a>
-- <a href="#v0-2-1">v0\.2\.1</a>
     - <a href="#release-summary-2">Release Summary</a>
+    - <a href="#minor-changes">Minor Changes</a>
     - <a href="#bugfixes-2">Bugfixes</a>
-- <a href="#v0-2-0">v0\.2\.0</a>
+- <a href="#v0-2-1">v0\.2\.1</a>
     - <a href="#release-summary-3">Release Summary</a>
-    - <a href="#breaking-changes--porting-guide">Breaking Changes / Porting Guide</a>
-    - <a href="#security-fixes">Security Fixes</a>
     - <a href="#bugfixes-3">Bugfixes</a>
-- <a href="#v0-1-0">v0\.1\.0</a>
+- <a href="#v0-2-0">v0\.2\.0</a>
     - <a href="#release-summary-4">Release Summary</a>
-    - <a href="#new-modules">New Modules</a>
+    - <a href="#breaking-changes--porting-guide">Breaking Changes / Porting Guide</a>
+    - <a href="#security-fixes-1">Security Fixes</a>
+    - <a href="#bugfixes-4">Bugfixes</a>
+- <a href="#v0-1-0">v0\.1\.0</a>
+    - <a href="#release-summary-5">Release Summary</a>
+    - <a href="#new-modules-1">New Modules</a>
 
-<a id="v0-3-1"></a>
-## v0\.3\.1
+<a id="v0-4-0"></a>
+## v0\.4\.0
 
 <a id="release-summary"></a>
 ### Release Summary
 
-Bug fixes found by running the modules against real servers\. One of them changes what a task does on some servers\: <code>integration</code> now fails when a task drops a matcher or an extracted value and the server keeps it\, where it used to report a change on every run\. See the known issue below for the servers this applies to\.
+New roles that apply whole projects and servers from YAML descriptions and export a project as one\, six new modules for tasks\, project backups\, API tokens and the event log\, and fixes that keep runner tokens\, webhook URLs and echoed secrets out of task output\.
+
+<a id="security-fixes"></a>
+### Security Fixes
+
+* a failed request now masks every <code>no\_log</code> value of the task in what the server answered\, as written and in the escaped forms JSON from Python and from Go use\. Before\, only the API token and the password were masked there\, so a server that repeated a private key or a secret in an error showed it\.
+* project\_apply \- the webhook URLs of every integration were printed on every run\, and the integrations task was not covered by <code>project\_apply\_no\_log</code>\. The task is now hidden by <code>project\_apply\_no\_log</code>\, and only the URLs of integrations created in the run are shown\, and only with <code>project\_apply\_no\_log\=false</code>\.
+* project\_backup \- the returned <code>backup</code> and the diff showed each project runner\'s auth token and every integration alias \(the secret part of a webhook URL\)\. They are now shown as <code>\*\*\*\*\*\*\*\*</code>\. The file written at <code>dest</code> still holds them\, and the module documentation no longer says a backup holds no secrets\.
+* server\_apply \- the runners task\, whose result holds a new runner\'s registration token\, was not covered by <code>server\_apply\_no\_log</code>\, and new tokens were always printed\. Both now follow <code>server\_apply\_no\_log</code>\.
 
 <a id="bugfixes"></a>
+### Bugfixes
+
+* runner\, user\_token \- the examples used a string as a <code>when</code> condition\, which ansible\-core 2\.19 and later refuse \(<code>Conditional result was derived from value of type \'str\'</code>\)\. They now test <code>\| length \> 0</code>\.
+
+<a id="new-plugins"></a>
+### New Plugins
+
+<a id="filter"></a>
+#### Filter
+
+* ramanavelineni\.semaphoreui\.project\_export\_config \- Turn what the Semaphore \_info modules return into a project configuration\.
+* ramanavelineni\.semaphoreui\.project\_export\_vault \- Write the list of vault variables an exported Semaphore project needs\.
+* ramanavelineni\.semaphoreui\.project\_export\_vault\_variables \- List the vault variables an exported Semaphore project needs\.
+* ramanavelineni\.semaphoreui\.project\_export\_yaml \- Write a Semaphore project as the YAML file the project\_apply role reads\.
+
+<a id="new-modules"></a>
+### New Modules
+
+* ramanavelineni\.semaphoreui\.event\_info \- Read the activity log of Semaphore UI\.
+* ramanavelineni\.semaphoreui\.project\_backup \- Read a Semaphore UI project\'s backup\, and write it to a file\.
+* ramanavelineni\.semaphoreui\.project\_restore \- Create a Semaphore UI project from a backup\.
+* ramanavelineni\.semaphoreui\.task \- Run a Semaphore UI template\, or stop a task\.
+* ramanavelineni\.semaphoreui\.task\_info \- Read Semaphore UI tasks and their output\.
+* ramanavelineni\.semaphoreui\.user\_token \- Manage the API tokens of the user that logs in\.
+
+<a id="new-roles"></a>
+### New Roles
+
+* ramanavelineni\.semaphoreui\.project\_apply \- Apply a directory of project descriptions to Semaphore UI\.
+* ramanavelineni\.semaphoreui\.project\_export \- Write a Semaphore project as the YAML configuration the project\_apply role reads\.
+* ramanavelineni\.semaphoreui\.server\_apply \- Apply users and runners to a Semaphore UI server\.
+
+<a id="v0-3-1"></a>
+## v0\.3\.1
+
+<a id="release-summary-1"></a>
+### Release Summary
+
+Bug fixes found by running the modules against real servers\. One of them changes what a task does on some servers\: <code>integration</code> now fails when a task drops a matcher or an extracted value and the server keeps it\, where it used to report a change on every run\. See the known issue below for the servers this applies to\.
+
+<a id="bugfixes-1"></a>
 ### Bugfixes
 
 * all modules \- a token or password taken from <code>SEMAPHORE\_API\_TOKEN</code> or <code>SEMAPHORE\_PASSWORD</code> that the server repeats in an error is now taken out of the failure message and of <code>request\_details\.response</code> by the client itself\. Until now this relied on ansible\-core masking the result\, which the development version of ansible\-core \(2\.23\.0\.dev0\) no longer does for values a module registers at run time\. No released ansible\-core version from 2\.18 to 2\.21 showed such a value\.
@@ -45,7 +102,7 @@ Bug fixes found by running the modules against real servers\. One of them change
 <a id="v0-3-0"></a>
 ## v0\.3\.0
 
-<a id="release-summary-1"></a>
+<a id="release-summary-2"></a>
 ### Release Summary
 
 New connection options \(<code>client\_cert</code>\, <code>client\_key</code>\, <code>use\_proxy</code>\)\, <code>project\_id</code> as an alternative to the project name\, custom apps in <code>template</code>\, and a round of bug fixes\. Some checks are stricter than in 0\.2\.1 and can make a task fail that ran before\: <code>template</code> refuses <code>start\_version</code> and <code>build\_template</code> on a template type that does not take them\, <code>schedule</code> refuses a <code>run\_at</code> without a time zone\, and negative <code>retries</code> or <code>retry\_delay</code> are refused\. Run with <code>\-\-check</code> once after upgrading\.
@@ -59,7 +116,7 @@ New connection options \(<code>client\_cert</code>\, <code>client\_key</code>\, 
 * integration\, inventory\, key\_store\, repository\, schedule\, team\_member\, template\, variable\_group\, view and their <code>\_info</code> modules \- a task that names no project now fails with <code>one of the following is required\: project\, project\_id</code> instead of <code>missing required arguments\: project</code>\.
 * key\_store\, schedule\, team\_member \- the rules between options that the argument spec can express are now part of it\: <code>type</code> and <code>role</code> are required with <code>state\=present</code>\, and <code>cron</code> and <code>run\_at</code> exclude each other\. A task that breaks one fails during argument validation\, before the module logs in\, with Ansible\'s own wording \(<code>state is present but all of the following are missing\: type</code>\, <code>parameters are mutually exclusive\: cron\|run\_at</code>\) instead of the module\'s\.
 
-<a id="bugfixes-1"></a>
+<a id="bugfixes-2"></a>
 ### Bugfixes
 
 * all modules \- <code>SEMAPHORE\_API\_TOKEN</code> in the environment no longer makes a task that sets <code>username</code> and <code>password</code> fail with \"parameters are mutually exclusive\"\, and <code>SEMAPHORE\_USERNAME</code> or <code>SEMAPHORE\_PASSWORD</code> no longer does that to a task that sets <code>api\_token</code>\. What the task sets wins\; the environment is read only for what the task leaves out\. With nothing set in the task and both kinds in the environment\, the token is used\, where this failed before\.
@@ -86,12 +143,12 @@ New connection options \(<code>client\_cert</code>\, <code>client\_key</code>\, 
 <a id="v0-2-1"></a>
 ## v0\.2\.1
 
-<a id="release-summary-2"></a>
+<a id="release-summary-3"></a>
 ### Release Summary
 
 Check mode now works for a play that builds a project from nothing\.
 
-<a id="bugfixes-2"></a>
+<a id="bugfixes-3"></a>
 ### Bugfixes
 
 * integration\, inventory\, key\_store\, repository\, runner\, schedule\, team\_member\, template\, variable\_group\, view \- check mode no longer fails when the project\, or another object the task refers to by name\, does not exist yet\. An earlier task of the same run may create it\, so the task is reported as changed with a warning and an empty result\. Outside check mode it fails as before\. This makes <code>\-\-check</code> usable for a play that builds a project from nothing\.
@@ -99,7 +156,7 @@ Check mode now works for a play that builds a project from nothing\.
 <a id="v0-2-0"></a>
 ## v0\.2\.0
 
-<a id="release-summary-3"></a>
+<a id="release-summary-4"></a>
 ### Release Summary
 
 A security release\. A failed request no longer shows secrets\, and the collection now includes its <code>LICENSE</code>\. Also several fixes to the client and the <code>\_info</code> modules\. Two results changed form\, see the breaking changes\.
@@ -110,12 +167,12 @@ A security release\. A failed request no longer shows secrets\, and the collecti
 * All modules \- <code>request\_details\.request</code> in a failed result is now a dictionary\, not a JSON string\.
 * inventory\_info\, project\_info\, repository\_info \- fields of the raw API answer that the matching module does not return \(such as a project\'s <code>created</code>\) are no longer returned\.
 
-<a id="security-fixes"></a>
+<a id="security-fixes-1"></a>
 ### Security Fixes
 
 * All modules \- a failed request no longer shows secrets\. The request body in <code>request\_details</code> was returned as JSON text\, where a secret containing a newline\, a quote\, a backslash or a non\-ASCII character is escaped and so was not masked\: every SSH private key of <code>key\_store</code>\, and such values of <code>variable\_group</code> secrets\, <code>user\_password</code> and the login <code>password</code>\. The body is now returned as a dictionary with secret values replaced by <code>\*\*\*\*\*\*\*\*</code>\.
 
-<a id="bugfixes-3"></a>
+<a id="bugfixes-4"></a>
 ### Bugfixes
 
 * Add the <code>LICENSE</code> file to the collection\, so that installs and release tarballs include the license text\.
@@ -128,12 +185,12 @@ A security release\. A failed request no longer shows secrets\, and the collecti
 <a id="v0-1-0"></a>
 ## v0\.1\.0
 
-<a id="release-summary-4"></a>
+<a id="release-summary-5"></a>
 ### Release Summary
 
 First release\. 25 modules that manage Semaphore UI 2\.18 and 2\.19 declaratively\: projects\, the Key Store\, repositories\, inventories\, variable groups\, views\, task templates\, schedules and commit pollers\, integrations\, team members\, runners and users\, each with an <code>\_info</code> module\. Objects are found and referenced by name\, only the options you set are compared\, and every module supports check mode and diff\.
 
-<a id="new-modules"></a>
+<a id="new-modules-1"></a>
 ### New Modules
 
 * ramanavelineni\.semaphoreui\.info \- Read Semaphore UI server information and registered apps\.
