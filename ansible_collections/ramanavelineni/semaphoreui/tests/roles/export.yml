@@ -381,7 +381,8 @@
             ssh: "{{ item.value.ssh | default(omit) }}"
             login_password: "{{ item.value.login_password | default(omit) }}"
             # From the export: a secret cannot be compared with the stored one, so without it the secret is sent again.
-            update_secret: "{{ item.value.update_secret }}"
+            # A key without a secret, as the None key every project has, is written without it.
+            update_secret: "{{ (item.value | default({}, true)).update_secret | default(omit) }}"
           loop: "{{ exported.key_store | dict2items }}"
           loop_control:
             label: "{{ item.key }}"
@@ -463,8 +464,8 @@
             project: "{{ export_project }}"
             name: "{{ item.key }}"
             template: "{{ item.value.template }}"
-            # The project has cron schedules only.
-            cron: "{{ item.value.cron }}"
+            # The project has cron schedules only. The export leaves out an empty cron.
+            cron: "{{ (item.value | default({}, true)).cron | default(omit) }}"
             active: "{{ item.value.active | default(omit) }}"
           loop: "{{ exported.schedule | dict2items }}"
           loop_control:
