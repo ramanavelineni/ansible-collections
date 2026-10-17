@@ -44,7 +44,7 @@ scan_all:
   sample:
     schedule: custom
     cron: "0 0 5 * * 0"
-    next_scheduled_time: null
+    next_scheduled_time: "0001-01-01T00:00:00.000Z"
   contains:
     schedule:
       description: V(none), V(hourly), V(daily), V(weekly) or V(custom).
@@ -53,7 +53,10 @@ scan_all:
       description: The cron expression, empty without a schedule.
       type: str
     next_scheduled_time:
-      description: Always null; Harbor doesn't report it for this schedule.
+      description:
+        - Harbor doesn't compute the next run of Scan All. With a schedule it sends V(0001-01-01T00:00:00.000Z),
+          which is not a real time.
+        - Null without a schedule.
       type: str
 metrics:
   description: Harbor's metrics of the latest Scan All run (total, completed, metrics by status, ongoing, trigger).

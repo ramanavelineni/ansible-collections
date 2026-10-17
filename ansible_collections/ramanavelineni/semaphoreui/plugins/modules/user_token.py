@@ -149,12 +149,10 @@ PREFIX = 8
 
 
 def is_over(moment, now):
-    """Whether an ISO time, as the server or the task wrote it, is not after now."""
+    """Whether a time from normalize_time, always UTC with a Z, is not after now. False when it doesn't parse."""
     parsed = parse_time(moment)
     if parsed is None:
         return False
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
     return parsed <= now
 
 

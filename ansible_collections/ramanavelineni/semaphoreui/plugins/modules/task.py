@@ -357,6 +357,7 @@ from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.task im
     FINAL_STATUSES,
     NEEDS_CONFIRMATION,
     get_task,
+    settled_end,
     settled_output,
     task_view,
     template_names,
@@ -480,6 +481,7 @@ def ended(module, client, base, project, names, task, changed):
             msg='%s is still %s after %d seconds (wait_timeout).%s'
                 % (describe(task, template), status, params['wait_timeout'], after),
             changed=changed, task=task_view(task, project, names))
+    task = settled_end(client, base, task)
     view = task_view(task, project, names, settled_output(client, base, task['id'], params['output_lines']))
     if params['state'] == 'started' and status != 'success':
         last = (' Last line of its output: %s' % view['output'][-1]) if view['output'] else ''
