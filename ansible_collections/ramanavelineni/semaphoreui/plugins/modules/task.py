@@ -111,6 +111,10 @@ options:
         template allows them (C(allow_debug), C(allow_override_limit), C(allow_override_tags),
         C(allow_override_skip_tags), C(allow_auto_approve) in its C(task_params)). The module
         fails when it does not.
+      - C(skip_galaxy_install) takes effect only if the template has
+        C(allow_override_skip_galaxy_install) in its C(task_params). Without it the module fails when the
+        value differs from the template's own C(skip_galaxy_install). With it, a task that leaves
+        C(skip_galaxy_install) out runs the Galaxy install, even when the template skips it.
       - For an app the module does not know, the keys are sent as given.
     type: dict
   build_task_id:
@@ -401,6 +405,14 @@ def task_params_body(template, given):
             if name == 'auto_approve' and allowed.get('auto_approve'):
                 continue
             raise not_allowed(template, 'task_params.%s' % name, '%s: true' % switch, "the template's task_params")
+    # Without the switch Semaphore takes the template's own skip_galaxy_install and drops the
+    # task's (db_lib/AnsibleApp.go, skipGalaxyInstall). A value that agrees with the template's
+    # changes nothing, so only one that differs is refused.
+    ignored = (not allowed.get('allow_override_skip_galaxy_install') and 'skip_galaxy_install' in params and
+               bool(params['skip_galaxy_install']) != bool(allowed.get('skip_galaxy_install')))
+    if ignored:
+        raise not_allowed(template, 'task_params.skip_galaxy_install', 'allow_override_skip_galaxy_install: true',
+                          "the template's task_params")
     return params
 
 

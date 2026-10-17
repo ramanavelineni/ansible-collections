@@ -71,7 +71,13 @@ options:
   run_at:
     description:
       - Date and time (ISO 8601, for example C(2026-10-01T03:00:00Z)) to run the template once.
-        It must be in the future when it is set.
+        It must be in the future when it is set. Semaphore refuses a time in the past.
+      - Once the time has passed, Semaphore deactivates the schedule, or deletes it with
+        O(delete_after_run=true). A later run of the same task then reports no change and warns,
+        when the schedule is missing or inactive. A schedule that never existed looks the same as one
+        that was deleted after its run, so a past O(run_at) does not create it either.
+      - A past O(run_at) for a schedule that is still active fails when something would change, as
+        Semaphore would refuse the update.
       - The value must name a time zone, C(Z) or an offset such as C(+02:00). It is sent to
         Semaphore in UTC, so C(2026-10-01T05:00:00+02:00) and C(2026-10-01T03:00:00Z) are the same
         schedule. A value that is not a date and time, or has no time zone, fails before anything
@@ -120,6 +126,7 @@ EXAMPLES = r'''
     repository: ansible
     cron: "*/5 * * * *"
 
+# Once the time has passed and the schedule is deleted, running this task again reports no change.
 - name: Run once
   ramanavelineni.semaphoreui.schedule:
     project: homelab
@@ -133,7 +140,7 @@ RETURN = r'''
 schedule:
   description:
     - The schedule after the change, or as it would be in check mode.
-    - Empty after a deletion.
+    - Empty after a deletion, and for a past O(run_at) whose schedule does not exist.
   returned: always
   type: dict
   contains:
@@ -179,6 +186,8 @@ schedule:
     active: true
     project_id: 1
 '''
+
+from datetime import datetime, timezone
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
@@ -232,6 +241,23 @@ def ensure(module, client):
             client.delete('%s/schedules/%d' % (base, current['id']))
         return dict(changed=True, schedule={}, diff=dict(before=before, after={}))
 
+    past = params['run_at'] is not None and parse_time(params['run_at']) <= datetime.now(timezone.utc)
+    if past and not (current and current.get('active')):
+        # Semaphore refuses a past run_at, and after the run it deactivates the schedule or
+        # deletes it (services/schedules/SchedulePool.go). Taken as settled, so that the task
+        # that created a one-time schedule does not fail on every later run.
+        if current:
+            module.warn('Schedule %r is inactive and its run_at %s is in the past, so it is left as it is. '
+                        'Give a run_at in the future to run it again.' % (params['name'], params['run_at']))
+            before = view(current, repo_names, tpl_names)
+        else:
+            module.warn('Schedule %r does not exist and its run_at %s is in the past. It is taken as a one-time '
+                        'schedule that already ran and was deleted, and is not created. A schedule that never '
+                        'existed looks the same: give a run_at in the future to create it.'
+                        % (params['name'], params['run_at']))
+            before = {}
+        return dict(changed=False, schedule=before, diff=dict(before=before, after=before))
+
     def ref(what, items, name):
         found = find_by_name(items, name, what)
         if found is None:
@@ -281,6 +307,9 @@ def ensure(module, client):
     before = view(current, repo_names, tpl_names)
     if after == before:
         return dict(changed=False, schedule=before, diff=dict(before=before, after=before))
+    if past:
+        raise ValueError('run_at %s is in the past, and Semaphore refuses to store schedule %r with it. '
+                         'Give a run_at in the future.' % (params['run_at'], params['name']))
     if not module.check_mode:
         # The update writes every column and unlinks task-parameter overrides
         # missing from the body. The lists leave those out, so the schedule

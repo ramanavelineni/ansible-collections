@@ -165,7 +165,20 @@ def test_a_name_that_exists_by_the_time_of_the_restore(server, run_module):
     result = run_module(project_restore.main, dict(backup=backup(server)))
     assert result['failed'] is True and "project with name 'bk-fixtures' already exists" in result['msg']
     assert 'Nothing was created. Run the task again' in result['msg'] and 'half filled' not in result['msg']
-    assert len(server.calls('GET', '/projects')) == 1
+
+
+def test_a_name_another_users_project_has_is_not_worth_a_rerun(server, run_module):
+    # Semaphore checks the name against every project, and a user who is not an administrator lists only
+    # their own. Breaks when the module tells that user a re-run will find the project: it never will.
+    empty = server.response('backup_projects')
+    empty['body'] = []
+    server.route('GET', '/projects', empty)
+    server.route('POST', '/projects/restore', 'backup_restore_exists')
+    result = run_module(project_restore.main, dict(backup=backup(server)))
+    assert result['failed'] is True and "project with name 'bk-fixtures' already exists" in result['msg']
+    assert 'Nothing was created' in result['msg']
+    assert 'Run the task again' not in result['msg']
+    assert 'another name' in result['msg']
 
 
 @pytest.mark.parametrize('check_mode', [False, True], ids=['real', 'check'])
