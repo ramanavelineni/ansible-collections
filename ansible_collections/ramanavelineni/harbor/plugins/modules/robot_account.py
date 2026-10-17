@@ -48,7 +48,7 @@ options:
   state:
     description:
       - V(present) creates the robot account or updates it to match.
-      - V(absent) deletes it.
+      - V(absent) deletes it. For a project robot account whose project no longer exists, it reports no change.
     type: str
     choices: [present, absent]
     default: present
@@ -328,9 +328,16 @@ def ensure(module, client):
     if params['duration'] is not None and not (params['duration'] == -1 or params['duration'] > 0):
         raise ValueError('duration must be -1 (never expires) or a positive number of days.')
 
-    project_id = require_project(client, params['project'])['project_id'] if params['level'] == 'project' else None
-    current = find_robot(client, params, project_id)
     result = dict(changed=False, robot_account={}, secret_updated=False)
+    project_id = None
+    if params['level'] == 'project':
+        project = require_project(client, params['project'], missing_ok=params['state'] == 'absent')
+        if project is None:
+            # The project is gone, and its robot accounts went with it.
+            result['diff'] = dict(before={}, after={})
+            return result
+        project_id = project['project_id']
+    current = find_robot(client, params, project_id)
 
     if params['state'] == 'absent':
         if current:
@@ -432,7 +439,8 @@ def main():
     )
     module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True,
                            required_if=[('level', 'project', ('project',))])
-    run_module(module, lambda client: ensure(module, client))
+    run_module(module, lambda client: ensure(module, client),
+               placeholder=dict(robot_account={}, secret_updated=False))
 
 
 if __name__ == '__main__':

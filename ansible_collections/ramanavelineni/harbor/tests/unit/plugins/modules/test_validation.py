@@ -113,10 +113,12 @@ def test_two_robots_of_one_name_are_refused(server, run_module):
 
 # -- projects, registries, replication -------------------------------------------------
 
-def test_project_quota_below_unlimited_is_refused(server, run_module):
-    result = run_module(project.main, dict(name='fixtures-core', quota_gb=-2))
+@pytest.mark.parametrize('quota_gb', [0, -2], ids=['zero', 'below-unlimited'])
+def test_project_quota_that_is_neither_unlimited_nor_a_size_is_refused(server, run_module, quota_gb):
+    # Harbor stores its default quota for a 0 on create and refuses 0 on update.
+    result = run_module(project.main, dict(name='fixtures-core', quota_gb=quota_gb))
     assert result['failed'] is True
-    assert 'quota_gb must be -1' in result['msg']
+    assert 'quota_gb must be -1 (unlimited) or 1 or more GiB' in result['msg']
     assert only_the_login_check(server)
 
 
