@@ -10,7 +10,9 @@ users and runners, each described once and kept that way.
 ![Semaphore UI 2.18 | 2.19](https://img.shields.io/badge/Semaphore%20UI-2.18%20%7C%202.19-7B42BC)
 
 Every module finds its object **by name**, changes only what differs from the
-options you set, and supports **check mode and `--diff`**. Objects refer to
+options you set, and supports **check mode and `--diff`**. The exception is
+`task`, which starts a run each time: in check mode it starts nothing, and it
+has no diff. Objects refer to
 each other by name too: a repository's `ssh_key: deploy`, a template's
 `inventory: homelab`.
 
@@ -141,12 +143,14 @@ number.
 |---|---|
 | `project_apply` | Applies a directory of project descriptions: each project a YAML file, or a directory of them, with its keys, repositories, inventories, variable groups, views, templates, schedules, integrations and team |
 | `server_apply` | Applies the users and the runners of the server |
+| `project_export` | Writes a project on the server out as a description that `project_apply` can apply, with its secrets in a separate vault file |
 
 Both check what they are given before they change anything, leave alone what
 is not mentioned, delete only what is marked `state: absent`, and can run as a
 drift check that fails when Semaphore differs. Each role's README has the
 details: [project_apply](roles/project_apply/README.md),
-[server_apply](roles/server_apply/README.md), or
+[server_apply](roles/server_apply/README.md),
+[project_export](roles/project_export/README.md), or
 `ansible-doc -t role ramanavelineni.semaphoreui.project_apply`.
 
 ```yaml

@@ -8,7 +8,9 @@ authors:
 description: >-
   Declarative, idempotent modules for Semaphore UI: projects, access keys,
   repositories, inventories, environments, views, templates, schedules,
-  integrations, runners, users and project membership.
+  integrations, runners, users and project membership, plus tasks, project
+  backups, API tokens and the event log. Roles apply whole projects and
+  servers from YAML descriptions, and export a project as one.
 license:
   - Apache-2.0
 tags:

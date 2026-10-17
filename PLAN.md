@@ -22,6 +22,10 @@ along the way. Each quirk is handled inside a module and covered by a test.
       (`client_cert`, `client_key`, `use_proxy`), `project_id` in
       semaphoreui, `warn_untested_version` in harbor, and the fixes from a
       review of every module
+- [x] Roles `project_apply`, `server_apply` and `project_export`, and the
+      modules `task`, `task_info`, `project_backup`, `project_restore`,
+      `user_token` and `event_info` (merged, to be released in semaphoreui
+      0.4.0)
 - [ ] Switch the homelab `harbor_config` role to the collection
 
 ---
@@ -42,7 +46,7 @@ along the way. Each quirk is handled inside a module and covered by a test.
 | Secrets | `update_secret: always` (default) or `on_create`, since neither server returns stored secrets |
 | Module imports | modules import only `module_utils`: Ansible ships nothing else with a module, and sanity's import test enforces it |
 | License hygiene | no GPL-licensed ansible-core code is imported, extended or copied; only its BSD-licensed `module_utils` and the Python standard library |
-| CI | `ansible-test` sanity and unit tests on every supported ansible-core version, an install test of the built tarball, `ansible-lint` and a coverage floor, for the collections a change touches. No live servers in CI: the live suites in `tests/live` run locally |
+| CI | `ansible-test` sanity and unit tests on every supported ansible-core version, an install test of the built tarball, `ansible-lint` and a coverage floor, for the collections a change touches. The semaphoreui role tests run in CI against a Semaphore container; the modules' live suites in `tests/live` run locally |
 | Fixtures | API responses recorded from throwaway local servers of every supported version, one file per area |
 | Distribution | Git tags via `requirements.yml`, with GitHub Releases for the tarballs. Not published to Ansible Galaxy |
 | Workflow | feature branch and pull request for every change; squash-merge; no Co-Authored-By trailer; the owner pushes. `main` takes changes only through a pull request whose "CI result" check passed |
@@ -65,7 +69,9 @@ ansible-collections/
 ├── README.md, PLAN.md, LICENSE, CONTRIBUTING.md, SECURITY.md
 ├── Makefile                    # make sanity / units / changelog-lint / build
 ├── .pre-commit-config.yaml     # whitespace, YAML, changelog lint
-├── .github/workflows/ci.yml    # sanity + units per collection and ansible-core
+├── .github/workflows/ci.yml    # sanity, units, install, lint and role tests
+├── .github/workflows/release.yml  # tag push: test, build, GitHub Release
+├── .github/scripts/            # change detection, coverage floor, role and install tests
 ├── tools/
 │   ├── record_semaphoreui_fixtures.py   # record API responses per area
 │   ├── record_harbor_fixtures.py
@@ -75,9 +81,13 @@ ansible-collections/
     ├── semaphoreui/
     │   ├── galaxy.yml, README.md, meta/runtime.yml, changelogs/
     │   ├── plugins/doc_fragments/      # auth.py, attributes.py
-    │   ├── plugins/module_utils/       # semaphore.py (client), template.py
+    │   ├── plugins/module_utils/       # semaphore.py (client), task.py, template.py
     │   ├── plugins/modules/
-    │   └── tests/unit/plugins/fixtures/<version>/<area>.json
+    │   ├── plugins/filter/             # project_export and the filters behind it
+    │   ├── roles/                      # project_apply, server_apply, project_export
+    │   ├── tests/unit/plugins/fixtures/<version>/<area>.json
+    │   ├── tests/roles/                # role tests, run in CI against a container
+    │   └── tests/live/                 # live suite, local only
     └── harbor/
         └── same shape; module_utils: harbor.py (client), schedule.py, replication.py
 ```
@@ -93,7 +103,8 @@ differently anyway.
 
 1. **Declarative and idempotent.** Read the current object, compare it with the
    desired one, write only when they differ. `changed` means a real
-   difference. Check mode and `--diff` everywhere.
+   difference. Check mode and `--diff` everywhere, except `task`, which starts
+   a run: in check mode it starts nothing, and it has no diff.
 2. **Look up by name.** A module fails when it finds two objects with the
    same name, rather than guess (Semaphore doesn't enforce unique names).
 3. **References by name.** A template's `repository: ansible`, not
@@ -506,8 +517,9 @@ or an OIDC user's CLI secret.
   `--allow-remote` is passed, keep only their own objects from listings, and
   don't write a recording in which they find a secret.
 - Before merging, every module is exercised live against those servers.
-- No live servers in CI. Before a release is used, the homelab roles run
-  against it: first in check mode, then for real.
+- The modules' live suites don't run in CI; only the role tests above do.
+  Before a release is used, the homelab roles run against it: first in check
+  mode, then for real.
 
 ## Versioning and release
 
