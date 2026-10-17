@@ -382,3 +382,74 @@ releases:
         name: project_export_yaml
         namespace: null
     release_date: '2026-10-16'
+  0.5.0:
+    changes:
+      bugfixes:
+      - project_apply role - two files or directories that declare the same project
+        ``name`` now fail before anything changes, and the message names both. Before,
+        both were applied to the one project, one after the other.
+      - project_export role - ``project_export_overwrite`` no longer replaces the
+        vault file. The role writes the vault file only when it does not exist yet,
+        so values filled in by hand stay.
+      - project_export role - ``project_export_project_id`` reads that one project
+        instead of looking for it in the list of projects, which Semaphore cuts off
+        at 200. A project is now found by id on any server.
+      - project_export role - a file that has the same content and another mode, such
+        as ``0600``, no longer counts as a difference that stops the role. Such a
+        file is not written again and keeps its mode.
+      - 'project_export role - every key and variable group with a secret is written
+        with ``update_secret: on_create``. Applying an exported project again no longer
+        sends its secrets and reports a change every run. To push a changed vault
+        value, set ``update_secret: always`` on that entry.'
+      - project_restore - when Semaphore refuses the name because of a project the
+        user can't see, the message no longer says that a re-run will work. It says
+        to restore under another name or as an administrator. The documentation says
+        that only projects the user can see are found.
+      - schedule - a past ``run_at`` for a schedule that is missing or inactive reports
+        no change with a warning, instead of failing with HTTP 400 on every run after
+        a one-time schedule ran. A past ``run_at`` on an active schedule fails before
+        anything is sent.
+      - semaphoreui modules - a certificate that does not verify, a ``ca_path`` that
+        does not exist and a host name that does not resolve now fail at the first
+        request. Before, a read was sent again up to ``retries`` times, ``retry_delay``
+        seconds apart, although asking again cannot fix a setting. A refused connection,
+        a timeout and a busy name resolver are still retried.
+      - semaphoreui modules - a pre-release version such as ``v2.19-rc1`` now counts
+        as the tested release 2.19. Before, the modules warned that it was untested,
+        while the checks for what a server version supports already read it as 2.19.
+      - task - refuse ``task_params.skip_galaxy_install`` when the template does not
+        set ``allow_override_skip_galaxy_install`` and the value differs from the
+        template's own, because Semaphore ignores it then.
+      - template - accept ``secret`` as a survey variable type, which Semaphore 2.18
+        and 2.19 offer and the task module's ``secret_variables`` fill. Before, declaring
+        the survey variables deleted a secret variable made in the UI, or turned it
+        into a plain one. A ``secret`` variable takes no ``default_value``.
+      minor_changes:
+      - project - new option ``id``. The module reads only that project, not the list
+        of projects that Semaphore cuts off at 200, and renames it when its name differs
+        from ``name``. A missing id fails with ``state=present`` and is no change
+        with ``state=absent``.
+      - project_apply role - a project file may set ``id:``. The project is then read
+        by its id and renamed to ``name`` when that differs. Every entry of a project
+        now names it by the id the project task returned, so a project with an id
+        is found on a server with more than 200 projects.
+      - project_info - new option ``id``. It reads only that project and returns it,
+        or an empty list when it does not exist or the user cannot see it.
+      release_summary: Exported projects apply again without changes, projects past
+        the first 200 can be reached by id, the roles no longer print webhook URLs
+        or registration tokens with -v, and the modules gain secret survey variables,
+        settled run_at schedules and a shared transport that stops at once on certificate
+        errors.
+      security_fixes:
+      - project_apply, server_apply - with ``project_apply_no_log`` or ``server_apply_no_log``
+        on, a run with ``-v`` printed the skipped items of the tasks that show new
+        webhook URLs and registration tokens, the URLs and tokens included. These
+        tasks now loop over nothing when no_log is on.
+    fragments:
+    - project-export-settles.yml
+    - project-id.yml
+    - release-summary.yml
+    - semaphoreui-modules-a7-a8-a14-a16.yml
+    - shared-transport.yml
+    - show-tasks-verbose-leak.yml
+    release_date: '2026-10-17'

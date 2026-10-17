@@ -1,5 +1,0 @@
----
-security_fixes:
-  - project_apply, server_apply - with ``project_apply_no_log`` or ``server_apply_no_log`` on, a run with ``-v``
-    printed the skipped items of the tasks that show new webhook URLs and registration tokens, the URLs and tokens
-    included. These tasks now loop over nothing when no_log is on.
