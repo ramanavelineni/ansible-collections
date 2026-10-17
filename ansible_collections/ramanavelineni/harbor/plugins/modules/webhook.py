@@ -35,7 +35,7 @@ options:
   state:
     description:
       - V(present) creates the webhook or updates it to match.
-      - V(absent) deletes it.
+      - V(absent) deletes it. When the project no longer exists, it reports no change.
     type: str
     choices: [present, absent]
     default: present
@@ -270,7 +270,11 @@ def build_target(current, params):
 def ensure(module, client):
     params = module.params
     client.warn_if_untested()
-    project_id = require_project(client, params['project'])['project_id']
+    project = require_project(client, params['project'], missing_ok=params['state'] == 'absent')
+    if project is None:
+        # The project is gone, and its webhooks went with it.
+        return dict(changed=False, webhook={}, diff=dict(before={}, after={}))
+    project_id = project['project_id']
     base = '/projects/%d/webhook/policies' % project_id
     current = find_by_name(client.list(base), params['name'], 'webhook')
     before = view(current, params['project']) if current else {}
@@ -354,7 +358,7 @@ def main():
         payload_format=dict(type='str', choices=['Default', 'CloudEvents']),
     )
     module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True)
-    run_module(module, lambda client: ensure(module, client))
+    run_module(module, lambda client: ensure(module, client), placeholder=dict(webhook={}))
 
 
 if __name__ == '__main__':

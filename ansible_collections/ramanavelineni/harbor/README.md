@@ -14,6 +14,12 @@ options you set, and supports **check mode and `--diff`**. Objects refer to
 each other by name: a replication rule's `src_registry: dockerhub`, a robot
 account's `project: apps`.
 
+When the named project or registry is missing, a task fails, with two
+exceptions. With `state: absent`, a module whose object lives in a project
+reports no change, because the object went with the project. In check mode, a
+task reports a change and a warning, because an earlier task of the same play
+may create the project or registry.
+
 ## Install
 
 In `requirements.yml` (no Galaxy account needed):
@@ -182,7 +188,10 @@ and reports a change; `on_create` sends it only when the object is created.
 - `project` checks metadata keys and values before sending them, because
   Harbor silently drops unknown keys and stores an invalid severity as
   `unknown`. A project's proxy-cache registry can only be set when it's
-  created.
+  created. `quota_gb` is `-1` (unlimited) or 1 GiB or more. Harbor applies
+  it on create only for an administrator and gives anyone else the default
+  quota per project, so the module reads the quota back and warns when it
+  differs.
 - `registry`: Harbor checks that an endpoint is reachable whenever it's
   created or changed. An endpoint's type can't be changed, so a different
   type fails with instructions to recreate it.
