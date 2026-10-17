@@ -1,32 +1,40 @@
 # Copyright: ramanavelineni
 # Apache License 2.0 (see LICENSE or https://www.apache.org/licenses/LICENSE-2.0)
 
-"""HTTP client and shared helpers for the ramanavelineni.harbor modules."""
+"""HTTP client and shared helpers for the ramanavelineni.harbor modules.
+
+The transport itself (the request loop, retries, masking, the failure
+message) is in transport.py, which is the same in every collection of this
+repository. This file adds what is Harbor's own: the options, the login
+check, the API path and the lookups.
+"""
 
 import base64
 import json
-import os
 import re
-import socket
-import ssl
 import time
-import traceback
 
-from http.client import HTTPException
-from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import urlencode
 
 from ansible.module_utils.basic import env_fallback
 from ansible.module_utils.common.text.converters import to_bytes, to_text
 from ansible.module_utils.urls import open_url
 
+from ansible_collections.ramanavelineni.harbor.plugins.module_utils import transport
+
+# Defined in transport.py. The modules and tests import them from here.
+MASK = transport.MASK
+MESSAGE_BODY_LIMIT = transport.MESSAGE_BODY_LIMIT
+MissingReference = transport.MissingReference
+RETRY_STATUSES = transport.RETRY_STATUSES
+fail_from_error = transport.fail_from_error
+permanent_failure = transport.permanent_failure
+scrub = transport.scrub
+secret_forms = transport.secret_forms
+
 # Major.minor releases the modules are tested against. Any other version
 # gets a warning, not a failure.
 TESTED_VERSIONS = ('2.14', '2.15')
-
-# Statuses worth retrying: a proxy or the server itself was briefly unable
-# to answer. Anything else is the server's real answer.
-RETRY_STATUSES = (502, 503, 504)
 
 # Harbor locks a username for 1.5 s after a failed login (frozenTime in
 # src/core/auth/authenticator.go, 2.14 and 2.15). A request for that user
@@ -60,7 +68,6 @@ GIB = 1024 ** 3
 # finds a secret that appears exactly as it was passed, and an update also
 # sends back secrets read from Harbor (a webhook's auth header).
 SECRET_KEYS = re.compile(r'secret|password|token|auth_header', re.IGNORECASE)
-MASK = '********'
 
 
 def harbor_argument_spec():
@@ -85,29 +92,7 @@ def harbor_argument_spec():
 
 def validate_connection(module):
     """Fail before any request on connection options that cannot work."""
-    params = module.params
-    url = params['url']
-    try:
-        parts = urlsplit(url)
-        usable = parts.scheme in ('http', 'https') and bool(parts.netloc)
-    except ValueError:
-        usable = False
-    if not usable:
-        module.fail_json(msg='url must be the address of the Harbor server, starting with http:// or https://, '
-                             'for example https://harbor.example.com. Got %r.' % url)
-    if params['timeout'] < 1:
-        module.fail_json(msg='timeout must be 1 or more (seconds). Got %d.' % params['timeout'])
-    for name in ('retries', 'retry_delay'):
-        if params[name] < 0:
-            module.fail_json(msg='%s must be 0 or more. Got %d.' % (name, params[name]))
-    if params.get('client_key') and not params.get('client_cert'):
-        module.fail_json(msg='client_key needs client_cert: a key alone cannot identify the client.')
-    # A missing file would otherwise surface as an error from deep inside the
-    # TLS setup. Only the path is named, never what a file holds.
-    for name in ('client_cert', 'client_key'):
-        path = params.get(name)
-        if path and not os.path.isfile(path):
-            module.fail_json(msg='%s %r is not a file on the host this module runs on.' % (name, path))
+    transport.validate_connection(module, 'Harbor')
 
 
 def base_url(url):
@@ -122,68 +107,12 @@ def base_url(url):
 
 def redact(value, secrets=(), key=''):
     """A copy of a request body that is safe to show: secret strings replaced by MASK."""
-    if isinstance(value, dict):
-        return dict((k, redact(v, secrets, k)) for k, v in value.items())
-    if isinstance(value, list):
-        return [redact(v, secrets, key) for v in value]
-    if isinstance(value, str) and value and (SECRET_KEYS.search(key) or value in secrets):
-        return MASK
-    return value
-
-
-def secret_forms(secret):
-    """The ways a server can write `secret` in an answer: as it is, and as JSON writes a string.
-
-    JSON from Python escapes non-ASCII characters as \\uXXXX. JSON from Go, which Semaphore and Harbor
-    are written in, keeps them, but escapes <, > and & as \\u003c, \\u003e and \\u0026.
-    """
-    forms = set([secret])
-    for ascii_only in (True, False):
-        quoted = json.dumps(secret, ensure_ascii=ascii_only)[1:-1]
-        forms.add(quoted)
-        forms.add(quoted.replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026'))
-    return forms
-
-
-def scrub(text, secrets):
-    """Text a server sent, with each of `secrets` replaced by MASK, in every form secret_forms() names."""
-    if not text:
-        return text
-    forms = set()
-    for secret in secrets:
-        if isinstance(secret, str) and secret:
-            forms.update(secret_forms(secret))
-    for form in sorted(forms, key=len, reverse=True):
-        text = text.replace(form, MASK)
-    return text
+    return transport.redact(value, SECRET_KEYS, secrets, key)
 
 
 def version_is_tested(version):
     """True when a reported version ("v2.15.2-4b2c1e3a") is in TESTED_VERSIONS."""
-    match = re.match(r'^v?(\d+)\.(\d+)(\.|-|$)', version or '')
-    if not match:
-        return False
-    return '%s.%s' % (match.group(1), match.group(2)) in TESTED_VERSIONS
-
-
-def permanent_failure(error):
-    """True for a failure without an HTTP response that asking again cannot cure.
-
-    A certificate that does not verify, a ca_path that is not there and a host
-    name that does not resolve are settings to fix, not moments to wait out.
-    open_url hands on a missing CA file as it is and wraps the other two in a
-    URLError. A refused or reset connection and a timeout stay worth a retry:
-    a server that is restarting answers like that.
-    """
-    cause = error
-    if isinstance(error, URLError) and isinstance(error.reason, BaseException):
-        cause = error.reason
-    if isinstance(cause, (ssl.SSLCertVerificationError, FileNotFoundError)):
-        return True
-    if isinstance(cause, socket.gaierror):
-        # EAI_AGAIN is the resolver saying "try again later".
-        return cause.errno != socket.EAI_AGAIN
-    return False
+    return transport.version_in(version, TESTED_VERSIONS)
 
 
 def older_than(minor, needed):
@@ -196,63 +125,40 @@ def older_than(minor, needed):
     return minor is not None and minor < needed
 
 
-class HarborError(Exception):
+class HarborError(transport.ApiError):
     """A request failed. Carries everything needed to see why."""
 
-    def __init__(self, method, url, status=None, response=None, request=None, reason=None, location=None):
-        self.method = method
-        self.url = url
-        self.status = status
-        self.response = response
-        self.request = request
-        self.reason = reason
-        self.location = location
-        super(HarborError, self).__init__(self.message())
-
-    def message(self):
-        if self.status is None:
-            return '%s %s failed without an HTTP response: %s' % (self.method, self.url, self.reason)
-        if 300 <= self.status < 400:
-            # Redirects are not followed: the credentials would go wherever
-            # the answer points. Nearly always url names the wrong scheme,
-            # host or path, and the target shows the right one.
-            target = 'a redirect to %s' % self.location if self.location else 'a redirect without a Location header'
-            return ('%s %s returned HTTP %s, %s. Redirects are not followed. Set url to the address the '
-                    'Harbor server itself answers on.' % (self.method, self.url, self.status, target))
-        body = self.response if self.response else '(empty body)'
-        msg = '%s %s returned HTTP %s: %s' % (self.method, self.url, self.status, body)
-        if self.reason:
-            msg += ' (%s)' % self.reason
-        return msg
-
-    def details(self):
-        details = dict(method=self.method, url=self.url, status=self.status, response=self.response,
-                       request=self.request)
-        if self.location:
-            details['location'] = self.location
-        return details
+    product = 'Harbor'
 
 
-class HarborClient(object):
+class HarborClient(transport.ApiClient):
     """Talks to the Harbor v2.0 API on behalf of one module run."""
 
+    error_class = HarborError
+    secret_keys = SECRET_KEYS
+
     def __init__(self, module):
-        self.module = module
+        super(HarborClient, self).__init__(module)
         params = module.params
-        validate_connection(module)
         self.url = base_url(params['url'])
-        self.validate_certs = params['validate_certs']
-        self.ca_path = params.get('ca_path')
-        self.client_cert = params.get('client_cert')
-        self.client_key = params.get('client_key')
-        self.use_proxy = params['use_proxy']
-        self.timeout = params['timeout']
-        self.retries = params['retries']
-        self.retry_delay = params['retry_delay']
         self.warn_untested_version = params.get('warn_untested_version', True)
         credentials = '%s:%s' % (params['username'], params['password'])
         self.auth = 'Basic %s' % to_text(base64.b64encode(to_bytes(credentials, errors='surrogate_or_strict')))
         self._info = None
+
+    def open(self, url, **kwargs):
+        return open_url(url, **kwargs)
+
+    def resend_once(self, status):
+        # A 401 is answered before the request is handled, so even a create
+        # can be sent again, after the login lock is over (LOGIN_LOCK_WAIT).
+        if status != 401:
+            return False
+        time.sleep(LOGIN_LOCK_WAIT)
+        return True
+
+    def start(self):
+        self.check_login()
 
     # -- requests ----------------------------------------------------------
 
@@ -273,78 +179,9 @@ class HarborClient(object):
         url = '%s%s%s' % (self.url, API_PREFIX, path)
         if params:
             url += '?' + urlencode(params)
-        send_headers = {'Accept': 'application/json', 'Authorization': self.auth}
+        send_headers = {'Authorization': self.auth}
         send_headers.update(headers or {})
-        data = None
-        sent = None
-        if body is not None:
-            data = json.dumps(body)
-            sent = redact(body, self.module.no_log_values)
-            send_headers['Content-Type'] = 'application/json'
-
-        attempts = 1 + (self.retries if retry else 0)
-        attempt = 0
-        waited_for_lock = False
-        while True:
-            attempt += 1
-            try:
-                response = open_url(
-                    url,
-                    data=data,
-                    headers=send_headers,
-                    method=method,
-                    timeout=self.timeout,
-                    validate_certs=self.validate_certs,
-                    ca_path=self.ca_path,
-                    client_cert=self.client_cert,
-                    client_key=self.client_key,
-                    follow_redirects='none',
-                    use_proxy=self.use_proxy,
-                    use_netrc=False,
-                )
-                status = response.getcode()
-                raw = to_text(response.read(), errors='surrogate_or_strict')
-                resp_headers = dict((k.lower(), v) for k, v in response.headers.items())
-            except HTTPError as e:
-                try:
-                    raw = to_text(e.read(), errors='surrogate_or_strict')
-                except Exception:
-                    raw = ''
-                if e.code == 401 and not waited_for_lock:
-                    # A 401 is answered before the request is handled, so
-                    # even a create can be sent again. Doesn't use up an
-                    # attempt.
-                    waited_for_lock = True
-                    attempt -= 1
-                    time.sleep(LOGIN_LOCK_WAIT)
-                    continue
-                if e.code in RETRY_STATUSES and attempt < attempts:
-                    time.sleep(self.retry_delay)
-                    continue
-                headers_in = getattr(e, 'headers', None)
-                raise HarborError(method, url, status=e.code, response=scrub(raw.strip(), self.module.no_log_values),
-                                  request=sent,
-                                  location=headers_in.get('Location') if headers_in else None)
-            except (URLError, socket.timeout, ConnectionError, OSError, HTTPException) as e:
-                # HTTPException: the answer was cut short or isn't HTTP at all
-                # (IncompleteRead, BadStatusLine). Neither is an OSError.
-                if attempt < attempts and not permanent_failure(e):
-                    time.sleep(self.retry_delay)
-                    continue
-                raise HarborError(method, url, request=sent, reason=scrub(to_text(e), self.module.no_log_values))
-
-            if status not in expected:
-                raise HarborError(method, url, status=status, response=scrub(raw.strip(), self.module.no_log_values),
-                                  request=sent,
-                                  location=resp_headers.get('location'))
-            if not raw.strip():
-                return None, resp_headers
-            try:
-                return json.loads(raw), resp_headers
-            except ValueError:
-                raise HarborError(method, url, status=status, response=scrub(raw.strip(), self.module.no_log_values),
-                                  request=sent,
-                                  reason='response is not JSON')
+        return self.send(method, url, body=body, headers=send_headers, expected=expected, retry=retry)
 
     def list(self, path, params=None):
         """Every item of a paged list endpoint, following all pages.
@@ -464,8 +301,7 @@ class HarborClient(object):
 
 def server_minor(client):
     """The server's major.minor as a tuple of ints, e.g. (2, 15), or None."""
-    match = re.match(r'^v?(\d+)\.(\d+)', client.info().get('harbor_version', ''))
-    return (int(match.group(1)), int(match.group(2))) if match else None
+    return transport.parse_version(client.info().get('harbor_version', ''))
 
 
 def id_from_location(headers):
@@ -518,28 +354,9 @@ def read_as_user(client, read, settled, what):
     return answer
 
 
-def fail_from_error(module, error, **result):
-    """fail_json with a HarborError's request/response details; the request is already redacted."""
-    module.fail_json(msg=error.message(), request_details=error.details(), **result)
-
-
 def run_module(module, handler):
-    """Run handler(client) with uniform error reporting."""
-    client = HarborClient(module)
-    try:
-        client.check_login()
-        result = handler(client)
-    except HarborError as e:
-        fail_from_error(module, e)
-    except ValueError as e:
-        module.fail_json(msg=to_text(e))
-    except Exception as e:
-        # Anything else is a bug here or an answer in a form the module doesn't
-        # expect. The message names the exception; the traceback goes into
-        # `exception`, which Ansible shows only with -vvv.
-        module.fail_json(msg='Unexpected %s: %s. Harbor may have answered in a form this module does not '
-                             'expect.' % (type(e).__name__, to_text(e)), exception=traceback.format_exc())
-    module.exit_json(**result)
+    """Run handler(client) after the login check, with uniform error reporting."""
+    transport.run_client(module, HarborClient(module), handler)
 
 
 def warn_if_stored_differently(module, what, fields):

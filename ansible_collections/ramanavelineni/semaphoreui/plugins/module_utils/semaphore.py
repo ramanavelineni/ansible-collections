@@ -1,34 +1,41 @@
 # Copyright: ramanavelineni
 # Apache License 2.0 (see LICENSE or https://www.apache.org/licenses/LICENSE-2.0)
 
-"""HTTP client and shared helpers for the ramanavelineni.semaphoreui modules."""
+"""HTTP client and shared helpers for the ramanavelineni.semaphoreui modules.
+
+The transport itself (the request loop, retries, masking, the failure
+message) is in transport.py, which is the same in every collection of this
+repository. This file adds what is Semaphore's own: the options, the login,
+the API path and the lookups.
+"""
 
 import json
 import os
 import re
-import socket
-import time
-import traceback
 
 from datetime import datetime, timezone
 
-from http.client import HTTPException
 from http.cookiejar import CookieJar
-from urllib.error import HTTPError, URLError
-from urllib.parse import urlsplit
 
 from ansible.module_utils.basic import env_fallback
-from ansible.module_utils.common.text.converters import to_text
 from ansible.module_utils.urls import open_url
+
+from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils import transport
+
+# Defined in transport.py. The modules and tests import them from here.
+MASK = transport.MASK
+MESSAGE_BODY_LIMIT = transport.MESSAGE_BODY_LIMIT
+MissingReference = transport.MissingReference
+RETRY_STATUSES = transport.RETRY_STATUSES
+fail_from_error = transport.fail_from_error
+permanent_failure = transport.permanent_failure
+scrub = transport.scrub
+secret_forms = transport.secret_forms
 
 # Major.minor releases the modules are tested against. Any other version
 # gets a warning, not a failure: the API has been additive-only between
 # these releases, but that is verified per release, not assumed.
 TESTED_VERSIONS = ('2.18', '2.19')
-
-# Statuses worth retrying: a proxy or the server itself was briefly unable
-# to answer. Anything else is the server's real answer.
-RETRY_STATUSES = (502, 503, 504)
 
 # Semaphore caps some list endpoints (projects among them) at this many rows
 # and has no paging for them. A list that comes back exactly this long may be
@@ -39,11 +46,6 @@ LIST_CAP = 200
 # value of a no_log option, are replaced first: Ansible's own masking only
 # finds a secret that appears exactly as it was passed.
 SECRET_KEYS = re.compile(r'secret|password|passphrase|private_key|token', re.IGNORECASE)
-MASK = '********'
-
-# How much of a response body a failure message quotes. A proxy's error page
-# runs to kilobytes; the whole body is in request_details.response.
-MESSAGE_BODY_LIMIT = 500
 
 
 def semaphore_argument_spec():
@@ -128,29 +130,7 @@ def resolve_credentials(module):
 
 def validate_connection(module):
     """Fail before any request on connection options that cannot work."""
-    params = module.params
-    url = params['url']
-    try:
-        parts = urlsplit(url)
-        usable = parts.scheme in ('http', 'https') and bool(parts.netloc)
-    except ValueError:
-        usable = False
-    if not usable:
-        module.fail_json(msg='url must be the address of the Semaphore server, starting with http:// or https://, '
-                             'for example https://semaphore.example.com. Got %r.' % url)
-    if params['timeout'] < 1:
-        module.fail_json(msg='timeout must be 1 or more (seconds). Got %d.' % params['timeout'])
-    for name in ('retries', 'retry_delay'):
-        if params[name] < 0:
-            module.fail_json(msg='%s must be 0 or more. Got %d.' % (name, params[name]))
-    if params.get('client_key') and not params.get('client_cert'):
-        module.fail_json(msg='client_key needs client_cert: a key alone cannot identify the client.')
-    # A missing file would otherwise surface as an error from deep inside the
-    # TLS setup. Only the path is named, never what a file holds.
-    for name in ('client_cert', 'client_key'):
-        path = params.get(name)
-        if path and not os.path.isfile(path):
-            module.fail_json(msg='%s %r is not a file on the host this module runs on.' % (name, path))
+    transport.validate_connection(module, 'Semaphore')
 
 
 def base_url(url):
@@ -162,138 +142,44 @@ def base_url(url):
 
 
 def server_minor(version):
-    """(major, minor) of a reported version ("v2.19.12-012ed06-..."), or None when it doesn't parse."""
-    match = re.match(r'^v?(\d+)\.(\d+)(\.|-|$)', version or '')
-    return (int(match.group(1)), int(match.group(2))) if match else None
+    """(major, minor) of a reported version ("v2.19.12-012ed06-...", "v2.19-rc1"), or None when it doesn't parse."""
+    return transport.parse_version(version)
 
 
 def redact(value, secrets=(), key=''):
     """A copy of a request body that is safe to show: secret strings replaced by MASK."""
-    if isinstance(value, dict):
-        return dict((k, redact(v, secrets, k)) for k, v in value.items())
-    if isinstance(value, list):
-        return [redact(v, secrets, key) for v in value]
-    if isinstance(value, str) and value and (SECRET_KEYS.search(key) or value in secrets):
-        return MASK
-    return value
-
-
-def secret_forms(secret):
-    """The ways a server can write `secret` in an answer: as it is, and as JSON writes a string.
-
-    JSON from Python escapes non-ASCII characters as \\uXXXX. JSON from Go, which Semaphore and Harbor
-    are written in, keeps them, but escapes <, > and & as \\u003c, \\u003e and \\u0026.
-    """
-    forms = set([secret])
-    for ascii_only in (True, False):
-        quoted = json.dumps(secret, ensure_ascii=ascii_only)[1:-1]
-        forms.add(quoted)
-        forms.add(quoted.replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026'))
-    return forms
-
-
-def scrub(text, secrets):
-    """Text a server sent, with each of `secrets` replaced by MASK, in every form secret_forms() names."""
-    if not text:
-        return text
-    forms = set()
-    for secret in secrets:
-        if isinstance(secret, str) and secret:
-            forms.update(secret_forms(secret))
-    for form in sorted(forms, key=len, reverse=True):
-        text = text.replace(form, MASK)
-    return text
+    return transport.redact(value, SECRET_KEYS, secrets, key)
 
 
 def version_is_tested(version):
-    """True when a reported version ("v2.19.12", "2.18.30") is in TESTED_VERSIONS."""
-    match = re.match(r'^v?(\d+)\.(\d+)(\.|$)', version or '')
-    if not match:
-        return False
-    return '%s.%s' % (match.group(1), match.group(2)) in TESTED_VERSIONS
+    """True when a reported version ("v2.19.12", "2.18.30", "v2.19-rc1") is in TESTED_VERSIONS."""
+    return transport.version_in(version, TESTED_VERSIONS)
 
 
-class SemaphoreError(Exception):
+class SemaphoreError(transport.ApiError):
     """A request failed. Carries everything needed to see why."""
 
-    def __init__(self, method, url, status=None, response=None, request=None, reason=None, location=None):
-        self.method = method
-        self.url = url
-        self.status = status
-        self.response = response
-        self.request = request
-        self.reason = reason
-        self.location = location
-        super(SemaphoreError, self).__init__(self.message())
-
-    def message(self):
-        if self.status is None:
-            return '%s %s failed without an HTTP response: %s' % (self.method, self.url, self.reason)
-        if 300 <= self.status < 400:
-            # Redirects are not followed: the credentials would go wherever
-            # the answer points. Nearly always url names the wrong scheme,
-            # host or path, and the target shows the right one.
-            target = 'a redirect to %s' % self.location if self.location else 'a redirect without a Location header'
-            return ('%s %s returned HTTP %s, %s. Redirects are not followed. Set url to the address the '
-                    'Semaphore server itself answers on.' % (self.method, self.url, self.status, target))
-        # Semaphore answers some rejected writes with a bare 400 and an empty
-        # body. That is never its validation error (those carry a JSON body):
-        # the body could not be decoded or the write hit a database constraint.
-        body = self.response if self.response else '(empty body)'
-        if len(body) > MESSAGE_BODY_LIMIT:
-            body = '%s... (%d more characters; the whole body is in request_details.response)' % (
-                body[:MESSAGE_BODY_LIMIT], len(body) - MESSAGE_BODY_LIMIT)
-        msg = '%s %s returned HTTP %s: %s' % (self.method, self.url, self.status, body)
-        if self.reason:
-            msg += ' (%s)' % self.reason
-        return msg
-
-    def details(self):
-        details = dict(
-            method=self.method,
-            url=self.url,
-            status=self.status,
-            response=self.response,
-            request=self.request,
-        )
-        if self.location:
-            details['location'] = self.location
-        return details
+    product = 'Semaphore'
 
 
-class MissingReference(ValueError):
-    """Something a task refers to by name (its project, a key, a template) doesn't exist.
-
-    A failure, except in check mode: there an earlier task of the same play
-    may be the one that creates it, and check mode didn't.
-    """
-
-
-class SemaphoreClient(object):
+class SemaphoreClient(transport.ApiClient):
     """Talks to the Semaphore API on behalf of one module run.
 
     With username/password the client logs in on first use and logs out in
     close(); with an API token every request carries it as a Bearer token.
     """
 
+    error_class = SemaphoreError
+    secret_keys = SECRET_KEYS
+
     def __init__(self, module):
-        self.module = module
-        params = module.params
-        validate_connection(module)
-        self.url = base_url(params['url'])
+        super(SemaphoreClient, self).__init__(module)
+        self.url = base_url(module.params['url'])
         self.api_token, self.username, self.password = resolve_credentials(module)
         # A server can repeat a credential in an error. Wherever it came from,
         # it is taken out of what a failure shows of the answer, together with
         # every other no_log value of the task (see secrets).
         self.credentials = (self.api_token, self.password)
-        self.validate_certs = params['validate_certs']
-        self.ca_path = params.get('ca_path')
-        self.client_cert = params.get('client_cert')
-        self.client_key = params.get('client_key')
-        self.use_proxy = params['use_proxy']
-        self.timeout = params['timeout']
-        self.retries = params['retries']
-        self.retry_delay = params['retry_delay']
         self.cookies = CookieJar()
         self.logged_in = False
         self._info = None
@@ -302,6 +188,10 @@ class SemaphoreClient(object):
     def secrets(self):
         """Every value an answer must not show: the credentials and the task's no_log values."""
         return set(v for v in self.credentials if v) | set(self.module.no_log_values)
+
+    def open(self, url, **kwargs):
+        # The session cookie of a login goes with every request of the run.
+        return open_url(url, cookies=self.cookies, **kwargs)
 
     # -- session -----------------------------------------------------------
 
@@ -345,67 +235,11 @@ class SemaphoreClient(object):
         return self._request(method, path, body=body, expected=expected, retry=retry)
 
     def _request(self, method, path, body=None, expected=(200,), retry=False):
-        url = '%s/api%s' % (self.url, path)
-        headers = {'Accept': 'application/json'}
-        data = None
-        sent = None
-        if body is not None:
-            data = json.dumps(body)
-            sent = redact(body, self.module.no_log_values)
-            headers['Content-Type'] = 'application/json'
+        headers = {}
         if self.api_token:
             headers['Authorization'] = 'Bearer %s' % self.api_token
-
-        attempts = 1 + (self.retries if retry else 0)
-        for attempt in range(1, attempts + 1):
-            status = None
-            try:
-                response = open_url(
-                    url,
-                    data=data,
-                    headers=headers,
-                    method=method,
-                    timeout=self.timeout,
-                    validate_certs=self.validate_certs,
-                    ca_path=self.ca_path,
-                    client_cert=self.client_cert,
-                    client_key=self.client_key,
-                    cookies=self.cookies,
-                    follow_redirects='none',
-                    use_proxy=self.use_proxy,
-                    use_netrc=False,
-                )
-                status = response.getcode()
-                raw = to_text(response.read(), errors='surrogate_or_strict')
-            except HTTPError as e:
-                status = e.code
-                try:
-                    raw = to_text(e.read(), errors='surrogate_or_strict')
-                except Exception:
-                    raw = ''
-                if status in RETRY_STATUSES and attempt < attempts:
-                    time.sleep(self.retry_delay)
-                    continue
-                headers_in = getattr(e, 'headers', None)
-                raise SemaphoreError(method, url, status=status, response=scrub(raw.strip(), self.secrets),
-                                     request=sent, location=headers_in.get('Location') if headers_in else None)
-            except (URLError, socket.timeout, ConnectionError, OSError, HTTPException) as e:
-                if attempt < attempts:
-                    time.sleep(self.retry_delay)
-                    continue
-                raise SemaphoreError(method, url, request=sent,
-                                     reason=scrub(to_text(e), self.secrets) or type(e).__name__)
-
-            if status not in expected:
-                raise SemaphoreError(method, url, status=status, response=scrub(raw.strip(), self.secrets),
-                                     request=sent)
-            if not raw.strip():
-                return None
-            try:
-                return json.loads(raw)
-            except ValueError:
-                raise SemaphoreError(method, url, status=status, response=scrub(raw.strip(), self.secrets),
-                                     request=sent, reason='response is not JSON')
+        return self.send(method, '%s/api%s' % (self.url, path), body=body, headers=headers,
+                         expected=expected, retry=retry)[0]
 
     # -- server ------------------------------------------------------------
 
@@ -528,37 +362,13 @@ def diff_fields(desired, current):
     return sorted(k for k, v in desired.items() if v is not None and current.get(k) != v)
 
 
-def fail_from_error(module, error, **result):
-    """fail_json with a SemaphoreError's request/response details; the request is already redacted."""
-    module.fail_json(msg=error.message(), request_details=error.details(), **result)
-
-
 def run_module(module, handler, placeholder=None):
     """Run handler(client) with login/logout and uniform error reporting.
 
     `placeholder` holds the module's own return values, empty. With it, a
     MissingReference in check mode is reported as a change instead of a failure.
     """
-    client = SemaphoreClient(module)
-    try:
-        try:
-            result = handler(client)
-        finally:
-            client.close()
-    except SemaphoreError as e:
-        fail_from_error(module, e)
-    except MissingReference as e:
-        if not module.check_mode or placeholder is None:
-            module.fail_json(msg=to_text(e))
-        module.warn('%s Check mode assumes that an earlier task creates it, and reports this task as changed '
-                    'without comparing anything.' % to_text(e))
-        result = dict(placeholder, changed=True, diff=dict(before={}, after={}))
-    except ValueError as e:
-        module.fail_json(msg=to_text(e))
-    except Exception as e:
-        module.fail_json(msg='Unexpected %s: %s. The server may have answered in a form this module does not '
-                             'expect.' % (type(e).__name__, to_text(e)), exception=traceback.format_exc())
-    module.exit_json(**result)
+    transport.run_client(module, SemaphoreClient(module), handler, placeholder)
 
 
 # -- views: objects as the modules and their _info modules return them --------

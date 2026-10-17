@@ -8,10 +8,12 @@ credentials, or retries a create has to fail here.
 """
 
 import io
+import socket
+import ssl
 import time
 
 from http.cookiejar import CookieJar
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 
 import pytest
 
@@ -225,6 +227,66 @@ def test_no_retries(server, run_module):
     assert result['request_details']['status'] == 503
     assert len(server.calls('GET', '/info')) == 1
     assert waits() == []
+
+
+# What open_url raises for a setting that is wrong, built the way it arrives:
+# urllib wraps a failed handshake and a failed name lookup in a URLError, and
+# a ca_path that is not there comes straight from ssl.create_default_context.
+def cannot_verify():
+    return URLError(ssl.SSLCertVerificationError(
+        1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate'))
+
+
+def no_ca_file():
+    return FileNotFoundError(2, 'No such file or directory')
+
+
+def no_such_host():
+    return URLError(socket.gaierror(socket.EAI_NONAME, 'nodename nor servname provided, or not known'))
+
+
+def refused():
+    return URLError(ConnectionRefusedError(61, 'Connection refused'))
+
+
+def resolver_busy():
+    return URLError(socket.gaierror(socket.EAI_AGAIN, 'Temporary failure in name resolution'))
+
+
+@pytest.mark.parametrize('error, text', [
+    (cannot_verify, 'CERTIFICATE_VERIFY_FAILED'),
+    (no_ca_file, 'No such file or directory'),
+    (no_such_host, 'nodename nor servname provided'),
+], ids=['certificate', 'ca-file', 'host-name'])
+def test_a_wrong_setting_is_not_retried(server, run_module, error, text):
+    # A read is otherwise sent 4 times (the default of three retries): asking
+    # again cannot fix a certificate, a CA file or a host name.
+    server.route('GET', '/info', error(), 'info')
+    result = run_module(info.main, {})
+    assert result['failed'] is True
+    assert 'without an HTTP response' in result['msg']
+    assert text in result['msg']
+    assert len(server.calls('GET', '/info')) == 1
+    assert waits() == []
+
+
+def test_a_login_with_a_certificate_that_does_not_verify_is_sent_once(server, run_module):
+    server.route('POST', '/auth/login', cannot_verify(), 'login')
+    result = run_module(info.main, {})
+    assert result['failed'] is True
+    assert 'CERTIFICATE_VERIFY_FAILED' in result['msg']
+    assert [r['path'] for r in server.requests] == ['/auth/login']
+    assert waits() == []
+
+
+@pytest.mark.parametrize('error', [refused, resolver_busy, TimeoutError, transport_error],
+                         ids=['refused', 'resolver-busy', 'timeout', 'reset'])
+def test_a_passing_failure_is_retried(server, run_module, error):
+    server.route('GET', '/info', error(), 'info')
+    result = run_module(info.main, dict(retry_delay=5))
+    assert result.get('failed') is not True
+    assert len(server.calls('GET', '/info')) == 2
+    assert waits() == [5]
 
 
 def test_updates_are_retried(server, run_module):

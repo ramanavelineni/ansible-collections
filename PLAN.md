@@ -80,7 +80,7 @@ ansible-collections/
     ├── semaphoreui/
     │   ├── galaxy.yml, README.md, meta/runtime.yml, changelogs/
     │   ├── plugins/doc_fragments/      # auth.py, attributes.py
-    │   ├── plugins/module_utils/       # semaphore.py (client), task.py, template.py
+    │   ├── plugins/module_utils/       # transport.py (HTTP transport), semaphore.py (client), task.py, template.py
     │   ├── plugins/modules/
     │   ├── plugins/filter/             # project_export and the filters behind it
     │   ├── roles/                      # project_apply, server_apply, project_export
@@ -88,13 +88,15 @@ ansible-collections/
     │   ├── tests/roles/                # role tests, run in CI against a container
     │   └── tests/live/                 # live suite, local only
     └── harbor/
-        └── same shape; module_utils: harbor.py (client), schedule.py, replication.py
+        └── same shape; module_utils: transport.py (HTTP transport), harbor.py (client), schedule.py, replication.py
 ```
 
-The two collections don't depend on each other. The small HTTP client is
-duplicated rather than shared: collections can't import each other's
-`module_utils` without declaring a dependency, and the two APIs authenticate
-differently anyway.
+The two collections don't depend on each other. The HTTP transport is
+copied rather than shared: collections can't import each other's
+`module_utils` without declaring a dependency. Each collection carries the
+same `module_utils/transport.py`, byte for byte, and `make tools-test` fails when
+the copies differ. The login, the API path and the lookups differ per server,
+so they stay in `semaphore.py` and `harbor.py`.
 
 ---
 

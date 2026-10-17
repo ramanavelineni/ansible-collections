@@ -361,6 +361,27 @@ def test_a_body_that_is_not_json_fails_with_the_body(server, run_module, mocker)
     assert len(server.calls('GET', '/systeminfo')) == 1
 
 
+def test_a_long_error_body_is_cut_in_the_message_and_whole_in_the_details(server, run_module):
+    # A proxy's error page, not Harbor's own short JSON error.
+    page = '<html><head><title>Bad gateway</title></head><body>' + 'x' * 5000 + 'END-OF-PAGE</body></html>'
+    server.route('GET', '/systeminfo', http_error(500, page.encode()))
+    result = run_module(info.main, {})
+    assert result['failed'] is True
+    limit = 500  # characters of the body that the message shows
+    assert result['msg'] == (
+        'GET https://harbor.example.com/api/v2.0/systeminfo returned HTTP 500: %s... (%d more characters; the whole '
+        'body is in request_details.response)' % (page[:limit], len(page) - limit))
+    assert 'END-OF-PAGE' not in result['msg']
+    assert result['request_details']['response'] == page
+
+
+def test_a_body_at_the_limit_is_not_cut(server, run_module):
+    page = 'y' * 500
+    server.route('GET', '/systeminfo', http_error(500, page.encode()))
+    result = run_module(info.main, {})
+    assert result['msg'] == 'GET https://harbor.example.com/api/v2.0/systeminfo returned HTTP 500: ' + page
+
+
 # -- options that cannot work fail before any request --------------------------
 
 @pytest.mark.parametrize('url', [
