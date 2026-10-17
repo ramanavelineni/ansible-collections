@@ -137,12 +137,17 @@ tasks:
       description: The branch the task asked for. Empty when it uses the template's.
       type: str
     arguments:
-      description: The task's own command line arguments.
-      type: list
-      elements: str
+      description:
+        - The task's own command line arguments, parsed from the JSON text Semaphore stores. Usually a list of strings.
+        - The text as Semaphore stores it when it is not valid JSON.
+        - An empty list when the task has none.
+      type: raw
     variables:
-      description: The variables the task was started with. Secret variables are not stored and not returned.
-      type: dict
+      description:
+        - The variables the task was started with, parsed from the JSON text Semaphore stores. Secret variables are not stored and not returned.
+        - The text as Semaphore stores it when it is not valid JSON.
+        - An empty dict when there are none.
+      type: raw
     task_params:
       description: The task's parameters, for example C(limit) or C(dry_run).
       type: dict

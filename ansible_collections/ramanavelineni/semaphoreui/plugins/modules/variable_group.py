@@ -152,11 +152,17 @@ variable_group:
       description: Id of the project.
       type: int
     json:
-      description: Extra variables passed to Ansible.
-      type: dict
+      description:
+        - Extra variables passed to Ansible, parsed from the JSON text Semaphore stores.
+        - The text as Semaphore stores it when it is not valid JSON.
+        - An empty dict when there are none.
+      type: raw
     env:
-      description: Environment variables for the task's process.
-      type: dict
+      description:
+        - Environment variables for the task's process, parsed from the JSON text Semaphore stores.
+        - The text as Semaphore stores it when it is not valid JSON.
+        - An empty dict when there are none.
+      type: raw
     secrets:
       description: The group's secrets, sorted by name. Values are never returned.
       type: list
@@ -264,25 +270,28 @@ def secrets_after(current, params, deleted):
     return remaining
 
 
-def stored_view(current, secrets, replaced):
-    """view() of the stored group that doesn't fail on the fields in `replaced`.
+# The text each JSON field holds, for the message about a broken one.
+FIELD_WORDS = dict(json='extra variables', env='environment variables')
 
-    view() refuses stored json or env that is not valid JSON, because an update
-    sends an unmanaged field back as it is. A field the task replaces, and
-    everything on a delete, never goes back, so there it must not stand in the
-    way. Such a field is shown as the text Semaphore holds.
+
+def stored_view(current, secrets, replaced):
+    """view() of the stored group, refusing a broken field that an update would send back.
+
+    view() shows stored json or env that is not valid JSON as the text
+    Semaphore holds. An update sends an unmanaged field back as it is, and
+    Semaphore refuses that text, so the task fails first with the reason. A
+    field the task replaces, and everything on a delete, never goes back, so
+    there it does not stand in the way.
     """
-    group = dict(current)
-    raw = {}
-    for field in replaced:
+    for field in ('json', 'env'):
+        if field in replaced or not current.get(field):
+            continue
         try:
-            json.loads(group.get(field) or '{}')
+            json.loads(current[field])
         except ValueError:
-            raw[field] = group[field]
-            group[field] = ''
-    out = view(group, secrets)
-    out.update(raw)
-    return out
+            raise ValueError('Variable group %r holds %s that are not valid JSON; fix them in Semaphore first.'
+                             % (current.get('name'), FIELD_WORDS[field]))
+    return view(current, secrets)
 
 
 def ensure(module, client):

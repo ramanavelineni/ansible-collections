@@ -22,6 +22,7 @@ import pytest
 import yaml
 
 from ansible_collections.ramanavelineni.semaphoreui.plugins import modules as modules_package
+from ansible_collections.ramanavelineni.semaphoreui.plugins.filter import project_export
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import semaphore_argument_spec
 
 COLLECTION = 'ramanavelineni.semaphoreui'
@@ -211,3 +212,25 @@ def test_webhook_urls_and_registration_tokens_are_shown_only_without_no_log(role
         # empty when no_log is on (tests/roles checks the printed output).
         assert 'when' not in task, task['name']
         assert task['loop'].startswith("{{ [] if %s_no_log | bool else" % role), task['name']
+
+
+def test_the_export_writes_the_sections_apply_reads_in_its_order():
+    # A section the export writes and apply doesn't know fails the apply with
+    # "unknown option", and one apply knows but the export leaves out is lost
+    # on a round trip. Both are lists kept by hand in two files.
+    sections = load('project_apply', 'vars', 'main.yml')['__project_apply_sections']
+    assert list(project_export.SECTIONS) == sections
+
+
+def test_the_drift_check_sees_every_task_that_changes_something():
+    # project_apply_drift_check fails the play when project_apply_changed is
+    # true, and that is computed from a hand-kept list of registered results.
+    # A module task missing from it changes Semaphore unseen, so the check
+    # passes on drift. Read from the file: rendering the task needs GPL
+    # ansible-core (module docstring), and tests/roles runs the drift check.
+    tasks = load('project_apply', 'tasks', 'project.yml')
+    registers = sorted(task.get('register', 'no register: %s' % task['name']) for dummy, dummy, task in module_tasks(tasks))
+    noted = [t for t in tasks if 'project_apply_changed' in (t.get('ansible.builtin.set_fact') or {})]
+    assert len(noted) == 1
+    listed = sorted(entry.strip('{} ') for entry in noted[0]['vars']['__project_apply_results'])
+    assert listed == registers

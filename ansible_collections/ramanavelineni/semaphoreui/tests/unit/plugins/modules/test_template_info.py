@@ -57,3 +57,24 @@ def test_filter_by_name_reads_only_matches(server, project, run_module):
 def test_no_templates(server, project, run_module):
     server.route('GET', project + '/templates', 'templates_empty')
     assert run_module(template_info.main, dict(project='homelab'))['templates'] == []
+
+
+# Semaphore keeps a template's arguments as JSON in a string. A value that is
+# valid JSON comes back parsed, the map form Semaphore also runs included. Any
+# other text comes back as Semaphore stores it. An unset field is empty.
+# Hand-edited: the recorded template stores ["-v"].
+@pytest.mark.parametrize('stored, arguments', [
+    ('["--check"]', ['--check']),
+    ('{"default": ["--check"]}', dict(default=['--check'])),
+    ('--check', '--check'),
+    ('', []),
+    (None, []),
+], ids=['json-list', 'json-map', 'plain-text', 'empty', 'null'])
+def test_returns_stored_arguments_parsed_or_as_stored(server, project, run_module, stored, arguments):
+    tid = server.fixtures['template_create']['body']['id']
+    answer = single(server, 'template_get')
+    answer['body']['arguments'] = stored
+    server.route('GET', project + '/templates', 'templates_one')
+    server.route('GET', '%s/templates/%d' % (project, tid), answer)
+    result = run_module(template_info.main, dict(project='homelab'))
+    assert result['templates'][0]['arguments'] == arguments

@@ -3,9 +3,7 @@
 
 """Name lookups and the returned shape shared by the template modules."""
 
-import json
-
-from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import MissingReference, find_by_name
+from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import MissingReference, find_by_name, json_field
 
 BOOLS = ('autorun', 'allow_override_args_in_task', 'allow_override_branch_in_task',
          'allow_parallel_tasks', 'suppress_success_alerts')
@@ -55,16 +53,6 @@ class Lookups(object):
         return found['id']
 
 
-def parse_arguments(text):
-    if not text:
-        return []
-    try:
-        value = json.loads(text)
-    except ValueError:
-        return [text]
-    return value if isinstance(value, list) else [value]
-
-
 def survey_view(var):
     return dict(
         name=var.get('name'), title=var.get('title'),
@@ -90,7 +78,7 @@ def template_view(tpl, lookups):
         variable_groups=[lookups.name('variable_group', i) for i in tpl.get('environment_ids') or []],
         view=lookups.name('view', tpl.get('view_id')),
         git_branch=tpl.get('git_branch') or '',
-        arguments=parse_arguments(tpl.get('arguments')),
+        arguments=json_field(tpl.get('arguments'), []),
         type=dict((v, k) for k, v in TYPE_TO_API.items()).get(tpl.get('type') or '', tpl.get('type')),
         start_version=tpl.get('start_version') or '',
         build_template=lookups.name('template', tpl.get('build_template_id')),

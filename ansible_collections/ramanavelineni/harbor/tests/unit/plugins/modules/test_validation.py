@@ -10,7 +10,6 @@ import json
 
 import pytest
 
-from ansible_collections.ramanavelineni.harbor.plugins.module_utils.replication import normalize_filter
 from ansible_collections.ramanavelineni.harbor.plugins.modules import (
     configuration,
     garbage_collection_info,
@@ -152,24 +151,14 @@ def test_replication_negative_speed_means_unlimited(server, run_module):
 @pytest.mark.parametrize('filters, message', [
     ([dict(type='repository', value='library/**')], 'value of type must be one of: name, tag, label, resource'),
     ([dict(type='tag', value='v*', decoration='includes')], 'value of decoration must be one of: matches, excludes'),
-], ids=['unknown-type', 'unknown-decoration'])
+    ([dict(value='library/**')], 'missing required arguments: type'),
+], ids=['unknown-type', 'unknown-decoration', 'no-type'])
 def test_replication_filters_refused_by_the_argument_spec(server, run_module, filters, message):
     result = run_module(replication.main, dict(name='rr-fixtures-pull', filters=filters))
     assert result['failed'] is True
     assert message in result['msg']
     # Refused before the client exists: not even the login check is sent.
     assert server.requests == []
-
-
-@pytest.mark.parametrize('item, message', [
-    (dict(type='repository', value='library/**'), 'Filter type must be one of name, tag, label, resource'),
-    (dict(value='library/**'), 'Filter type must be one of'),
-    (dict(type='tag', value='v*', decoration='includes'), 'Filter decoration must be matches or excludes'),
-], ids=['unknown-type', 'no-type', 'unknown-decoration'])
-def test_normalize_filter_refuses_what_the_argument_spec_would(item, message):
-    # The same two checks in the helper, for a caller that has no argument spec in front of it.
-    with pytest.raises(ValueError, match=message):
-        normalize_filter(item)
 
 
 # -- schedules -------------------------------------------------------------------------

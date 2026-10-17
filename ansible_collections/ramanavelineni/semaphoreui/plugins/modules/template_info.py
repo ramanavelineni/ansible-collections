@@ -103,9 +103,11 @@ templates:
       description: Branch to run from instead of the repository's. Empty when not set.
       type: str
     arguments:
-      description: Extra command-line arguments.
-      type: list
-      elements: str
+      description:
+        - Extra command-line arguments, parsed from the JSON text Semaphore stores. Usually a list of strings.
+        - The text as Semaphore stores it when it is not valid JSON.
+        - An empty list when there are none.
+      type: raw
     type:
       description: V(task), V(build) or V(deploy).
       type: str
