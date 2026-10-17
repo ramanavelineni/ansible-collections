@@ -1,0 +1,6 @@
+---
+bugfixes:
+  - >-
+    task - a task the module waited for could come back with an empty ``end``. Semaphore saves a task's final
+    status a moment before its end time, and the module stopped reading at the status. It now reads the task
+    again, at most four times half a second apart, until the end time is there.

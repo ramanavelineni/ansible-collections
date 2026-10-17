@@ -238,10 +238,10 @@ def test_the_export_builds_the_same_project_again(sem):
 
     first = apply(sem, copied, vault, copy_name, on_create=False)
     assert 'project' in first and 'template live-export-a-deploy' in first
-    # A second run changes only what holds a secret, which is sent every time. Not the key the repository uses:
-    # the module leaves that one alone unless force_repository_key_update is set.
+    # The export marks every secret update_secret: on_create, so a second run changes nothing. Breaks when the
+    # export leaves update_secret out, or when an object doesn't read back as it was written.
     again = apply(sem, copied, vault, copy_name, on_create=False)
-    assert sorted(again) == ['key_store live-export-login', 'variable_group live-export-vars']
+    assert again == []
 
     exported_copy = load(plugin.project_export_yaml(read(sem, copy_name)))
     assert exported_copy == copied

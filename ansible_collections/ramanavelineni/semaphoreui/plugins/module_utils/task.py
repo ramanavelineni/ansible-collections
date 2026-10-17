@@ -15,9 +15,9 @@ NEEDS_CONFIRMATION = 'waiting_confirmation'
 # Semaphore answers at most this many tasks for one list.
 LIST_LIMIT = 200
 
-# The last lines of a task's output are stored a moment after its final status
-# (seen up to 0.3 s later on 2.18 and 2.19). The output of a finished task is
-# read again after this many seconds until two reads agree, at most this often.
+# The last lines of a task's output, and its end time, are stored a moment after
+# its final status (seen up to 0.3 s later on 2.18 and 2.19). A finished task is
+# read again after this many seconds until they are there, at most this often.
 OUTPUT_SETTLE = 0.5
 OUTPUT_READS = 4
 
@@ -101,6 +101,20 @@ def settled_output(client, base, task_id, lines):
         time.sleep(OUTPUT_SETTLE)
     out = [(entry.get('output') or '').rstrip('\n') for entry in entries]
     return out if lines < 0 else out[-lines:]
+
+
+def settled_end(client, base, task):
+    """A finished task, read again until it has its end time.
+
+    Semaphore saves the final status first and the end time a moment later
+    (TaskRunner.go, 2.18 and 2.19), so a read in between has no end.
+    """
+    for dummy in range(OUTPUT_READS):
+        if task.get('end'):
+            break
+        time.sleep(OUTPUT_SETTLE)
+        task = client.get('%s/tasks/%d' % (base, task['id'])) or task
+    return task
 
 
 def wait_for_end(client, base, task, interval, timeout):
