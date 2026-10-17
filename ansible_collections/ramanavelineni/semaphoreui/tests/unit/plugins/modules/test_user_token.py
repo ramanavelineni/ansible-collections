@@ -165,6 +165,32 @@ def test_a_token_that_stopped_working_is_replaced(server, run_module, stopped):
     assert deletes(server) == [] and creates(server) == []
 
 
+# Hand-edited: both servers store the expiry with a time zone. Breaks when a stored time without one is not
+# read as UTC: the same expiry then looks like another one, and the task fails.
+def test_a_stored_expiry_without_a_time_zone_is_read_as_utc(server, run_module):
+    listing = server.response('tokens_one')
+    listing['body'][0]['expires_at'] = '2099-01-01T00:00:00'
+    server.route('GET', '/user/tokens', listing)
+    result = run_module(user_token.main, dict(name=NAME, expires_at='2099-01-01T00:00:00Z'))
+    assert result['changed'] is False, result.get('msg')
+    assert result['user_token']['expires_at'] == '2099-01-01T00:00:00Z'
+    assert result['user_token']['expired'] is False
+    assert creates(server) == [] and deletes(server) == []
+
+
+# Hand-edited, as above. Breaks when a stored expiry the module cannot read counts as passed: the token,
+# which Semaphore says still works, would be revoked and replaced.
+def test_a_stored_expiry_that_cannot_be_read_keeps_the_token(server, run_module):
+    listing = server.response('tokens_one')
+    listing['body'][0]['expires_at'] = 'not a time'
+    server.route('GET', '/user/tokens', listing)
+    result = run_module(user_token.main, dict(name=NAME))
+    assert result['changed'] is False, result.get('msg')
+    assert result['user_token']['expires_at'] == 'not a time'
+    assert result['user_token']['expired'] is False
+    assert creates(server) == [] and deletes(server) == []
+
+
 def test_the_token_the_task_connects_with_is_not_revoked(server, run_module):
     server.route('GET', '/user/tokens', 'tokens_two')
     own = dict(api_token=VALUE, username=None, password=None)

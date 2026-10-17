@@ -666,7 +666,9 @@ def test_lr_info(server, run_module):
 # -- scan all ----------------------------------------------------------------------
 # Only the refusal without a scanner is recorded (system_scan_all_no_scanner).
 # Every success path below runs on hand-written answers (scan_all_schedule and
-# ok): Scan All has never been checked against a server with a scanner.
+# ok): the recorder's system area records Scan All only as refused. The live
+# suite runs the success path against a Harbor with a scanner
+# (tests/live/test_system.py).
 
 def test_scan_all_without_scanner(server, run_module):
     server.route('GET', SCAN_ALL, 'system_scan_all_no_scanner')

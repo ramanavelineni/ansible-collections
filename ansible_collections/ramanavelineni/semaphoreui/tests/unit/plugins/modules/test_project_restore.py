@@ -147,6 +147,21 @@ def test_a_restore_that_fails_half_way_names_what_it_left(server, run_module):
     assert 'Nothing was created' not in result['msg']
 
 
+def test_a_failed_restore_whose_leftovers_cannot_be_checked_says_so(server, run_module):
+    # The project list fails after Semaphore refused the restore. Breaks when the message then claims that
+    # nothing was created, or names a leftover project, when the module could not look.
+    server.route('GET', '/projects', 'backup_projects', dict(status=500, body=None, headers={}))
+    server.route('POST', '/projects/restore', 'backup_restore_broken')
+    broken = backup(server)
+    broken['templates'][0]['repository'] = 'no-such-repository'
+    result = run_module(project_restore.main, dict(backup=broken, name='bk-fixtures-broken'))
+    assert result['failed'] is True
+    assert 'returned HTTP 400' in result['msg']
+    assert "'bk-fixtures-broken'" in result['msg'] and 'could not be checked' in result['msg']
+    assert 'Nothing was created' not in result['msg'] and 'half filled' not in result['msg']
+    assert result['request_details']['status'] == 400
+
+
 def test_the_recorded_restore_left_keys_empty_and_secret_variables_out(server):
     # What the documentation says of a restored project, checked on what the servers answered.
     keys = dict((k['name'], k) for k in server.fixtures['backup_restored_keys']['body'])
