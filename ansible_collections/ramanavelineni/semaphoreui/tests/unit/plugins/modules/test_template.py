@@ -45,7 +45,11 @@ def test_create(server, project, run_module):
     assert body['repository_id'] == f['repository_create']['body']['id']
     assert body['inventory_id'] == f['inventory_create']['body']['id']
     assert body['view_id'] == f['view_create']['body']['id']
-    assert body['environment_ids'] == [body['environment_id']]
+    # The id of the group the task names, as the recorded list holds it.
+    empty = [g['id'] for g in f['variable_groups_for_templates']['body'] if g['name'] == 'empty']
+    assert len(empty) == 1
+    assert body['environment_ids'] == empty
+    assert body['environment_id'] == empty[0]
     assert body['arguments'] == '["-v"]'
     assert body['type'] == ''
     assert body['survey_vars'] == [dict(name='host', title='Host', type='', required=False, description='',

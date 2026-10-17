@@ -102,6 +102,7 @@ def test_delete(project, run_module):
     server.route('DELETE', '%s/%d' % (base(server), iid(server)), 'tag_immutability_delete')
     result = run_module(tag_immutability.main, dict(project=PROJECT, tags='v*', state='absent'))
     assert result['changed'] is True
+    assert len(server.calls('DELETE', '%s/%d' % (base(server), iid(server)))) == 1
 
 
 def test_delete_missing(project, run_module):

@@ -209,17 +209,14 @@ def test_another_failure_has_no_location(server, run_module):
 
 # -- retries -------------------------------------------------------------------
 
-@pytest.mark.parametrize('status', harbor.RETRY_STATUSES)
+# The gateway statuses: a proxy or the server was briefly unable to answer.
+@pytest.mark.parametrize('status', [502, 503, 504])
 def test_reads_are_retried_after_a_gateway_status(server, run_module, status):
     server.route('GET', '/systeminfo', unavailable(status), 'systeminfo')
     result = run_module(info.main, dict(retry_delay=5))
     assert result.get('failed') is not True
     assert len(server.calls('GET', '/systeminfo')) == 2
     assert waits() == [5]
-
-
-def test_retry_statuses_are_the_gateway_ones():
-    assert harbor.RETRY_STATUSES == (502, 503, 504)
 
 
 @pytest.mark.parametrize('status', [400, 404, 500])

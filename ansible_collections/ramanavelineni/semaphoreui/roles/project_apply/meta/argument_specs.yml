@@ -46,7 +46,9 @@ argument_specs:
         default: []
       project_apply_no_log:
         description:
-          - Hide the output of the tasks that carry secrets (keys, variable groups, and the loaded projects).
+          - Hide the output of the tasks that carry secrets (keys, variable groups, integrations and their
+            webhook URLs, and the loaded projects).
+          - With V(false), the webhook URLs of integrations created in the run are shown.
           - Set it to V(false) only to find a mistake in a project description.
         type: bool
         default: true

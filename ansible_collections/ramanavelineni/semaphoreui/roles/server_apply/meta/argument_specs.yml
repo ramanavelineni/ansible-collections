@@ -37,7 +37,8 @@ argument_specs:
         default: false
       server_apply_no_log:
         description:
-          - Hide the output of the task that carries the users' passwords.
+          - Hide the output of the tasks that carry the users' passwords and the runners' registration tokens.
+          - With V(false), the registration tokens of runners created in the run are shown.
           - Set it to V(false) only to find a mistake in the users.
         type: bool
         default: true

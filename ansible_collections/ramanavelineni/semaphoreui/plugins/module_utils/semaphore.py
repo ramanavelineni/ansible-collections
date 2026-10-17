@@ -178,11 +178,30 @@ def redact(value, secrets=(), key=''):
     return value
 
 
+def secret_forms(secret):
+    """The ways a server can write `secret` in an answer: as it is, and as JSON writes a string.
+
+    JSON from Python escapes non-ASCII characters as \\uXXXX. JSON from Go, which Semaphore and Harbor
+    are written in, keeps them, but escapes <, > and & as \\u003c, \\u003e and \\u0026.
+    """
+    forms = set([secret])
+    for ascii_only in (True, False):
+        quoted = json.dumps(secret, ensure_ascii=ascii_only)[1:-1]
+        forms.add(quoted)
+        forms.add(quoted.replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026'))
+    return forms
+
+
 def scrub(text, secrets):
-    """Text a server sent, with each of `secrets` replaced by MASK, as written and as JSON writes it."""
-    for secret in sorted((s for s in secrets if s), key=len, reverse=True):
-        for form in (secret, json.dumps(secret)[1:-1]):
-            text = text.replace(form, MASK)
+    """Text a server sent, with each of `secrets` replaced by MASK, in every form secret_forms() names."""
+    if not text:
+        return text
+    forms = set()
+    for secret in secrets:
+        if isinstance(secret, str) and secret:
+            forms.update(secret_forms(secret))
+    for form in sorted(forms, key=len, reverse=True):
+        text = text.replace(form, MASK)
     return text
 
 
@@ -264,7 +283,8 @@ class SemaphoreClient(object):
         self.url = base_url(params['url'])
         self.api_token, self.username, self.password = resolve_credentials(module)
         # A server can repeat a credential in an error. Wherever it came from,
-        # it is taken out of what a failure shows of the answer.
+        # it is taken out of what a failure shows of the answer, together with
+        # every other no_log value of the task (see secrets).
         self.credentials = (self.api_token, self.password)
         self.validate_certs = params['validate_certs']
         self.ca_path = params.get('ca_path')
@@ -277,6 +297,11 @@ class SemaphoreClient(object):
         self.cookies = CookieJar()
         self.logged_in = False
         self._info = None
+
+    @property
+    def secrets(self):
+        """Every value an answer must not show: the credentials and the task's no_log values."""
+        return set(v for v in self.credentials if v) | set(self.module.no_log_values)
 
     # -- session -----------------------------------------------------------
 
@@ -362,24 +387,24 @@ class SemaphoreClient(object):
                     time.sleep(self.retry_delay)
                     continue
                 headers_in = getattr(e, 'headers', None)
-                raise SemaphoreError(method, url, status=status, response=scrub(raw.strip(), self.credentials),
+                raise SemaphoreError(method, url, status=status, response=scrub(raw.strip(), self.secrets),
                                      request=sent, location=headers_in.get('Location') if headers_in else None)
             except (URLError, socket.timeout, ConnectionError, OSError, HTTPException) as e:
                 if attempt < attempts:
                     time.sleep(self.retry_delay)
                     continue
                 raise SemaphoreError(method, url, request=sent,
-                                     reason=scrub(to_text(e), self.credentials) or type(e).__name__)
+                                     reason=scrub(to_text(e), self.secrets) or type(e).__name__)
 
             if status not in expected:
-                raise SemaphoreError(method, url, status=status, response=scrub(raw.strip(), self.credentials),
+                raise SemaphoreError(method, url, status=status, response=scrub(raw.strip(), self.secrets),
                                      request=sent)
             if not raw.strip():
                 return None
             try:
                 return json.loads(raw)
             except ValueError:
-                raise SemaphoreError(method, url, status=status, response=scrub(raw.strip(), self.credentials),
+                raise SemaphoreError(method, url, status=status, response=scrub(raw.strip(), self.secrets),
                                      request=sent, reason='response is not JSON')
 
     # -- server ------------------------------------------------------------

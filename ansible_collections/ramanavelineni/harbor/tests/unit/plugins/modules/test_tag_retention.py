@@ -141,6 +141,7 @@ def test_delete(with_policy, run_module):
     result = run_module(tag_retention.main, dict(project=PROJECT, state='absent'))
     assert result['changed'] is True
     assert result['tag_retention'] == {}
+    assert len(server.calls('DELETE', '/retentions/%d' % rid(server))) == 1
 
 
 def test_delete_check_mode(with_policy, run_module):

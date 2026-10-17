@@ -1,6 +1,7 @@
 # Copyright: ramanavelineni
 # Apache License 2.0 (see LICENSE or https://www.apache.org/licenses/LICENSE-2.0)
 
+import json
 import socket
 import ssl
 from urllib.error import URLError
@@ -15,6 +16,7 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     older_than,
     permanent_failure,
     redact,
+    scrub,
     storage_to_gb,
     version_is_tested,
 )
@@ -109,3 +111,12 @@ def test_older_than(minor, needed, expected):
 ])
 def test_permanent_failure(error, expected):
     assert permanent_failure(error) is expected
+
+
+@pytest.mark.parametrize('secret', ['p<a&s>s', 'pä"ss\nwörd', 'to"k\\en', '-----BEGIN KEY-----\nabc\n-----END KEY-----'])
+def test_scrub_masks_a_secret_in_every_form_a_server_writes_it(secret):
+    go = (json.dumps(secret, ensure_ascii=False)[1:-1]
+          .replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026'))
+    for written in (secret, json.dumps(secret)[1:-1], json.dumps(secret, ensure_ascii=False)[1:-1], go):
+        assert scrub('{"error": "bad %s here"}' % written, {secret}) == '{"error": "bad ******** here"}', written
+    assert scrub('', {secret}) == '' and scrub(None, {secret}) is None

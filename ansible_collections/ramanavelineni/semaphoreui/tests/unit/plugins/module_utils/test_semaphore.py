@@ -133,3 +133,12 @@ def test_module_kwargs_take_the_other_constraints(name):
 def test_module_kwargs_refuse_anything_else():
     with pytest.raises(TypeError):
         semaphore_module_kwargs(supports_check_mode=False)
+
+
+@pytest.mark.parametrize('secret', ['p<a&s>s', 'pä"ss\nwörd', 'to"k\\en', '-----BEGIN KEY-----\nabc\n-----END KEY-----'])
+def test_scrub_masks_a_secret_in_every_form_a_server_writes_it(secret):
+    go = (json.dumps(secret, ensure_ascii=False)[1:-1]
+          .replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026'))
+    for written in (secret, json.dumps(secret)[1:-1], json.dumps(secret, ensure_ascii=False)[1:-1], go):
+        assert scrub('{"error": "bad %s here"}' % written, {secret}) == '{"error": "bad ******** here"}', written
+    assert scrub('', {secret}) == '' and scrub(None, {secret}) is None

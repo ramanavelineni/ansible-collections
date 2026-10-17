@@ -154,6 +154,7 @@ def test_delete(server, run_module):
     server.route('DELETE', '/projects/%d' % pid(server), 'project_delete')
     result = run_module(project.main, dict(name='fixtures-core', state='absent', confirm_delete=True))
     assert result['changed'] is True and result['project'] == {}
+    assert [r['path'] for r in server.calls('DELETE')] == ['/projects/%d' % pid(server)]
 
 
 def test_delete_with_repositories_fails(server, run_module):

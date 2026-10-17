@@ -131,6 +131,33 @@ def redact(value, secrets=(), key=''):
     return value
 
 
+def secret_forms(secret):
+    """The ways a server can write `secret` in an answer: as it is, and as JSON writes a string.
+
+    JSON from Python escapes non-ASCII characters as \\uXXXX. JSON from Go, which Semaphore and Harbor
+    are written in, keeps them, but escapes <, > and & as \\u003c, \\u003e and \\u0026.
+    """
+    forms = set([secret])
+    for ascii_only in (True, False):
+        quoted = json.dumps(secret, ensure_ascii=ascii_only)[1:-1]
+        forms.add(quoted)
+        forms.add(quoted.replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026'))
+    return forms
+
+
+def scrub(text, secrets):
+    """Text a server sent, with each of `secrets` replaced by MASK, in every form secret_forms() names."""
+    if not text:
+        return text
+    forms = set()
+    for secret in secrets:
+        if isinstance(secret, str) and secret:
+            forms.update(secret_forms(secret))
+    for form in sorted(forms, key=len, reverse=True):
+        text = text.replace(form, MASK)
+    return text
+
+
 def version_is_tested(version):
     """True when a reported version ("v2.15.2-4b2c1e3a") is in TESTED_VERSIONS."""
     match = re.match(r'^v?(\d+)\.(\d+)(\.|-|$)', version or '')
@@ -295,7 +322,8 @@ class HarborClient(object):
                     time.sleep(self.retry_delay)
                     continue
                 headers_in = getattr(e, 'headers', None)
-                raise HarborError(method, url, status=e.code, response=raw.strip(), request=sent,
+                raise HarborError(method, url, status=e.code, response=scrub(raw.strip(), self.module.no_log_values),
+                                  request=sent,
                                   location=headers_in.get('Location') if headers_in else None)
             except (URLError, socket.timeout, ConnectionError, OSError, HTTPException) as e:
                 # HTTPException: the answer was cut short or isn't HTTP at all
@@ -303,17 +331,19 @@ class HarborClient(object):
                 if attempt < attempts and not permanent_failure(e):
                     time.sleep(self.retry_delay)
                     continue
-                raise HarborError(method, url, request=sent, reason=to_text(e))
+                raise HarborError(method, url, request=sent, reason=scrub(to_text(e), self.module.no_log_values))
 
             if status not in expected:
-                raise HarborError(method, url, status=status, response=raw.strip(), request=sent,
+                raise HarborError(method, url, status=status, response=scrub(raw.strip(), self.module.no_log_values),
+                                  request=sent,
                                   location=resp_headers.get('location'))
             if not raw.strip():
                 return None, resp_headers
             try:
                 return json.loads(raw), resp_headers
             except ValueError:
-                raise HarborError(method, url, status=status, response=raw.strip(), request=sent,
+                raise HarborError(method, url, status=status, response=scrub(raw.strip(), self.module.no_log_values),
+                                  request=sent,
                                   reason='response is not JSON')
 
     def list(self, path, params=None):

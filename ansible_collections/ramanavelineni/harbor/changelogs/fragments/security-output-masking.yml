@@ -1,0 +1,5 @@
+---
+security_fixes:
+  - a failed request now masks every ``no_log`` value of the task in what Harbor answered, as written and in
+    the escaped forms JSON from Python and from Go use. Before, Harbor's answer was shown unmasked, and
+    Ansible's own masking misses a secret with a quote, a backslash, ``<``, ``>``, ``&`` or a newline.

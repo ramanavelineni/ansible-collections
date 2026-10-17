@@ -81,7 +81,10 @@ it is missing from a file.
 A project with `state: absent` and `confirm_delete: true` is deleted with
 everything in it; describe nothing else in that project then.
 
-A new integration's webhook URL is shown in the output of the run.
+A new integration's webhook URL is shown in the output of the run, only with
+`project_apply_no_log: false`. With `auth_method: none` the URL alone is enough
+to start the task, so with the default it stays out of the logs. The
+integration's page in Semaphore shows it.
 
 ## Variables
 
@@ -90,7 +93,7 @@ A new integration's webhook URL is shown in the output of the run.
 | `project_apply_path` | required | The directory that holds the projects. Give an absolute path, such as `{{ playbook_dir }}/config/projects` |
 | `project_apply_drift_check` | `false` | Fail at the end when something changed, or would have changed with `--check`. Secrets are then only sent for objects that don't exist yet |
 | `project_apply_protected_projects` | `[]` | Names of projects the role refuses to manage |
-| `project_apply_no_log` | `true` | Hide the output of the tasks that carry secrets |
+| `project_apply_no_log` | `true` | Hide the output of the tasks that carry secrets, webhook URLs included, and don't show new webhook URLs |
 
 Afterwards `project_apply_changed` says whether anything changed, and
 `project_apply_projects` lists the projects that were applied.

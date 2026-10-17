@@ -178,6 +178,7 @@ def test_delete(server, project, run_module):
     result = run_module(webhook.main, dict(project='fixtures-webhook', name='ci-notify', state='absent'))
     assert result['changed'] is True
     assert result['webhook'] == {}
+    assert len(server.calls('DELETE', '%s/%d' % (project, wid(server)))) == 1
 
 
 def test_delete_missing(server, project, run_module):
