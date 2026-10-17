@@ -30,8 +30,13 @@ if [ "${1:-}" = only ]; then
   exit 0
 fi
 
-# A change here can break any job.
-SHARED='^(\.github/workflows/ci\.yml|\.github/scripts/|Makefile$)'
+# A change here can break any job, or is CI's own configuration: the release
+# workflow and Dependabot's settings get a run too, so a pull request that
+# touches only them is not passed without one.
+SHARED='^(\.github/workflows/(ci|release)\.yml$|\.github/dependabot\.yml$|\.github/scripts/|Makefile$)'
+# The files that the helper-drift tests in tools/tests compare between the
+# collections: a change to one copy has to run them.
+DRIFT='^ansible_collections/ramanavelineni/[^/]+/(tests/unit/plugins/(utils|conftest)\.py|plugins/module_utils/transport\.py)$'
 
 # Markdown has nothing for ansible-test to check. Module docs live in .py files.
 files="$(grep -v '\.md$' || true)"
@@ -47,7 +52,7 @@ else
       collections="${collections} ${name}"
     fi
   done
-  if grep -q '^tools/' <<<"${files}"; then
+  if grep -q '^tools/' <<<"${files}" || grep -qE "${DRIFT}" <<<"${files}"; then
     tools=true
   fi
 fi
