@@ -482,18 +482,31 @@ def project_ref(client, params, missing_ok=False):
         if params.get('project') is None:
             return None, None
         return resolve_project(client, params['project'], missing_ok=missing_ok), params['project']
+    project = read_project(client, params['project_id'])
+    if project is None:
+        if missing_ok:
+            return None, None
+        raise MissingReference(missing_project_id(params['project_id']))
+    return params['project_id'], project.get('name')
+
+
+def read_project(client, project_id):
+    """The project with this id, or None when there is none or the user cannot see it.
+
+    Reads only that project, not the list Semaphore cuts off at LIST_CAP rows.
+    """
     try:
-        project = client.get('/project/%d' % params['project_id']) or {}
+        return client.get('/project/%d' % project_id) or {}
     except SemaphoreError as e:
         # Semaphore answers the same for a project that isn't there and for
         # one the user is no member of.
         if e.status not in (403, 404):
             raise
-        if missing_ok:
-            return None, None
-        raise MissingReference('Project with id %d does not exist, or the user this module logs in as cannot '
-                               'see it.' % params['project_id'])
-    return params['project_id'], project.get('name')
+        return None
+
+
+def missing_project_id(project_id):
+    return 'Project with id %d does not exist, or the user this module logs in as cannot see it.' % project_id
 
 
 def refuse_delete_if_used(client, path, what, name):

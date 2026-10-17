@@ -13,6 +13,7 @@
     - roletest-unknown
     - roletest-twice
     - roletest-repeated
+    - roletest-renamed
 
 - name: Delete the user of the role test
   ramanavelineni.semaphoreui.user:

@@ -47,10 +47,11 @@ from ansible_collections.ramanavelineni.semaphoreui.tests.unit.plugins.modules i
 from ansible_collections.ramanavelineni.semaphoreui.tests.unit.plugins.modules.test_examples import module_spec
 
 # What every module has and no project file sets: where the server is, and
-# which project and object an entry is about.
+# which project and object an entry is about. The project module's id is an
+# address too: ids are never exported.
 CONNECTION = ('url', 'api_token', 'username', 'password', 'validate_certs', 'ca_path', 'client_cert', 'client_key',
               'use_proxy', 'timeout', 'retries', 'retry_delay')
-ADDRESS = ('project', 'project_id', 'name', 'user')
+ADDRESS = ('project', 'project_id', 'id', 'name', 'user')
 # Options that say what a run should do, not what the object is.
 RUN_ONLY = dict(
     project=('state', 'confirm_delete'),
@@ -209,10 +210,12 @@ def test_a_key_refers_to_vault_variables_for_all_of_its_secret():
         'None': dict(type='none'),
         'deploy': dict(type='ssh', ssh=dict(login='{{ vault_homelab_key_deploy_ssh_login }}',
                                             passphrase='{{ vault_homelab_key_deploy_ssh_passphrase }}',
-                                            private_key='{{ vault_homelab_key_deploy_ssh_private_key }}')),
+                                            private_key='{{ vault_homelab_key_deploy_ssh_private_key }}'),
+                       update_secret='on_create'),
         'vault pw': dict(type='login_password', login_password=dict(
             login='{{ vault_homelab_key_vault_pw_login_password_login }}',
-            password='{{ vault_homelab_key_vault_pw_login_password_password }}')),
+            password='{{ vault_homelab_key_vault_pw_login_password_password }}'),
+            update_secret='on_create'),
     }
 
 
@@ -221,7 +224,15 @@ def test_a_variable_group_refers_to_one_vault_variable_per_secret():
     assert config['variable_group']['harbor'] == dict(
         json=dict(harbor_url='https://harbor.example.com'),
         secrets=[dict(name='HARBOR_TOKEN', value='{{ secret_homelab_var_harbor_harbor_token }}'),
-                 dict(name='db_pw', type='var', value='{{ secret_homelab_var_harbor_db_pw }}')])
+                 dict(name='db_pw', type='var', value='{{ secret_homelab_var_harbor_db_pw }}')],
+        update_secret='on_create')
+
+
+def test_a_variable_group_without_secrets_is_written_without_update_secret():
+    # update_secret means nothing for a group with no secret: the file stays as the server has it.
+    groups = [dict(id=2, name='plain', project_id=1, json=dict(region='eu'), env={}, secrets=[])]
+    config = plugin.project_export_config(info_of(variable_group=groups))
+    assert config['variable_group']['plain'] == dict(json=dict(region='eu'))
 
 
 def test_the_vault_variables_are_listed_in_the_order_of_the_file():
@@ -479,10 +490,9 @@ def test_applying_what_was_exported_changes_nothing(server, run_module, section)
             continue
         args = dict(stand_in(options), project=project_name)
         args['user' if section == 'team_member' else 'name'] = name
-        if section in plugin.SECRETS:
-            # A secret can't be compared with what is stored, so the modules
-            # send it on every run unless told not to.
-            args['update_secret'] = 'on_create'
+        # No update_secret is added here: an exported object with a secret
+        # carries update_secret: on_create itself. Without it the module would
+        # send the secret again, and the server takes no write.
         result = run_module(manage.main, args)
         assert result.get('failed') is not True, '%s %s: %s' % (section, name, result.get('msg'))
         assert result['changed'] is False, '%s %s: %s' % (section, name, result.get('diff'))

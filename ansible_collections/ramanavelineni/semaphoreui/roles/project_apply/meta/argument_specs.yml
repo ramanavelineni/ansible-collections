@@ -10,10 +10,16 @@ argument_specs:
         C(view), C(template), C(schedule), C(integration) and C(team_member) each hold entries keyed by name,
         with the options of the module of that name. Every other key is an option of the M(ramanavelineni.semaphoreui.project)
         module; C(name) is required. A key that starts with an underscore is ignored, for YAML anchors.
+      - A project may set C(id), the id of an existing project. The role then reads that project only, and
+        renames it when its name differs from C(name). Semaphore lists at most 200 projects, so on a larger
+        server a project must carry its id. Leave C(id) out to create a project, because Semaphore picks the id.
+      - The entries of a project name it by its id, whether the file sets C(id) or not. The name is used only
+        when there is no id yet, in check mode for a project that does not exist.
       - Everything declared is created or updated in dependency order. Then the entries marked C(state=absent)
         are deleted in the reverse order. What a project does not mention is left alone.
       - An option a module does not have, a project described twice, and an entry declared in two files all
-        fail before anything is changed.
+        fail before anything is changed. Two files that declare the same project C(name) are refused before
+        anything changes.
       - The connection options are not variables of this role. Set them once with C(module_defaults) for the
         action group C(ramanavelineni.semaphoreui.semaphoreui), or in the environment (E(SEMAPHORE_URL) and
         E(SEMAPHORE_API_TOKEN), or E(SEMAPHORE_USERNAME) and E(SEMAPHORE_PASSWORD)).

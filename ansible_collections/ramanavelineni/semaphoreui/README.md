@@ -135,7 +135,8 @@ or `project_id` (its id), one of the two. The name is looked up in the list
 of projects, which Semaphore cuts off at 200 rows, so the modules refuse to
 look a project up by name on a server with 200 or more projects. With
 `project_id` that list is not read and the project is found whatever their
-number.
+number. The same holds for `project` and `project_info` themselves, with their
+option `id`, and for a project file of the `project_apply` role that sets `id:`.
 
 ## Roles
 

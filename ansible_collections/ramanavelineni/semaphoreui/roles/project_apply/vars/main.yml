@@ -20,6 +20,7 @@ __project_apply_sections:
 __project_apply_options:
   project:
     - name
+    - id
     - state
     - alert
     - alert_chat

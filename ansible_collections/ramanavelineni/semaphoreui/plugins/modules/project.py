@@ -7,7 +7,7 @@ module: project
 short_description: Manage Semaphore UI projects
 version_added: 0.1.0
 description:
-  - Creates, updates or deletes a Semaphore UI project, found by its name.
+  - Creates, updates or deletes a Semaphore UI project, found by its name, or by its id with O(id).
   - Only the options you set are compared and changed; the others keep their current value.
 author:
   - ramanavelineni (@ramanavelineni)
@@ -22,10 +22,20 @@ attributes:
 options:
   name:
     description:
-      - Name of the project. Projects are looked up by this name.
-      - Renaming is not supported. A different name is a different project.
+      - Name of the project.
+      - Without O(id), projects are looked up by this name, and a different name is a different project.
+      - With O(id), the project with that id gets this name. A project with another name is renamed.
     type: str
     required: true
+  id:
+    description:
+      - Id of the project. The module reads only this project, not the list of projects, so it finds
+        the project however many projects there are.
+      - The project must exist for O(state=present). Semaphore picks the id of a new project, so leave
+        O(id) out to create one.
+      - With O(state=absent), a project that no longer exists is no change.
+    type: int
+    version_added: 0.5.0
   state:
     description:
       - V(present) creates the project or updates it to match.
@@ -58,7 +68,9 @@ notes:
   - Semaphore adds the user that creates a project as its owner, and creates a key named C(None)
     and a view named C(All) in it.
   - Semaphore lists at most 200 projects. When the list is that long the module fails instead of
-    risking a duplicate.
+    risking a duplicate. With O(id) the list is not read.
+  - A rename does not check whether another project already has the new name. Semaphore allows two
+    projects with one name, but then a lookup by that name fails.
 seealso:
   - module: ramanavelineni.semaphoreui.project_info
     description: Reads projects without changing them.
@@ -80,6 +92,13 @@ EXAMPLES = r'''
     name: scratch
     state: absent
     confirm_delete: true
+
+- name: Rename project 7 to homelab, on a server with any number of projects
+  ramanavelineni.semaphoreui.project:
+    url: https://semaphore.example.com
+    api_token: "{{ semaphore_api_token }}"
+    id: 7
+    name: homelab
 '''
 
 RETURN = r'''
@@ -122,7 +141,9 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
     diff_fields,
     find_by_name,
+    missing_project_id,
     project_view,
+    read_project,
     run_module,
     semaphore_argument_spec,
     semaphore_module_kwargs,
@@ -131,28 +152,41 @@ from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semapho
 MANAGED = ('alert', 'alert_chat', 'max_parallel_tasks')
 
 
+def find(client, params):
+    """The project as Semaphore returns it, or None. By id only that project is read."""
+    if params['id'] is None:
+        return find_by_name(client.list('/projects', capped=True), params['name'], 'project')
+    current = read_project(client, params['id'])
+    if current is None and params['state'] == 'present':
+        raise ValueError('%s A project cannot be created with a chosen id: leave out id to create project %r.'
+                         % (missing_project_id(params['id']), params['name']))
+    return current
+
+
 def ensure(module, client):
     params = module.params
     client.warn_if_untested()
 
-    current = find_by_name(client.list('/projects', capped=True), params['name'], 'project')
-    before = project_view(current) if current else {}
+    current = find(client, params)
+    before = {} if current is None else project_view(current)
 
     if params['state'] == 'absent':
-        if not current:
+        if current is None:
             return dict(changed=False, project={}, diff=dict(before={}, after={}))
         if not params['confirm_delete']:
             raise ValueError(
                 'Refusing to delete project %r: that deletes everything in it. Set '
-                'confirm_delete: true to delete it.' % params['name'])
+                'confirm_delete: true to delete it.' % before['name'])
         if not module.check_mode:
-            client.delete('/project/%d' % current['id'])
+            client.delete('/project/%d' % before['id'])
         return dict(changed=True, project={}, diff=dict(before=before, after={}))
 
     desired = dict((k, params[k]) for k in MANAGED)
+    # Found by name, the name already matches. Found by id, a different name is a rename.
+    desired['name'] = params['name']
 
-    if not current:
-        after = project_view(dict(name=params['name'], **dict((k, v) for k, v in desired.items() if v is not None)))
+    if current is None:
+        after = project_view(dict((k, v) for k, v in desired.items() if v is not None))
         after.pop('id')
         if not module.check_mode:
             body = dict(name=params['name'], alert=after['alert'], max_parallel_tasks=after['max_parallel_tasks'])
@@ -171,8 +205,8 @@ def ensure(module, client):
         # The update rewrites name, alert, alert_chat and max_parallel_tasks
         # together, and the handler rejects a body whose id differs from the
         # URL's, so the whole object is always sent.
-        client.put('/project/%d' % current['id'], dict(
-            id=current['id'],
+        client.put('/project/%d' % before['id'], dict(
+            id=before['id'],
             name=after['name'],
             alert=after['alert'],
             alert_chat=after['alert_chat'],
@@ -185,6 +219,7 @@ def main():
     argument_spec = semaphore_argument_spec()
     argument_spec.update(
         name=dict(type='str', required=True),
+        id=dict(type='int'),
         state=dict(type='str', default='present', choices=['present', 'absent']),
         alert=dict(type='bool'),
         alert_chat=dict(type='str'),

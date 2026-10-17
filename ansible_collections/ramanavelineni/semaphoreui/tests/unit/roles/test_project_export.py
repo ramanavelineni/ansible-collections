@@ -55,6 +55,22 @@ def play_tasks():
     return list(flatten(plays[0]['tasks']))
 
 
+# A value that a condition may leave out.
+OMITTABLE = re.compile(r'\belse omit \}\}\Z')
+
+
+def variants(args):
+    """The arguments a module can get from `args`: each "... else omit" value may be left out.
+
+    Two such options are one or the other, as the name or the id of a project:
+    the module gets one at a time, so each is checked without the others.
+    """
+    optional = [key for key, value in args.items() if isinstance(value, str) and OMITTABLE.search(value)]
+    if len(optional) < 2:
+        return [args]
+    return [dict((key, value) for key, value in args.items() if key not in optional or key == kept) for kept in optional]
+
+
 def calls(tasks):
     """(task name, module, arguments) for every task that calls a module of this collection."""
     found = []
@@ -88,7 +104,7 @@ def test_every_task_is_named_and_calls_one_thing_by_its_full_name(tasks):
 def test_the_modules_accept_what_the_tasks_give_them(tasks):
     wrong = []
     for name, called, args in calls(tasks()):
-        for problem in problems(called, args):
+        for problem in set(problem for variant in variants(args) for problem in problems(called, variant)):
             wrong.append('task %r (%s): %s' % (name, called, problem))
     assert not wrong, '\n'.join(wrong)
 

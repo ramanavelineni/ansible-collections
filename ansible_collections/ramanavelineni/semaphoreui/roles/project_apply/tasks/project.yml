@@ -104,6 +104,7 @@
 - name: "Project {{ __project_apply_project.name }}"
   ramanavelineni.semaphoreui.project:
     name: "{{ __project_apply_project.name }}"
+    id: "{{ __project_apply_project.id | default(omit) }}"
     state: "{{ __project_apply_project.state | default(omit) }}"
     alert: "{{ __project_apply_project.alert | default(omit) }}"
     alert_chat: "{{ __project_apply_project.alert_chat | default(omit) }}"
@@ -111,11 +112,18 @@
     confirm_delete: "{{ __project_apply_project.confirm_delete | default(omit) }}"
   register: __project_apply_done_project
 
+# Every task below names the project by the id the task above returned, so it
+# reads only that project and not the list Semaphore cuts off at 200 rows. The
+# name is used only when there is no id: in check mode for a project that
+# doesn't exist yet (each task then reports a change without comparing), and
+# after the project was deleted.
+
 # ---- create and update --------------------------------------------------
 
 - name: "Key Store ({{ __project_apply_project.name }})"
   ramanavelineni.semaphoreui.key_store:
-    project: "{{ __project_apply_project.name }}"
+    project: "{{ omit if __project_apply_done_project.project.id is defined else __project_apply_project.name }}"
+    project_id: "{{ __project_apply_done_project.project.id | default(omit) }}"
     name: "{{ item.key }}"
     state: "{{ (item.value | default({}, true)).state | default(omit) }}"
     type: "{{ (item.value | default({}, true)).type | default(omit) }}"
@@ -132,7 +140,8 @@
 
 - name: "Repositories ({{ __project_apply_project.name }})"
   ramanavelineni.semaphoreui.repository:
-    project: "{{ __project_apply_project.name }}"
+    project: "{{ omit if __project_apply_done_project.project.id is defined else __project_apply_project.name }}"
+    project_id: "{{ __project_apply_done_project.project.id | default(omit) }}"
     name: "{{ item.key }}"
     state: "{{ (item.value | default({}, true)).state | default(omit) }}"
     git_url: "{{ (item.value | default({}, true)).git_url | default(omit) }}"
@@ -146,7 +155,8 @@
 
 - name: "Inventories ({{ __project_apply_project.name }})"
   ramanavelineni.semaphoreui.inventory:
-    project: "{{ __project_apply_project.name }}"
+    project: "{{ omit if __project_apply_done_project.project.id is defined else __project_apply_project.name }}"
+    project_id: "{{ __project_apply_done_project.project.id | default(omit) }}"
     name: "{{ item.key }}"
     state: "{{ (item.value | default({}, true)).state | default(omit) }}"
     type: "{{ (item.value | default({}, true)).type | default(omit) }}"
@@ -162,7 +172,8 @@
 
 - name: "Variable groups ({{ __project_apply_project.name }})"
   ramanavelineni.semaphoreui.variable_group:
-    project: "{{ __project_apply_project.name }}"
+    project: "{{ omit if __project_apply_done_project.project.id is defined else __project_apply_project.name }}"
+    project_id: "{{ __project_apply_done_project.project.id | default(omit) }}"
     name: "{{ item.key }}"
     state: "{{ (item.value | default({}, true)).state | default(omit) }}"
     json: "{{ (item.value | default({}, true)).json | default(omit) }}"
@@ -179,7 +190,8 @@
 
 - name: "Views ({{ __project_apply_project.name }})"
   ramanavelineni.semaphoreui.view:
-    project: "{{ __project_apply_project.name }}"
+    project: "{{ omit if __project_apply_done_project.project.id is defined else __project_apply_project.name }}"
+    project_id: "{{ __project_apply_done_project.project.id | default(omit) }}"
     name: "{{ item.key }}"
     state: "{{ (item.value | default({}, true)).state | default(omit) }}"
     position: "{{ (item.value | default({}, true)).position | default(omit) }}"
@@ -194,7 +206,8 @@
 
 - name: "Templates ({{ __project_apply_project.name }})"
   ramanavelineni.semaphoreui.template:
-    project: "{{ __project_apply_project.name }}"
+    project: "{{ omit if __project_apply_done_project.project.id is defined else __project_apply_project.name }}"
+    project_id: "{{ __project_apply_done_project.project.id | default(omit) }}"
     name: "{{ item.key }}"
     state: "{{ (item.value | default({}, true)).state | default(omit) }}"
     app: "{{ (item.value | default({}, true)).app | default(omit) }}"
@@ -226,7 +239,8 @@
 
 - name: "Schedules ({{ __project_apply_project.name }})"
   ramanavelineni.semaphoreui.schedule:
-    project: "{{ __project_apply_project.name }}"
+    project: "{{ omit if __project_apply_done_project.project.id is defined else __project_apply_project.name }}"
+    project_id: "{{ __project_apply_done_project.project.id | default(omit) }}"
     name: "{{ item.key }}"
     state: "{{ (item.value | default({}, true)).state | default(omit) }}"
     template: "{{ (item.value | default({}, true)).template | default(omit) }}"
@@ -243,7 +257,8 @@
 
 - name: "Integrations ({{ __project_apply_project.name }})"
   ramanavelineni.semaphoreui.integration:
-    project: "{{ __project_apply_project.name }}"
+    project: "{{ omit if __project_apply_done_project.project.id is defined else __project_apply_project.name }}"
+    project_id: "{{ __project_apply_done_project.project.id | default(omit) }}"
     name: "{{ item.key }}"
     state: "{{ (item.value | default({}, true)).state | default(omit) }}"
     template: "{{ (item.value | default({}, true)).template | default(omit) }}"
@@ -275,7 +290,8 @@
 
 - name: "Team ({{ __project_apply_project.name }})"
   ramanavelineni.semaphoreui.team_member:
-    project: "{{ __project_apply_project.name }}"
+    project: "{{ omit if __project_apply_done_project.project.id is defined else __project_apply_project.name }}"
+    project_id: "{{ __project_apply_done_project.project.id | default(omit) }}"
     user: "{{ item.key }}"
     role: "{{ (item.value | default({}, true)).role | default(omit) }}"
     state: "{{ (item.value | default({}, true)).state | default(omit) }}"
@@ -289,7 +305,8 @@
 
 - name: "Delete team ({{ __project_apply_project.name }})"
   ramanavelineni.semaphoreui.team_member:
-    project: "{{ __project_apply_project.name }}"
+    project: "{{ omit if __project_apply_done_project.project.id is defined else __project_apply_project.name }}"
+    project_id: "{{ __project_apply_done_project.project.id | default(omit) }}"
     user: "{{ item.key }}"
     state: absent
   loop: "{{ __project_apply_project.team_member | default({}, true) | dict2items }}"
@@ -300,7 +317,8 @@
 
 - name: "Delete integrations ({{ __project_apply_project.name }})"
   ramanavelineni.semaphoreui.integration:
-    project: "{{ __project_apply_project.name }}"
+    project: "{{ omit if __project_apply_done_project.project.id is defined else __project_apply_project.name }}"
+    project_id: "{{ __project_apply_done_project.project.id | default(omit) }}"
     name: "{{ item.key }}"
     state: absent
   loop: "{{ __project_apply_project.integration | default({}, true) | dict2items }}"
@@ -311,7 +329,8 @@
 
 - name: "Delete schedules ({{ __project_apply_project.name }})"
   ramanavelineni.semaphoreui.schedule:
-    project: "{{ __project_apply_project.name }}"
+    project: "{{ omit if __project_apply_done_project.project.id is defined else __project_apply_project.name }}"
+    project_id: "{{ __project_apply_done_project.project.id | default(omit) }}"
     name: "{{ item.key }}"
     state: absent
   loop: "{{ __project_apply_project.schedule | default({}, true) | dict2items }}"
@@ -322,7 +341,8 @@
 
 - name: "Delete templates ({{ __project_apply_project.name }})"
   ramanavelineni.semaphoreui.template:
-    project: "{{ __project_apply_project.name }}"
+    project: "{{ omit if __project_apply_done_project.project.id is defined else __project_apply_project.name }}"
+    project_id: "{{ __project_apply_done_project.project.id | default(omit) }}"
     name: "{{ item.key }}"
     state: absent
   loop: "{{ __project_apply_project.template | default({}, true) | dict2items }}"
@@ -333,7 +353,8 @@
 
 - name: "Delete views ({{ __project_apply_project.name }})"
   ramanavelineni.semaphoreui.view:
-    project: "{{ __project_apply_project.name }}"
+    project: "{{ omit if __project_apply_done_project.project.id is defined else __project_apply_project.name }}"
+    project_id: "{{ __project_apply_done_project.project.id | default(omit) }}"
     name: "{{ item.key }}"
     state: absent
   loop: "{{ __project_apply_project.view | default({}, true) | dict2items }}"
@@ -344,7 +365,8 @@
 
 - name: "Delete variable groups ({{ __project_apply_project.name }})"
   ramanavelineni.semaphoreui.variable_group:
-    project: "{{ __project_apply_project.name }}"
+    project: "{{ omit if __project_apply_done_project.project.id is defined else __project_apply_project.name }}"
+    project_id: "{{ __project_apply_done_project.project.id | default(omit) }}"
     name: "{{ item.key }}"
     state: absent
   loop: "{{ __project_apply_project.variable_group | default({}, true) | dict2items }}"
@@ -355,7 +377,8 @@
 
 - name: "Delete inventories ({{ __project_apply_project.name }})"
   ramanavelineni.semaphoreui.inventory:
-    project: "{{ __project_apply_project.name }}"
+    project: "{{ omit if __project_apply_done_project.project.id is defined else __project_apply_project.name }}"
+    project_id: "{{ __project_apply_done_project.project.id | default(omit) }}"
     name: "{{ item.key }}"
     state: absent
   loop: "{{ __project_apply_project.inventory | default({}, true) | dict2items }}"
@@ -366,7 +389,8 @@
 
 - name: "Delete repositories ({{ __project_apply_project.name }})"
   ramanavelineni.semaphoreui.repository:
-    project: "{{ __project_apply_project.name }}"
+    project: "{{ omit if __project_apply_done_project.project.id is defined else __project_apply_project.name }}"
+    project_id: "{{ __project_apply_done_project.project.id | default(omit) }}"
     name: "{{ item.key }}"
     state: absent
   loop: "{{ __project_apply_project.repository | default({}, true) | dict2items }}"
@@ -377,7 +401,8 @@
 
 - name: "Delete keys ({{ __project_apply_project.name }})"
   ramanavelineni.semaphoreui.key_store:
-    project: "{{ __project_apply_project.name }}"
+    project: "{{ omit if __project_apply_done_project.project.id is defined else __project_apply_project.name }}"
+    project_id: "{{ __project_apply_done_project.project.id | default(omit) }}"
     name: "{{ item.key }}"
     state: absent
   loop: "{{ __project_apply_project.key_store | default({}, true) | dict2items }}"

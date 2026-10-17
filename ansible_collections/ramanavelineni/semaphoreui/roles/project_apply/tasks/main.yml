@@ -50,6 +50,55 @@
       {%- endfor -%}
       {{ bad }}
 
+# Two files (or directories) that name the same project would apply one
+# after the other to the same project. Each project is read here, before
+# the first one is applied, so that nothing changes when two collide.
+- name: Find the files of the project directories
+  ansible.builtin.find:
+    paths: "{{ __project_apply_dirs.files | map(attribute='path') | list }}"
+    patterns:
+      - "*.yml"
+      - "*.yaml"
+  register: __project_apply_dir_scan
+  when: __project_apply_dirs.files | length > 0
+
+- name: Read the name of each project
+  ansible.builtin.include_vars:
+    file: "{{ item }}"
+    name: __project_apply_name_scan
+  loop: >-
+    {{ ((__project_apply_files.files + (__project_apply_dir_scan.files | default([])))
+        | map(attribute='path') | sort) }}
+  loop_control:
+    label: "{{ item | relpath(project_apply_path) }}"
+  register: __project_apply_named
+  no_log: "{{ project_apply_no_log | bool }}"
+
+- name: Check that no project name is declared twice
+  ansible.builtin.assert:
+    that: __project_apply_same_name | length == 0
+    fail_msg: >-
+      {{ project_apply_path }} declares the same project name in more than one place:
+      {{ __project_apply_same_name | join(', ') }}. Each project is declared once. Nothing was changed.
+    quiet: true
+  vars:
+    __project_apply_same_name: >-
+      {%- set seen = {} -%}
+      {%- set bad = [] -%}
+      {%- for result in __project_apply_named.results -%}
+      {%-   set found = result.ansible_facts['__project_apply_name_scan'] | default({}) -%}
+      {%-   if found is mapping and found.name is defined -%}
+      {%-     set name = found.name | string -%}
+      {%-     set file = result.item | relpath(project_apply_path) -%}
+      {%-     if name in seen -%}
+      {%-       set _ = bad.append(name ~ ' (' ~ seen[name] ~ ', ' ~ file ~ ')') -%}
+      {%-     else -%}
+      {%-       set _ = seen.update({name: file}) -%}
+      {%-     endif -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ bad }}
+
 - name: Apply each project
   ansible.builtin.include_tasks: project.yml
   loop: "{{ (__project_apply_files.files + __project_apply_dirs.files) | map(attribute='path') | sort }}"

@@ -62,6 +62,8 @@ schedule:
   keyed by name (`team_member` by login name). An entry takes the options of
   the module of that name; see `ansible-doc ramanavelineni.semaphoreui.<module>`.
 - Every other key is an option of the `project` module. `name` is required.
+- `id` is optional: the id of a project that already exists. See
+  [Projects by id](#projects-by-id).
 - A key that starts with an underscore is ignored: a place for YAML anchors.
 - Values may use variables (`{{ ... }}`), so secrets can come from a vault.
 
@@ -69,7 +71,8 @@ schedule:
 
 1. An option a module doesn't have, a project described twice (a file and a
    directory, or `.yml` and `.yaml`) and an entry declared in two files of a
-   directory all fail before anything is changed.
+   directory all fail before anything is changed. Two files that declare the
+   same project `name:` are refused before anything changes.
 2. Everything declared is created or updated, in dependency order: the
    project, keys, repositories, inventories, variable groups, views,
    templates, schedules, integrations, team.
@@ -85,6 +88,25 @@ A new integration's webhook URL is shown in the output of the run, only with
 `project_apply_no_log: false`. With `auth_method: none` the URL alone is enough
 to start the task, so with the default it stays out of the logs. The
 integration's page in Semaphore shows it.
+
+## Projects by id
+
+Semaphore lists at most 200 projects. On a server with more, a project is found
+only by its id, so give it in the project file:
+
+```yaml
+# projects/site.yml
+id: 7
+name: site
+```
+
+- The role then reads project 7 only. When its name is not `site`, it is
+  renamed to `site`.
+- A project with an `id` must exist. Semaphore picks the id of a new project,
+  so leave `id` out to create one, then add the id it got.
+- The keys, repositories and other entries of a project name it by its id,
+  with or without `id` in the file. Only in a check run for a project that
+  doesn't exist yet do they name it by `name`.
 
 ## Variables
 

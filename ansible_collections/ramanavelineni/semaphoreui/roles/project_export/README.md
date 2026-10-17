@@ -20,6 +20,7 @@ key_store:
       login: "{{ vault_homelab_key_deploy_ssh_login }}"
       passphrase: "{{ vault_homelab_key_deploy_ssh_passphrase }}"
       private_key: "{{ vault_homelab_key_deploy_ssh_private_key }}"
+    update_secret: on_create
 
 repository:
   ansible:
@@ -58,13 +59,13 @@ normally runs on `localhost`.
 | Variable | Default | What it is |
 |---|---|---|
 | `project_export_project` | | Name of the project. One of this and `project_export_project_id` is required |
-| `project_export_project_id` | | Id of the project, for a server with 200 or more projects, where a project cannot be found by name |
+| `project_export_project_id` | | Id of the project. The role reads the project by its id, so this finds it also on a server with 200 or more projects, where Semaphore cuts the list off and a name may not be found |
 | `project_export_dest` | required | Directory to write into. It is created if it is not there |
 | `project_export_layout` | `file` | `file`: one file, `<dest>/<name>.yml`. `directory`: `<dest>/<name>/` with `project.yml` and one file per section that has objects |
 | `project_export_file_name` | the project's name | Name of the file or directory, without `.yml` |
 | `project_export_vault_prefix` | `vault` | What the names of the variables that stand for secrets start with |
-| `project_export_vault_file` | `<dest>/<name>.vault.example` | File that lists those variables |
-| `project_export_overwrite` | `false` | Whether a file that exists and differs may be replaced |
+| `project_export_vault_file` | `<dest>/<name>.vault.example` | File that lists those variables. Written only when it does not exist yet |
+| `project_export_overwrite` | `false` | Whether a project file that exists and differs in content may be replaced. Never the vault file |
 | `project_export_file_mode` | `0644` | Mode of the files |
 | `project_export_directory_mode` | `0755` | Mode of the directories the role creates |
 
@@ -98,7 +99,33 @@ applying the project loads. A value may stay empty where the object has none,
 such as a key without a passphrase. The exported project can be applied as soon
 as the variables are defined. Inside the directory `project_apply` reads, the
 name of this file must not end in `.yml` or `.yaml`, or it would be taken for a
-project; the default name does not.
+project. The default name does not.
+
+The role writes this file only when it does not exist yet. It never replaces
+it, also not with `project_export_overwrite`, because it may hold the values
+you filled in. When the project gains a secret, the message at the end of the
+run names every variable to define. To get a fresh list, remove the file or
+point `project_export_vault_file` at a new one.
+
+### Sending secrets again
+
+Every key and variable group that has a secret is written with
+`update_secret: on_create`. Semaphore never returns a secret, so it cannot be
+compared with the vault value. With `on_create`, applying the export sends a
+secret only when the key, or the secret of a variable group, is new. A second
+apply of an unchanged project then reports no change.
+
+A changed vault value is therefore not sent to an object that exists. To push
+it, set `update_secret: always` on that entry for one apply:
+
+```yaml
+key_store:
+  deploy:
+    type: ssh
+    ssh:
+      private_key: "{{ vault_homelab_key_deploy_ssh_private_key }}"
+    update_secret: always
+```
 
 Some fields are not secrets to Semaphore but can carry one: a repository's
 `git_url` with credentials in it, the content of a static inventory with
@@ -120,9 +147,10 @@ committing them. Webhook URLs are not written.
   variable on Semaphore 2.19. The modules keep such a field when they update a
   template, but it is not in the file, so a project built from the file on
   another server does not have it.
-- **Run options:** `state`, `update_secret`, `purge_secrets`,
-  `force_repository_key_update` and `confirm_delete` say what a run should do,
-  not what an object is. Add them to the file by hand where you want them.
+- **Run options:** `state`, `purge_secrets`, `force_repository_key_update`
+  and `confirm_delete` say what a run should do, not what an object is. Add
+  them to the file by hand where you want them. `update_secret` is the one run
+  option the export writes (see [Sending secrets again](#sending-secrets-again)).
 
 A value Semaphore stores that looks like a template, such as `{{ name }}` in a
 variable group's JSON, is written with the `!unsafe` tag, so that loading the
@@ -136,8 +164,11 @@ changed on the server. Templates are the one exception to the order: a build
 template comes before the deploy templates that name it, because `project_apply`
 creates them in the order of the file.
 
-A file that exists and differs from the project on the server is not replaced:
-the role stops before it writes anything and names the file. That protects
+A file that exists and differs from the project on the server is not replaced.
+The role stops before it writes anything and names the file. Only the content
+counts: a file with the same content and another mode, such as `0600`, does
+not differ, and keeps its mode. That protects
 edits made by hand, such as shared settings moved into a YAML anchor. Set
 `project_export_overwrite: true` to replace what differs. With the `directory`
 layout this also removes the file of a section that has no objects any more.
+The vault file is never replaced.

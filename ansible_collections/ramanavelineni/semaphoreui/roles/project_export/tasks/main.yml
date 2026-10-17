@@ -15,32 +15,26 @@
       project_export_layout is file or directory.
     quiet: true
 
+# By id, project_info reads the one project and not the list of all of
+# them, which Semaphore cuts off at 200.
 - name: Find the project
   ramanavelineni.semaphoreui.project_info:
     name: "{{ (project_export_project | string) if project_export_project | string | length > 0 else omit }}"
+    id: "{{ (project_export_project_id | int) if project_export_project_id | int > 0 else omit }}"
   register: __project_export_projects
 
 - name: Check that the project exists
   ansible.builtin.assert:
-    that: __project_export_matches | length == 1
+    that: __project_export_projects.projects | length == 1
     fail_msg: >-
-      {{ 'No project' if __project_export_matches | length == 0 else 'More than one project' }}
+      {{ 'No project' if __project_export_projects.projects | length == 0 else 'More than one project' }}
       {{ ('named ' ~ project_export_project) if project_export_project | string | length > 0
          else ('with the id ' ~ project_export_project_id) }} on this server.
     quiet: true
-  vars:
-    __project_export_matches: >-
-      {{ __project_export_projects.projects
-         if project_export_project | string | length > 0
-         else (__project_export_projects.projects | selectattr('id', 'equalto', project_export_project_id | int) | list) }}
 
 - name: Export the project
   vars:
-    __project_export_found: >-
-      {{ (__project_export_projects.projects
-          if project_export_project | string | length > 0
-          else (__project_export_projects.projects | selectattr('id', 'equalto', project_export_project_id | int) | list))
-         | first }}
+    __project_export_found: "{{ __project_export_projects.projects | first }}"
     __project_export_name: >-
       {{ (project_export_file_name | string) if project_export_file_name | string | length > 0
          else __project_export_found.name }}
@@ -160,43 +154,35 @@
         label: "{{ item.path }}"
       register: __project_export_present
 
-    # The task that writes a file, run in check mode: it changes nothing and
-    # tells whether the file differs from what would be written.
-    - name: Compare the files that are there with the project
-      ansible.builtin.copy:
-        dest: "{{ item.item.path }}"
-        mode: "{{ project_export_file_mode }}"
-        content: "{{ __project_export_text }}"
-      check_mode: true
-      diff: false
+    # A file that is there is the same as the project when its checksum, which
+    # stat gives as the SHA1 of its bytes, is the SHA1 of the text that would
+    # be written. Only the content counts: a file someone made 0600 does not
+    # differ. A vault file that is there is never compared: it is not written
+    # again (see below). A project file that is there while its section has
+    # no objects any more would be removed, so it differs too.
+    - name: Refuse to replace a file that differs
+      ansible.builtin.assert:
+        that: >-
+          project_export_overwrite | bool
+          or not item.stat.exists
+          or item.item.part == 'vault'
+          or (__project_export_text | length > 0 and __project_export_same | bool)
+        fail_msg: >-
+          {{ item.item.path }} exists and differs from the project on the
+          server{{ ' (the section has no objects any more)' if __project_export_text | length == 0 else '' }}.
+          Nothing was written. Set project_export_overwrite to true to replace
+          what differs.
+        quiet: true
       loop: "{{ __project_export_present.results }}"
       loop_control:
         label: "{{ item.item.path }}"
       vars:
         __project_export_part: "{{ item.item.part }}"
-      when:
-        - item.stat.exists
-        - __project_export_text | length > 0
-      register: __project_export_compared
+        __project_export_same: "{{ (item.stat.checksum | default('')) == (__project_export_text | hash('sha1')) }}"
 
-    # A file that was skipped above and exists belongs to a section that has
-    # no objects any more: it would be removed.
-    - name: Refuse to replace a file that differs
-      ansible.builtin.assert:
-        that: >-
-          project_export_overwrite | bool
-          or not item.item.stat.exists
-          or (item is not skipped and item is not changed)
-        fail_msg: >-
-          {{ item.item.item.path }} exists and differs from the project on the
-          server{{ ' (the section has no objects any more)' if item is skipped else '' }}.
-          Nothing was written. Set project_export_overwrite to true to replace
-          what differs.
-        quiet: true
-      loop: "{{ __project_export_compared.results }}"
-      loop_control:
-        label: "{{ item.item.item.path }}"
-
+    # Only a file that is new, or whose content differs, is written. A file
+    # that is there with the same content keeps its mode. A vault file that
+    # is there is never written: it may hold the values filled in by hand.
     - name: Write the files
       ansible.builtin.copy:
         dest: "{{ item.item.path }}"
@@ -207,7 +193,9 @@
         label: "{{ item.item.path }}"
       vars:
         __project_export_part: "{{ item.item.part }}"
+        __project_export_same: "{{ (item.stat.checksum | default('')) == (__project_export_text | hash('sha1')) }}"
       when:
+        - not item.stat.exists or (item.item.part != 'vault' and not (__project_export_same | bool))
         - __project_export_text | length > 0
         # In check mode the directories were not created, and there is nothing to compare a new file with.
         - not (ansible_check_mode and __project_export_directories is changed)

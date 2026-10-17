@@ -6,7 +6,8 @@
 #
 # It builds a project with the modules, exports it, and checks: the files, the
 # list of vault variables, that a second export changes nothing, that a file
-# that differs is not replaced unless asked, and that giving the exported
+# that differs is not replaced unless asked, that a file's mode and a filled-in
+# vault file are no difference and are kept, and that giving the exported
 # options back to the modules changes nothing. Everything it makes is named
 # roletest-export… and is removed again, also when a check fails.
 - name: Test the project_export role
@@ -29,6 +30,10 @@
       - vault_roletest_export_key_roletest_export_ssh_ssh_passphrase
       - vault_roletest_export_key_roletest_export_ssh_ssh_private_key
       - vault_roletest_export_var_roletest_export_vars_token
+    # A vault file as someone filled it in: the role must not replace it.
+    export_filled_vault: |
+      ---
+      vault_roletest_export_var_roletest_export_vars_token: filled-in-by-hand
     # Not a key anyone uses: Semaphore stores what it is given.
     export_private_key: |
       -----BEGIN OPENSSH PRIVATE KEY-----
@@ -194,6 +199,9 @@
               - exported.key_store['roletest-export-ssh'].ssh.login == 'git'
               - exported.key_store['roletest-export-ssh'].ssh.private_key == export_private_key
               - exported.key_store['roletest-export-login'].login_password.password == 'roletest-export-pw'
+              # A secret is sent only for a new object, so applying the export again changes nothing.
+              - exported.key_store['roletest-export-ssh'].update_secret == 'on_create'
+              - exported.key_store['roletest-export-login'].update_secret == 'on_create'
               - exported.repository['roletest-export-repo'].ssh_key == 'roletest-export-ssh'
               - >-
                 exported.inventory['roletest-export-inventory'].inventory
@@ -205,6 +213,7 @@
                 == '{' ~ '{ not_a_variable }' ~ '}'
               - exported.variable_group['roletest-export-vars'].secrets[0].name == 'TOKEN'
               - exported.variable_group['roletest-export-vars'].secrets[0].value == 'roletest-export-token'
+              - exported.variable_group['roletest-export-vars'].update_secret == 'on_create'
               - exported.view['roletest-export-view'].position == 1
               - >-
                 exported.template['roletest-export-site'].vaults
@@ -243,6 +252,49 @@
         - name: Check that the file is the same
           ansible.builtin.assert:
             that: export_text_again.content == export_text.content
+            quiet: true
+
+        # Only the content of a file counts, and a vault file that is there
+        # holds values filled in by hand: neither is a difference.
+        - name: Make the project file private
+          ansible.builtin.file:
+            path: "{{ export_directory.path }}/projects/{{ export_project }}.yml"
+            mode: "0600"
+
+        - name: Fill in the vault file
+          ansible.builtin.copy:
+            dest: "{{ export_directory.path }}/projects/{{ export_project }}.vault.example"
+            mode: "0600"
+            content: "{{ export_filled_vault }}"
+
+        - name: Export the project over the private file and the filled vault file
+          ansible.builtin.include_role:
+            name: ramanavelineni.semaphoreui.project_export
+          vars:
+            project_export_project: "{{ export_project }}"
+            project_export_dest: "{{ export_directory.path }}/projects"
+
+        - name: Look at the private file
+          ansible.builtin.stat:
+            path: "{{ export_directory.path }}/projects/{{ export_project }}.yml"
+          register: export_private
+
+        - name: Read the private file
+          ansible.builtin.slurp:
+            src: "{{ export_directory.path }}/projects/{{ export_project }}.yml"
+          register: export_text_private
+
+        - name: Read the filled vault file
+          ansible.builtin.slurp:
+            src: "{{ export_directory.path }}/projects/{{ export_project }}.vault.example"
+          register: export_vault_kept
+
+        - name: Check that the private file and the vault file were left alone
+          ansible.builtin.assert:
+            that:
+              - export_private.stat.mode == '0600'
+              - export_text_private.content == export_text.content
+              - export_vault_kept.content | b64decode == export_filled_vault
             quiet: true
 
         - name: Change the project on the server
@@ -300,9 +352,17 @@
             file: "{{ export_directory.path }}/projects/{{ export_project }}.yml"
             name: exported
 
-        - name: Check that the file has the change
+        - name: Read the vault file after the overwrite
+          ansible.builtin.slurp:
+            src: "{{ export_directory.path }}/projects/{{ export_project }}.vault.example"
+          register: export_vault_after_overwrite
+
+        - name: Check that the file has the change and the vault file kept its values
           ansible.builtin.assert:
-            that: exported.view['roletest-export-view'].position == 4
+            that:
+              - exported.view['roletest-export-view'].position == 4
+              # project_export_overwrite replaces project files, never a vault file.
+              - export_vault_after_overwrite.content | b64decode == export_filled_vault
             quiet: true
 
         # ---- what was exported, given back to the modules, changes nothing ----
@@ -320,8 +380,9 @@
             type: "{{ item.value.type }}"
             ssh: "{{ item.value.ssh | default(omit) }}"
             login_password: "{{ item.value.login_password | default(omit) }}"
-            # A secret cannot be compared with the stored one; without this it is sent again.
-            update_secret: on_create
+            # From the export: a secret cannot be compared with the stored one, so without it the secret is sent again.
+            # A key without a secret, as the None key every project has, is written without it.
+            update_secret: "{{ (item.value | default({}, true)).update_secret | default(omit) }}"
           loop: "{{ exported.key_store | dict2items }}"
           loop_control:
             label: "{{ item.key }}"
@@ -360,7 +421,7 @@
             json: "{{ item.value.json | default(omit) }}"
             env: "{{ item.value.env | default(omit) }}"
             secrets: "{{ item.value.secrets | default(omit) }}"
-            update_secret: on_create
+            update_secret: "{{ item.value.update_secret | default(omit) }}"
           loop: "{{ exported.variable_group | dict2items }}"
           loop_control:
             label: "{{ item.key }}"
@@ -403,8 +464,8 @@
             project: "{{ export_project }}"
             name: "{{ item.key }}"
             template: "{{ item.value.template }}"
-            # The project has cron schedules only.
-            cron: "{{ item.value.cron }}"
+            # The project has cron schedules only. The export leaves out an empty cron.
+            cron: "{{ (item.value | default({}, true)).cron | default(omit) }}"
             active: "{{ item.value.active | default(omit) }}"
           loop: "{{ exported.schedule | dict2items }}"
           loop_control:
