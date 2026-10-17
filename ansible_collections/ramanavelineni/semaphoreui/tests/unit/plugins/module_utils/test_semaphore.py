@@ -106,6 +106,19 @@ def test_server_minor():
     assert server_minor('') is None and server_minor(None) is None
 
 
+@pytest.mark.parametrize('version, minor, tested', [
+    ('v2.19-rc1', (2, 19), True),
+    ('2.18-beta', (2, 18), True),
+    ('v2.17-rc1', (2, 17), False),
+    ('v2.190-rc1', (2, 190), False),
+])
+def test_a_release_candidate_is_read_the_same_by_both_version_checks(version, minor, tested):
+    # A pre-release has no patch level. The version warning and the checks
+    # for what a server version supports must read it as the same release.
+    assert server_minor(version) == minor
+    assert version_is_tested(version) is tested
+
+
 SHARED_EXCLUSIVE = [('api_token', 'username'), ('api_token', 'password')]
 
 

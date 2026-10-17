@@ -132,6 +132,12 @@ the task that passes them on, no longer matches the module.
   need none; they are listed from their `version_added`. Don't edit
   `CHANGELOG.md` or `changelogs/changelog.yaml`; they are generated at
   release time.
+- **Both copies of the shared files.** `plugins/module_utils/transport.py` (the
+  request loop, retries, masking and failure messages of the clients) and
+  `tests/unit/plugins/utils.py` are the same, byte for byte, in every
+  collection. Change them in all collections at once. `make tools-test`
+  fails when the copies differ. What only one server needs goes in that
+  collection's `semaphore.py`, `harbor.py` or `conftest.py`.
 - **Documentation.** Module docs live in the module's `DOCUMENTATION`,
   `EXAMPLES` and `RETURN`. A new module is also added to its collection's
   README and to `meta/runtime.yml`'s action group.
