@@ -1,0 +1,39 @@
+---
+# A project with an integration that needs no authentication: its webhook URL
+# alone starts the task. tests/roles/tasks/apply_output.yml applies it and
+# checks whether the URL is printed. Nothing here is a real address.
+name: roletest-output
+
+key_store:
+  roletest-none:
+    type: none
+
+repository:
+  roletest-repo:
+    git_url: https://git.example.com/roletest/site.git
+    git_branch: main
+    ssh_key: roletest-none
+
+inventory:
+  roletest-inventory:
+    type: static
+    inventory: localhost ansible_connection=local
+    ssh_key: roletest-none
+
+variable_group:
+  roletest-vars:
+    env:
+      TZ: UTC
+
+template:
+  roletest-site:
+    repository: roletest-repo
+    inventory: roletest-inventory
+    variable_groups:
+      - roletest-vars
+    playbook: site.yml
+
+integration:
+  roletest-open:
+    template: roletest-site
+    auth_method: none

@@ -586,6 +586,16 @@
             that: server_apply_changed
             fail_msg: server_apply reported no change when it deleted the user and the runner
             quiet: true
+
+        # ---- a drift check sends secrets only on create -------------------
+
+        - name: Check that a drift check sends no secret of an existing object
+          ansible.builtin.include_tasks: tasks/apply_drift_override.yml
+
+        # ---- what the roles print ------------------------------------------
+
+        - name: Check what project_apply and server_apply print
+          ansible.builtin.include_tasks: tasks/apply_output.yml
       always:
         - name: Remove what the test created
           ansible.builtin.include_tasks: tasks/apply_cleanup.yml

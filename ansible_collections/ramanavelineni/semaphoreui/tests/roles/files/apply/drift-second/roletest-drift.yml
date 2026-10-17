@@ -1,0 +1,22 @@
+---
+# drift-first/roletest-drift.yml with other secret values and nothing else
+# changed. A drift check must not send these secrets, so it finds nothing
+# that differs. A normal run sends them and reports a change.
+name: roletest-drift
+
+key_store:
+  roletest-drift-login:
+    type: login_password
+    login_password:
+      login: deploy
+      password: roletest-drift-pw-2
+
+variable_group:
+  roletest-drift-vars:
+    env:
+      TZ: UTC
+    secrets:
+      - name: TOKEN
+        type: env
+        value: roletest-drift-tok-2
+    update_secret: always
