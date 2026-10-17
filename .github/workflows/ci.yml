@@ -154,6 +154,11 @@ jobs:
             exit 1
           fi
 
+  # The older ansible-core versions, without coverage (units-coverage measures
+  # it). A pull request runs the oldest and the newest Python each version
+  # supports for modules; the push to main, the weekly run and a release run
+  # every one of them. Each Python takes about a minute in ansible-test's
+  # container, so a pull request saves four.
   units:
     name: Units (${{ matrix.collection }}, ${{ matrix.ansible }})
     needs: changes
@@ -163,13 +168,32 @@ jobs:
       fail-fast: false
       matrix:
         collection: ${{ fromJSON(needs.changes.outputs.collections) }}
-        ansible: [stable-2.18, stable-2.19, stable-2.20]
+        ansible: ["2.18", "2.19", "2.20"]
+        include:
+          - {ansible: "2.18", oldest: "3.8", newest: "3.13"}
+          - {ansible: "2.19", oldest: "3.8", newest: "3.13"}
+          - {ansible: "2.20", oldest: "3.9", newest: "3.14"}
+    defaults:
+      run:
+        working-directory: ansible_collections/ramanavelineni/${{ matrix.collection }}
     steps:
-      - uses: ansible-community/ansible-test-gh-action@v1.18.0
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
         with:
-          ansible-core-version: ${{ matrix.ansible }}
-          collection-root: ansible_collections/ramanavelineni/${{ matrix.collection }}
-          testing-type: units
+          python-version: "3.13"
+      - run: pip install "ansible-core~=${{ matrix.ansible }}.0"
+      - name: Unit tests
+        env:
+          EVENT: ${{ github.event_name }}
+          OLDEST: ${{ matrix.oldest }}
+          NEWEST: ${{ matrix.newest }}
+        run: |
+          if [ "${EVENT}" = pull_request ]; then
+            ansible-test units --docker default --python "${OLDEST}" --color yes
+            ansible-test units --docker default --python "${NEWEST}" --color yes
+          else
+            ansible-test units --docker default --color yes
+          fi
 
   # The newest ansible-core, with coverage: the same unit tests in ansible-test's
   # container, then the floor for the plugin code (see the script). Nothing is
@@ -192,7 +216,17 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install "ansible-core~=2.21.0"
-      - run: ansible-test units --docker --coverage --color yes
+      # A pull request measures coverage on one Python, the one the floor is
+      # reported with; every other run on all of them.
+      - name: Unit tests with coverage
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "${EVENT}" = pull_request ]; then
+            ansible-test units --docker --coverage --python 3.13 --color yes
+          else
+            ansible-test units --docker --coverage --color yes
+          fi
       # The report is made on the runner, from what the container left in
       # tests/output/coverage/: ansible-test only takes exported data with
       # --docker.
@@ -271,10 +305,12 @@ jobs:
   # and the playbooks). Each tested Semaphore version runs once, the older one
   # with the oldest supported ansible-core and the newer one with the newest,
   # because a role is templating, and templating changed between those. A pull
-  # request runs only the newer pair. The server and its admin password exist
-  # only for the run; the password is no secret.
+  # request runs only the newer pair. Each playbook gets its own job and its own
+  # server, so the three run side by side instead of one after the other. The
+  # server and its admin password exist only for the run; the password is no
+  # secret.
   roles:
-    name: Role tests (semaphoreui, Semaphore ${{ matrix.semaphore }}, ansible-core ${{ matrix.ansible }})
+    name: Role tests (semaphoreui, ${{ matrix.playbook }}, Semaphore ${{ matrix.semaphore }}, ansible-core ${{ matrix.ansible }})
     needs: changes
     if: needs.changes.outputs.collections != '[]' && contains(needs.changes.outputs.collections, '"semaphoreui"')
     runs-on: ubuntu-latest
@@ -283,8 +319,8 @@ jobs:
       matrix:
         include: >-
           ${{ fromJSON(github.event_name == 'pull_request'
-              && '[{"semaphore": "v2.19.12", "ansible": "2.21"}]'
-              || '[{"semaphore": "v2.18.30", "ansible": "2.18"}, {"semaphore": "v2.19.12", "ansible": "2.21"}]') }}
+              && '[{"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "apply"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "export"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "roundtrip"}]'
+              || '[{"semaphore": "v2.18.30", "ansible": "2.18", "playbook": "apply"}, {"semaphore": "v2.18.30", "ansible": "2.18", "playbook": "export"}, {"semaphore": "v2.18.30", "ansible": "2.18", "playbook": "roundtrip"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "apply"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "export"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "roundtrip"}]') }}
     services:
       semaphore:
         image: docker.io/semaphoreui/semaphore:${{ matrix.semaphore }}
@@ -318,6 +354,8 @@ jobs:
           echo "::error::Semaphore did not answer on ${SEMAPHORE_URL}/api/ping within 2 minutes"
           exit 1
       - run: .github/scripts/role-test.sh semaphoreui
+        env:
+          ROLE_TEST_PLAYBOOK: ${{ matrix.playbook }}
 
   # Early warning only, in the weekly run: the unit tests on ansible-core's
   # development branch. Not in the needs of "CI result". Units only: sanity on
