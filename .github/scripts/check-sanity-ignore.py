@@ -29,11 +29,12 @@ def matrix_versions(workflow):
         text = f.read()
     # The job, up to the next one: jobs sit at two spaces of indentation.
     job = re.split(r'\n  [a-z][a-z-]*:\n', text.split('\n  sanity:\n', 1)[1], maxsplit=1)[0]
-    line = re.search(r'^\s+for version in ([0-9. ]+); do\s*$', job, re.M)
-    if not line:
+    line = re.search(r'^\s+ansible: \[([^\]]*)\]\s*$', job, re.M)
+    versions = re.findall(r'"([0-9]+\.[0-9]+)"', line.group(1)) if line else []
+    if not versions:
         raise SystemExit('cannot find the versions the sanity job goes through in %s '
-                         '(a line "for version in 2.18 2.19 ...; do")' % workflow)
-    return line.group(1).split()
+                         '(a matrix line \'ansible: ["2.18", "2.19", ...]\')' % workflow)
+    return versions
 
 
 def check(collection_dir, versions):
