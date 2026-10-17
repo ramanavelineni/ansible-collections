@@ -1,6 +1,0 @@
----
-bugfixes:
-  - >-
-    harbor modules - a failure message now quotes at most 500 characters of the server's answer and
-    says how many more there are. A proxy's error page no longer fills the message with several
-    thousand characters. The whole answer is still in ``request_details.response``.
