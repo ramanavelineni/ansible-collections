@@ -1,0 +1,10 @@
+---
+trivial:
+  - >-
+    semaphoreui modules - the 24 modules that take ``project`` and ``project_id`` now document them with
+    the new doc fragments ``project`` and ``project.optional``, and build them with
+    ``project_argument_spec()`` and ``semaphore_module_kwargs(project=...)``. The options and their
+    rules are unchanged.
+  - >-
+    event_info, project_backup, task, task_info - the docs of ``project_id`` now say that it was added
+    in 0.4.0, together with the module.

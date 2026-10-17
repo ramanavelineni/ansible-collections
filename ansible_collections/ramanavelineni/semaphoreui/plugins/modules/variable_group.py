@@ -18,24 +18,14 @@ author:
 extends_documentation_fragment:
   - ramanavelineni.semaphoreui.auth
   - ramanavelineni.semaphoreui.attributes
+  - ramanavelineni.semaphoreui.project
 attributes:
   check_mode:
     support: full
   diff_mode:
     support: full
 options:
-  project:
-    description:
-      - Name of the project the variable group belongs to.
-      - Mutually exclusive with O(project_id); one of the two is required.
-    type: str
   project_id:
-    description:
-      - Id of the project, as an alternative to O(project).
-      - With it the list of projects is not read, so a project is found on a server with 200 or more
-        projects too. Semaphore cuts that list off at 200, and O(project) fails there.
-      - Mutually exclusive with O(project). One of the two is required.
-    type: int
     version_added: 0.3.0
   name:
     description:
@@ -197,8 +187,9 @@ import json
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
-    PROJECT_OPTIONS,
+    PROJECT_REQUIRED,
     find_by_name,
+    project_argument_spec,
     project_ref,
     refuse_delete_if_used,
     run_module,
@@ -359,8 +350,7 @@ def ensure(module, client):
 def main():
     argument_spec = semaphore_argument_spec()
     argument_spec.update(
-        project=dict(type='str'),
-        project_id=dict(type='int'),
+        project_argument_spec(),
         name=dict(type='str', required=True),
         state=dict(type='str', default='present', choices=['present', 'absent']),
         json=dict(type='dict'),
@@ -376,7 +366,7 @@ def main():
     module = AnsibleModule(
         argument_spec=argument_spec,
         supports_check_mode=True,
-        **semaphore_module_kwargs(mutually_exclusive=[PROJECT_OPTIONS], required_one_of=[PROJECT_OPTIONS])
+        **semaphore_module_kwargs(project=PROJECT_REQUIRED)
     )
     run_module(module, lambda client: ensure(module, client), placeholder=dict(variable_group={}, secrets_sent=[], secrets_deleted=[]))
 

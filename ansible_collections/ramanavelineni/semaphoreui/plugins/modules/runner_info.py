@@ -14,30 +14,21 @@ author:
 extends_documentation_fragment:
   - ramanavelineni.semaphoreui.auth
   - ramanavelineni.semaphoreui.attributes
+  - ramanavelineni.semaphoreui.project.optional
 attributes:
   check_mode:
     support: full
   diff_mode:
     support: none
 options:
-  project:
-    description:
-      - Name of the project whose runners to list. Leave it unset for the global runners.
-      - Project runners need Semaphore Pro; a Community server lists none.
-      - Mutually exclusive with O(project_id).
-    type: str
   project_id:
-    description:
-      - Id of the project, as an alternative to O(project).
-      - With it the list of projects is not read, so a project is found on a server with 200 or more
-        projects too. Semaphore cuts that list off at 200, and O(project) fails there.
-      - Mutually exclusive with O(project).
-    type: int
     version_added: 0.3.0
   name:
     description:
       - Only return runners with this name.
     type: str
+notes:
+  - Project runners need Semaphore Pro. A Community server lists none.
 seealso:
   - module: ramanavelineni.semaphoreui.runner
     description: Creates, changes and deletes runners.
@@ -114,7 +105,8 @@ runners:
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
-    PROJECT_OPTIONS,
+    PROJECT_OPTIONAL,
+    project_argument_spec,
     project_ref,
     run_module,
     semaphore_argument_spec,
@@ -143,9 +135,9 @@ def list_runners(module, client):
 
 def main():
     argument_spec = semaphore_argument_spec()
-    argument_spec.update(project=dict(type='str'), project_id=dict(type='int'), name=dict(type='str'))
+    argument_spec.update(project_argument_spec(), name=dict(type='str'))
     module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True,
-                           **semaphore_module_kwargs(mutually_exclusive=[PROJECT_OPTIONS]))
+                           **semaphore_module_kwargs(project=PROJECT_OPTIONAL))
     run_module(module, lambda client: list_runners(module, client))
 
 
