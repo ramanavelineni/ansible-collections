@@ -62,7 +62,10 @@ options:
     type: str
   quota_gb:
     description:
-      - Storage quota in GiB. V(-1) means unlimited.
+      - Storage quota in GiB. V(-1) means unlimited. Any other value must be V(1) or more. V(0) fails, because
+        Harbor replaces it with the default quota per project on create and refuses it on update.
+      - Harbor applies it on create only for a system administrator. For anyone else it stores the default quota
+        per project, and the module warns.
     type: int
   confirm_delete:
     description:
@@ -159,6 +162,8 @@ project:
       description:
         - Storage quota in GiB, V(-1) for unlimited.
         - V(null) when the login user is not an administrator and may not read the quotas.
+        - After a create it is read back from Harbor. If Harbor stored another quota than O(quota_gb), the module
+          warns and shows the stored one.
       type: int
     repo_count:
       description: Number of repositories in the project.
@@ -175,6 +180,7 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     id_from_location,
     older_than,
     project_view as view,
+    require_registry,
     run_module,
     server_minor,
     warn_if_stored_differently,
@@ -254,8 +260,10 @@ def ensure(module, client):
     client.warn_if_untested()
     metadata = normalize_metadata(params['metadata'], server_minor(client))
     storage = None if params['quota_gb'] is None else (-1 if params['quota_gb'] == -1 else params['quota_gb'] * GIB)
-    if params['quota_gb'] is not None and params['quota_gb'] < -1:
-        raise ValueError('quota_gb must be -1 (unlimited) or a number of GiB.')
+    if params['quota_gb'] is not None and params['quota_gb'] < 1 and params['quota_gb'] != -1:
+        # Harbor refuses 0 in a quota update, and on create replaces it with
+        # its default quota per project.
+        raise ValueError('quota_gb must be -1 (unlimited) or 1 or more GiB. Got %d.' % params['quota_gb'])
 
     current = find_project(client, params['name'])
     registries = {}
@@ -282,9 +290,7 @@ def ensure(module, client):
 
     registry_id = None
     if params['proxy_registry']:
-        registry_id = next((rid for rid, name in registries.items() if name == params['proxy_registry']), None)
-        if registry_id is None:
-            raise ValueError('Registry %r does not exist.' % params['proxy_registry'])
+        registry_id = require_registry(registries, params['proxy_registry'])
 
     if not current:
         body = dict(project_name=params['name'],
@@ -303,9 +309,17 @@ def ensure(module, client):
                 find_by_name(client.list('/projects'), params['name'], 'project')
             quota = quota_of(client, created['project_id'])
             after = view(created, quota, registries)
-            if quota is None:
-                # Not readable by this user: report what was asked for.
-                after['quota_gb'] = params['quota_gb']
+            if quota is not None:
+                # Read back: Harbor may have stored another quota than the one sent.
+                warn_if_stored_differently(module, 'project %r' % params['name'],
+                                           ['quota_gb'] if storage is not None and after['quota_gb'] != params['quota_gb'] else [])
+            elif storage is not None:
+                # Only an administrator reads quotas, and Harbor sets the
+                # quota a non-administrator sends to its default quota per
+                # project. What it stored is unknown, so the result says null.
+                module.warn('Harbor applies quota_gb on create only for a system administrator, and the user this module '
+                            'logs in as may not read quotas. Project %r most likely got the default quota per project '
+                            'instead of %d GiB. The result shows quota_gb as null.' % (params['name'], params['quota_gb']))
         return dict(changed=True, project=after, diff=dict(before={}, after=after))
 
     project_id = current['project_id']
@@ -368,7 +382,7 @@ def main():
         confirm_delete=dict(type='bool', default=False),
     )
     module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True)
-    run_module(module, lambda client: ensure(module, client))
+    run_module(module, lambda client: ensure(module, client), placeholder=dict(project={}))
 
 
 if __name__ == '__main__':

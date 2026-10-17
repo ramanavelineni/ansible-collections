@@ -62,10 +62,14 @@
 - name: Show the registration tokens of new runners (shown once)
   ansible.builtin.debug:
     msg: "{{ item.item.key }}: {{ item.registration_token }}"
-  loop: "{{ __server_apply_done_runners.results | default([]) | selectattr('registration_token', 'defined') | selectattr('registration_token') | list }}"
+  # With no_log on the loop is empty, so no item exists to be printed: a
+  # skipped item would show in full with -v, the token included.
+  loop: >-
+    {{ [] if server_apply_no_log | bool else
+       (__server_apply_done_runners.results | default([])
+        | selectattr('registration_token', 'defined') | selectattr('registration_token') | list) }}
   loop_control:
     label: "{{ item.item.key }}"
-  when: not server_apply_no_log | bool
 
 - name: Note what was done
   ansible.builtin.set_fact:

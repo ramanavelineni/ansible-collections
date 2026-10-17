@@ -246,6 +246,7 @@ replication:
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor import (
+    MissingReference,
     find_by_name,
     harbor_argument_spec,
     id_from_location,
@@ -331,7 +332,7 @@ def ensure(module, client):
     registry_ids = dict((r['name'], r['id']) for r in client.list('/registries'))
     for option in ('src_registry', 'dest_registry'):
         if params[option] and params[option] not in registry_ids:
-            raise ValueError('Registry %r does not exist.' % params[option])
+            raise MissingReference('Registry %r does not exist.' % params[option])
 
     before = view(current) if current else {}
     after = dict(before or dict(DEFAULTS, name=params['name'], id=None))
@@ -395,7 +396,7 @@ def main():
     )
     module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True,
                            mutually_exclusive=[('src_registry', 'dest_registry')])
-    run_module(module, lambda client: ensure(module, client))
+    run_module(module, lambda client: ensure(module, client), placeholder=dict(replication={}))
 
 
 if __name__ == '__main__':

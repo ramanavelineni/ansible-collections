@@ -1,0 +1,23 @@
+---
+# A key and a variable group whose secrets are sent on every run: the key by
+# default, the variable group by update_secret: always.
+# tests/roles/tasks/apply_drift_override.yml creates them from this file.
+# Nothing here is a real secret.
+name: roletest-drift
+
+key_store:
+  roletest-drift-login:
+    type: login_password
+    login_password:
+      login: deploy
+      password: roletest-drift-pw-1
+
+variable_group:
+  roletest-drift-vars:
+    env:
+      TZ: UTC
+    secrets:
+      - name: TOKEN
+        type: env
+        value: roletest-drift-tok-1
+    update_secret: always

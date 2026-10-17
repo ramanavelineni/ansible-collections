@@ -33,7 +33,8 @@ options:
   state:
     description:
       - V(present) creates the policy or updates it to match.
-      - V(absent) deletes the policy (the artifacts are not touched).
+      - V(absent) deletes the policy (the artifacts are not touched). When the project no longer exists, it reports
+        no change.
     type: str
     choices: [present, absent]
     default: present
@@ -244,7 +245,10 @@ def ensure(module, client):
     client.warn_if_untested()
     rules = desired_rules(params['rules']) if params['rules'] is not None else None
 
-    project = project_by_name(client, params['project'])
+    project = project_by_name(client, params['project'], missing_ok=params['state'] == 'absent')
+    if project is None:
+        # The project is gone, and its retention policy went with it.
+        return dict(changed=False, tag_retention={}, diff=dict(before={}, after={}))
     project_id = project['project_id']
     policy_id = (project.get('metadata') or {}).get('retention_id')
     current = client.get('/retentions/%s' % policy_id) if policy_id else None
@@ -304,7 +308,7 @@ def main():
         )),
     )
     module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True)
-    run_module(module, lambda client: ensure(module, client))
+    run_module(module, lambda client: ensure(module, client), placeholder=dict(tag_retention={}))
 
 
 if __name__ == '__main__':

@@ -297,11 +297,17 @@ def test_scoped_module_fails_when_harbor_stays_anonymous(server, run_module, mod
 
 
 @pytest.mark.parametrize('module, args, listing, routes', SCOPED, ids=IDS)
-def test_scoped_module_still_says_a_missing_project_is_missing(server, run_module, module, args, listing, routes):
+def test_scoped_module_takes_a_project_for_missing_only_after_the_login_held(
+        server, run_module, module, args, listing, routes):
     server.route('GET', '/projects', dict(NO_PROJECTS))
     result = run_module(module.main, args)
-    assert result['failed'] is True
-    assert 'Project %r does not exist' % args['project'] in result['msg']
+    if args.get('state') == 'absent':
+        # The project is gone, and the object went with it.
+        assert result.get('failed') is not True
+        assert result['changed'] is False
+    else:
+        assert result['failed'] is True
+        assert 'Project %r does not exist' % args['project'] in result['msg']
     assert len(server.calls('GET', '/projects')) == 1
     assert len(server.calls('GET', '/systeminfo')) == 2
     assert lock_waits() == []

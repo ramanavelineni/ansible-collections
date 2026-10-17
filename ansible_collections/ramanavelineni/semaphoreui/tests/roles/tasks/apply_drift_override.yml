@@ -1,0 +1,133 @@
+---
+# A drift check sends a secret only for an object it creates, whatever
+# update_secret says. Included by apply.yml. The rest of apply.yml sets
+# update_secret: on_create everywhere, so it never sees the override at work.
+# Here the secrets are sent on every run (update_secret: always, or no
+# update_secret), and the second run declares other secret values:
+#   - without a drift check that run reports a change (shown in check mode),
+#   - with a drift check it reports none and sends nothing.
+
+# ---- project_apply: a key and a variable group ------------------------------
+
+- name: Create a key and a variable group that send their secrets on every run
+  ansible.builtin.include_role:
+    name: ramanavelineni.semaphoreui.project_apply
+  vars:
+    project_apply_path: "{{ roletest_files }}/drift-first"
+
+- name: The first run creates them
+  ansible.builtin.assert:
+    that: project_apply_changed
+    fail_msg: project_apply reported no change when it created roletest-drift
+    quiet: true
+
+- name: Without a drift check, other secret values are a change
+  check_mode: true
+  block:
+    - name: Apply the other secret values in check mode
+      ansible.builtin.include_role:
+        name: ramanavelineni.semaphoreui.project_apply
+      vars:
+        project_apply_path: "{{ roletest_files }}/drift-second"
+
+    - name: The run without a drift check would send the secrets
+      ansible.builtin.assert:
+        that: project_apply_changed
+        fail_msg: >-
+          project_apply reported no change for secrets sent on every run, so the drift check below
+          proves nothing
+        quiet: true
+
+- name: Apply the other secret values with a drift check
+  ansible.builtin.include_role:
+    name: ramanavelineni.semaphoreui.project_apply
+  vars:
+    project_apply_path: "{{ roletest_files }}/drift-second"
+    project_apply_drift_check: true
+
+- name: The drift check sends no secret of an existing key or variable group
+  ansible.builtin.assert:
+    that: not project_apply_changed
+    fail_msg: project_apply reported a change in a drift check, so it sent a secret of an existing object
+    quiet: true
+
+# ---- server_apply: a user's password -----------------------------------------
+
+- name: Create a user whose password is sent on every run
+  ansible.builtin.include_role:
+    name: ramanavelineni.semaphoreui.server_apply
+  vars:
+    server_apply_users:
+      roletest-drift-user:
+        name: Role Test Drift
+        email: roletest-drift-user@example.com
+        user_password: roletest-drift-user-pw-1
+
+- name: The first run creates the user
+  ansible.builtin.assert:
+    that: server_apply_changed
+    fail_msg: server_apply reported no change when it created roletest-drift-user
+    quiet: true
+
+- name: Without a drift check, another password is a change
+  check_mode: true
+  block:
+    - name: Apply another password in check mode
+      ansible.builtin.include_role:
+        name: ramanavelineni.semaphoreui.server_apply
+      vars:
+        server_apply_users:
+          roletest-drift-user:
+            name: Role Test Drift
+            email: roletest-drift-user@example.com
+            user_password: roletest-drift-user-pw-2
+
+    - name: The run without a drift check would send the password
+      ansible.builtin.assert:
+        that: server_apply_changed
+        fail_msg: server_apply reported no change for a password sent on every run, so the drift check below proves nothing
+        quiet: true
+
+- name: Apply another password with a drift check
+  ansible.builtin.include_role:
+    name: ramanavelineni.semaphoreui.server_apply
+  vars:
+    server_apply_users:
+      roletest-drift-user:
+        name: Role Test Drift
+        email: roletest-drift-user@example.com
+        user_password: roletest-drift-user-pw-2
+    server_apply_drift_check: true
+
+- name: The drift check reports no change for the user
+  ansible.builtin.assert:
+    that: not server_apply_changed
+    fail_msg: server_apply reported a change in a drift check, so it sent the password of an existing user
+    quiet: true
+
+# The task's own username and password replace SEMAPHORE_* for these two
+# reads. A refused login fails the module, and a failed result holds no
+# `projects`.
+- name: Log in as the user with the password of the drift check
+  ramanavelineni.semaphoreui.project_info:
+    username: roletest-drift-user
+    password: roletest-drift-user-pw-2
+  register: roletest_drift_login_new
+  failed_when: false
+
+- name: Log in as the user with the password it was created with
+  ramanavelineni.semaphoreui.project_info:
+    username: roletest-drift-user
+    password: roletest-drift-user-pw-1
+  register: roletest_drift_login_old
+  failed_when: false
+
+- name: The user still has the password it was created with
+  ansible.builtin.assert:
+    that:
+      - roletest_drift_login_new.projects is not defined
+      - roletest_drift_login_old.projects is defined
+    fail_msg: >-
+      Login with the password of the drift check: {{ roletest_drift_login_new.msg | default('accepted') }}.
+      Login with the first password: {{ roletest_drift_login_old.msg | default('accepted') }}.
+    quiet: true

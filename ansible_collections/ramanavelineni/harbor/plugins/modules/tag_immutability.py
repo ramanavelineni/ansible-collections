@@ -31,7 +31,7 @@ options:
   state:
     description:
       - V(present) creates the rule, or switches it on or off to match O(disabled).
-      - V(absent) deletes it.
+      - V(absent) deletes it. When the project no longer exists, it reports no change.
     type: str
     choices: [present, absent]
     default: present
@@ -152,7 +152,10 @@ def rule_body(options, disabled, rule_id=None):
 def ensure(module, client):
     params = module.params
     client.warn_if_untested()
-    project = project_by_name(client, params['project'])
+    project = project_by_name(client, params['project'], missing_ok=params['state'] == 'absent')
+    if project is None:
+        # The project is gone, and its immutability rules went with it.
+        return dict(changed=False, tag_immutability={}, diff=dict(before={}, after={}))
     base = '/projects/%d/immutabletagrules' % project['project_id']
     wanted = dict((k, params[k]) for k in SIGNATURE)
 
@@ -201,7 +204,7 @@ def main():
         disabled=dict(type='bool'),
     )
     module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True)
-    run_module(module, lambda client: ensure(module, client))
+    run_module(module, lambda client: ensure(module, client), placeholder=dict(tag_immutability={}))
 
 
 if __name__ == '__main__':

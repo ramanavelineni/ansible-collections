@@ -354,9 +354,13 @@ def read_as_user(client, read, settled, what):
     return answer
 
 
-def run_module(module, handler):
-    """Run handler(client) after the login check, with uniform error reporting."""
-    transport.run_client(module, HarborClient(module), handler)
+def run_module(module, handler, placeholder=None):
+    """Run handler(client) after the login check, with uniform error reporting.
+
+    `placeholder` holds the module's own return values, empty. With it, a
+    MissingReference in check mode is reported as a change instead of a failure.
+    """
+    transport.run_client(module, HarborClient(module), handler, placeholder)
 
 
 def warn_if_stored_differently(module, what, fields):
@@ -475,17 +479,31 @@ def find_project(client, name):
         lambda found: found is not None, 'project %r' % name)
 
 
-def require_project(client, name):
-    """find_project(), failing when there is no such project."""
+def require_project(client, name, missing_ok=False):
+    """find_project(), failing when there is no such project, or returning None with missing_ok."""
     found = find_project(client, name)
     if found is None:
-        raise ValueError('Project %r does not exist, or the user this module logs in as cannot see it.' % name)
+        if missing_ok:
+            return None
+        raise MissingReference('Project %r does not exist, or the user this module logs in as cannot see it.' % name)
     return found
 
 
-def project_by_name(client, name):
-    """The project named `name` (read on its own, so its metadata is complete); fails when missing."""
-    return client.get('/projects/%d' % require_project(client, name)['project_id'])
+def project_by_name(client, name, missing_ok=False):
+    """The project named `name` (read on its own, so its metadata is complete).
+
+    Fails when missing, or returns None with missing_ok.
+    """
+    found = require_project(client, name, missing_ok=missing_ok)
+    return None if found is None else client.get('/projects/%d' % found['project_id'])
+
+
+def require_registry(registries, name):
+    """The id of the registry named `name` in `registries` ({id: name}), failing when there is none."""
+    for registry_id, registry_name in registries.items():
+        if registry_name == name:
+            return registry_id
+    raise MissingReference('Registry %r does not exist.' % name)
 
 
 # -- tag retention and tag immutability ---------------------------------------

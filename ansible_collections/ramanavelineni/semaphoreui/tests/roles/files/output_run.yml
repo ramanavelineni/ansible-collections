@@ -1,0 +1,37 @@
+---
+# Not a test of its own: tests/roles/tasks/apply_output.yml runs this playbook
+# in a nested ansible-playbook and reads what it prints. It applies the project
+# in roletest_project_path and the runner roletest-output-runner. It sets no
+# project_apply_no_log or server_apply_no_log: the roles' defaults apply
+# unless the nested run passes them as extra vars.
+#
+# A new runner's registration token can't be read back from Semaphore. So the
+# last task writes it to roletest_token_file, hidden from the output, for the
+# outer playbook to look for in what this one printed. It reads the role's
+# registered result for that, because nothing else holds the token.
+- name: Apply a project and a runner for the output checks of apply.yml
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Apply the project
+      ansible.builtin.include_role:
+        name: ramanavelineni.semaphoreui.project_apply
+      vars:
+        project_apply_path: "{{ roletest_project_path }}"
+
+    - name: Apply the runner
+      ansible.builtin.include_role:
+        name: ramanavelineni.semaphoreui.server_apply
+      vars:
+        server_apply_runners:
+          roletest-output-runner:
+            tags:
+              - roletest
+
+    - name: Keep the registration token of a new runner for apply.yml
+      ansible.builtin.copy:
+        dest: "{{ roletest_token_file }}"
+        content: "{{ __server_apply_done_runners.results | map(attribute='registration_token', default='') | join('') }}"
+        mode: "0600"
+      no_log: true

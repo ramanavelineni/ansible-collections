@@ -317,13 +317,52 @@ def test_non_admin_proxy_project_has_no_registry_name(server, run_module):
     assert result['project']['proxy_registry'] is None
 
 
-def test_non_admin_create_reports_the_quota_asked_for(server, run_module):
+def test_non_admin_create_with_a_quota_warns_that_harbor_applied_its_default(server, run_module):
+    # Harbor 2.15.4 handler/project.go:131 stores the default quota per
+    # project for a non-administrator, whatever storage_limit says.
     creating(server)
     server.route('GET', '/quotas', FORBIDDEN)
-    result = run_module(project.main, dict(name='fixtures-core', quota_gb=5))
+    result = run_module(project.main, dict(name='fixtures-core', quota_gb=7))
     assert result['changed'] is True
     assert result['project']['project_id'] == pid(server)
+    assert result['project']['quota_gb'] is None
+    assert len(result['warnings']) == 1
+    assert 'default quota per project' in json.dumps(result['warnings'])
+
+
+def test_non_admin_create_without_a_quota_does_not_warn(server, run_module):
+    creating(server)
+    server.route('GET', '/quotas', FORBIDDEN)
+    result = run_module(project.main, dict(name='fixtures-core'))
+    assert result['changed'] is True
+    assert result['project']['quota_gb'] is None
+    assert not result.get('warnings')
+
+
+def test_create_reports_the_quota_harbor_stored(server, run_module):
+    # quotas_created holds 5 GiB: what Harbor stores when it substitutes its
+    # default for the 7 GiB the task asked for.
+    creating(server)
+    result = run_module(project.main, dict(name='fixtures-core', quota_gb=7))
+    assert result['changed'] is True
     assert result['project']['quota_gb'] == 5
+    assert result['diff']['after']['quota_gb'] == 5
+    assert len(result['warnings']) == 1
+    assert 'quota_gb' in json.dumps(result['warnings'])
+
+
+def test_create_with_the_stored_quota_does_not_warn(server, run_module):
+    creating(server)
+    result = run_module(project.main, dict(name='fixtures-core', quota_gb=5))
+    assert result['project']['quota_gb'] == 5
+    assert not result.get('warnings')
+
+
+def test_quota_of_one_gib_is_accepted(server, run_module):
+    creating(server)
+    result = run_module(project.main, dict(name='fixtures-core', quota_gb=1))
+    assert result['changed'] is True
+    assert server.calls('POST', '/projects')[0]['body']['storage_limit'] == GIB
 
 
 def test_other_quota_failures_are_reported(server, run_module):

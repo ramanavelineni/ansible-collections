@@ -1,6 +1,8 @@
 # Copyright: ramanavelineni
 # Apache License 2.0 (see LICENSE or https://www.apache.org/licenses/LICENSE-2.0)
 
+import json
+
 import pytest
 
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import normalize_time
@@ -136,6 +138,56 @@ def test_run_at_other_moment_is_a_change(server, project, run_module):
     result = run_module(schedule.main, dict(project='homelab', name='nightly', run_at='2099-01-01T04:00:00+00:00'))
     assert result['changed'] is True
     assert server.calls('PUT')[0]['body']['run_at'] == '2099-01-01T04:00:00Z'
+
+
+PAST = '2020-01-01T03:00:00Z'
+
+
+@pytest.mark.parametrize('check_mode', [False, True], ids=['real', 'check'])
+def test_past_run_at_of_a_schedule_deleted_after_its_run_is_settled(server, project, run_module, check_mode):
+    # Breaks when the schedule is created again: Semaphore refuses a past run_at with HTTP 400, so the
+    # task that made a delete_after_run schedule would fail on every run after the schedule fired.
+    server.route('GET', project + '/schedules', 'schedules_empty')
+    server.route('GET', template_list(project, server), 'schedules_empty')
+    result = run_module(schedule.main, dict(project='homelab', name='once', template='site', run_at=PAST,
+                                            delete_after_run=True), check_mode=check_mode)
+    assert result.get('failed') is not True
+    assert result['changed'] is False
+    assert result['schedule'] == {}
+    assert len(result['warnings']) == 1 and "Schedule 'once'" in json.dumps(result['warnings'])
+    assert server.calls('POST', project + '/schedules') == []
+
+
+def test_past_run_at_of_a_schedule_deactivated_after_its_run_is_settled(server, project, run_module):
+    # Semaphore deactivates a run-at schedule once its time has passed. Asking for active: true again
+    # would send the past time back.
+    stored = run_at_schedule(server, PAST)
+    stored['body'][0]['active'] = False
+    server.route('GET', project + '/schedules', stored)
+    result = run_module(schedule.main, dict(project='homelab', name='nightly', run_at=PAST, active=True))
+    assert result.get('failed') is not True
+    assert result['changed'] is False
+    assert result['schedule']['active'] is False and result['schedule']['run_at'] == PAST
+    assert len(result['warnings']) == 1 and "Schedule 'nightly'" in json.dumps(result['warnings'])
+    assert server.calls('PUT') == []
+
+
+def test_past_run_at_on_an_active_schedule_fails_before_sending(server, project, run_module):
+    server.route('GET', project + '/schedules', run_at_schedule(server, '2099-01-01T03:00:00Z'))
+    result = run_module(schedule.main, dict(project='homelab', name='nightly', run_at=PAST))
+    assert result['failed'] is True
+    assert PAST in result['msg'] and 'future' in result['msg']
+    assert server.calls('PUT') == []
+
+
+def test_future_run_at_for_a_missing_schedule_is_created_without_a_warning(server, project, run_module):
+    server.route('GET', project + '/schedules', 'schedules_empty')
+    server.route('GET', template_list(project, server), 'schedules_empty')
+    server.route('POST', project + '/schedules', 'schedule_create')
+    result = run_module(schedule.main, dict(project='homelab', name='once', template='site', run_at='2099-01-01T03:00:00Z'))
+    assert result['changed'] is True
+    assert result.get('warnings', []) == []
+    assert len(server.calls('POST', project + '/schedules')) == 1
 
 
 def template_list(project, server):

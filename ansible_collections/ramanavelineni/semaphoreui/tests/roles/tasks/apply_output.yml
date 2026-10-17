@@ -1,0 +1,158 @@
+---
+# What project_apply and server_apply print. Included by apply.yml.
+#
+# A playbook can't read its own output, so these tasks run
+# files/output_run.yml in a nested ansible-playbook and search what it
+# printed. It creates the project roletest-output, with the integration
+# roletest-open (auth_method: none, so its URL alone starts a task), and the
+# global runner roletest-output-runner.
+#
+# The nested run inherits this run's environment: SEMAPHORE_URL and whichever
+# credentials are set (SEMAPHORE_USERNAME / SEMAPHORE_PASSWORD or
+# SEMAPHORE_API_TOKEN). It uses the default callback, the output a user sees.
+# ansible-core has no JSON callback of its own (that one is ansible.posix.json).
+
+- name: Make a directory for the files of the nested runs
+  ansible.builtin.tempfile:
+    state: directory
+    suffix: roletest
+  register: roletest_output_dir
+
+- name: Check what the roles print
+  vars:
+    roletest_output_token_file: "{{ roletest_output_dir.path }}/token"
+    roletest_output_command:
+      - ansible-playbook
+      - "{{ playbook_dir }}/files/output_run.yml"
+    roletest_output_environment:
+      # The checkout this playbook runs from, so that the nested run uses the
+      # same roles and modules.
+      ANSIBLE_COLLECTIONS_PATH: >-
+        {{ ([(playbook_dir ~ '/../../../../..') | realpath]
+            + (lookup('ansible.builtin.env', 'ANSIBLE_COLLECTIONS_PATH') | split(':') | select | list)) | join(':') }}
+      ANSIBLE_STDOUT_CALLBACK: ansible.builtin.default
+      ANSIBLE_DISPLAY_SKIPPED_HOSTS: "true"
+      ANSIBLE_NOCOLOR: "1"
+      ANSIBLE_LOCALHOST_WARNING: "false"
+      ANSIBLE_INVENTORY_UNPARSED_WARNING: "false"
+  block:
+    # ---- the default: project_apply_no_log and server_apply_no_log on -------
+    # Neither is set, so the roles' defaults apply. At -v, so that a task
+    # result the roles fail to hide is printed.
+
+    - name: Apply the project and the runner with the defaults, at -v
+      ansible.builtin.command:
+        argv: >-
+          {{ roletest_output_command + ['-v', '-e', {'roletest_project_path': roletest_files ~ '/output',
+             'roletest_token_file': roletest_output_token_file} | to_json] }}
+      environment: "{{ roletest_output_environment }}"
+      register: roletest_output_hidden
+      changed_when: false
+
+    - name: Read the integration
+      ramanavelineni.semaphoreui.integration_info:
+        project: roletest-output
+        name: roletest-open
+      register: roletest_output_hook
+
+    - name: Read the registration token the nested run kept
+      ansible.builtin.slurp:
+        src: "{{ roletest_output_token_file }}"
+      register: roletest_output_token
+      no_log: true
+
+    - name: The defaults print neither the webhook URL nor the registration token
+      vars:
+        roletest_url: "{{ roletest_output_hook.integrations[0].webhook_urls[0] }}"
+        roletest_token: "{{ roletest_output_token.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - roletest_output_hook.integrations | length == 1
+          - roletest_url | length > 0
+          - roletest_token | length > 0
+          - roletest_url not in roletest_output_hidden.stdout
+          # The URL ends in the alias that makes it secret.
+          - roletest_url.split('/') | last not in roletest_output_hidden.stdout
+          - roletest_token not in roletest_output_hidden.stdout
+        fail_msg: >-
+          The run with project_apply_no_log and server_apply_no_log on printed the webhook URL of
+          roletest-open or the registration token of roletest-output-runner (or one of them is missing).
+        quiet: true
+      # The message names what leaked, not the value.
+      no_log: true
+
+    - name: Delete the integration, so that the next run creates it again
+      ramanavelineni.semaphoreui.integration:
+        project: roletest-output
+        name: roletest-open
+        state: absent
+
+    - name: Delete the runner, so that the next run creates it again
+      ramanavelineni.semaphoreui.runner:
+        name: roletest-output-runner
+        state: absent
+
+    # ---- project_apply_no_log and server_apply_no_log off ------------------
+
+    - name: Apply the project and the runner with no_log off
+      ansible.builtin.command:
+        argv: >-
+          {{ roletest_output_command + ['-e', {'roletest_project_path': roletest_files ~ '/output',
+             'roletest_token_file': roletest_output_token_file,
+             'project_apply_no_log': false, 'server_apply_no_log': false} | to_json] }}
+      environment: "{{ roletest_output_environment }}"
+      register: roletest_output_shown
+      changed_when: false
+
+    - name: Read the new integration
+      ramanavelineni.semaphoreui.integration_info:
+        project: roletest-output
+        name: roletest-open
+      register: roletest_output_hook
+
+    - name: Read the registration token of the new runner
+      ansible.builtin.slurp:
+        src: "{{ roletest_output_token_file }}"
+      register: roletest_output_token
+
+    - name: With no_log off, the new URL and the new token are printed once each
+      vars:
+        roletest_url: "{{ roletest_output_hook.integrations[0].webhook_urls[0] }}"
+        roletest_token: "{{ roletest_output_token.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - roletest_output_hook.integrations | length == 1
+          - roletest_url | length > 0
+          - roletest_token | length > 0
+          - roletest_output_shown.stdout.count(roletest_url) == 1
+          - roletest_output_shown.stdout.count(roletest_token) == 1
+        fail_msg: >-
+          URL {{ roletest_url }} printed {{ roletest_output_shown.stdout.count(roletest_url) }} time(s),
+          token printed {{ roletest_output_shown.stdout.count(roletest_token) }} time(s), expected once each:
+          {{ roletest_output_shown.stdout }}
+        quiet: true
+
+    - name: Apply the project and the runner with no_log off again
+      ansible.builtin.command:
+        argv: >-
+          {{ roletest_output_command + ['-e', {'roletest_project_path': roletest_files ~ '/output',
+             'roletest_token_file': roletest_output_token_file,
+             'project_apply_no_log': false, 'server_apply_no_log': false} | to_json] }}
+      environment: "{{ roletest_output_environment }}"
+      register: roletest_output_again
+      changed_when: false
+
+    - name: An integration that exists already has its URL left out of the output
+      vars:
+        roletest_url: "{{ roletest_output_hook.integrations[0].webhook_urls[0] }}"
+      ansible.builtin.assert:
+        that:
+          - roletest_url not in roletest_output_again.stdout
+          - roletest_url.split('/') | last not in roletest_output_again.stdout
+        fail_msg: "The second run printed the URL of roletest-open, which it didn't create: {{ roletest_output_again.stdout }}"
+        quiet: true
+  always:
+    - name: Remove the directory of the nested runs
+      ansible.builtin.file:
+        path: "{{ roletest_output_dir.path }}"
+        state: absent
