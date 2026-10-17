@@ -74,7 +74,7 @@ EXAMPLES = r'''
     content: "{{ config_token.token }}"
     dest: /etc/semaphore-config/api_token
     mode: "0600"
-  when: config_token.token
+  when: config_token.token | length > 0
   no_log: true
 
 - name: A token that stops working at the end of the year

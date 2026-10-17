@@ -12,7 +12,7 @@ make the server match, and change nothing when it already does.
 
 | Collection | Configures | Modules | Tested with |
 |---|---|---|---|
-| [**`ramanavelineni.semaphoreui`**](ansible_collections/ramanavelineni/semaphoreui/) | [Semaphore UI](https://semaphoreui.com): projects and everything in them, users, runners | 25 | Semaphore UI 2.18, 2.19 |
+| [**`ramanavelineni.semaphoreui`**](ansible_collections/ramanavelineni/semaphoreui/) | [Semaphore UI](https://semaphoreui.com): projects and everything in them, users, runners | 31, plus 3 roles | Semaphore UI 2.18, 2.19 |
 | [**`ramanavelineni.harbor`**](ansible_collections/ramanavelineni/harbor/) | [Harbor](https://goharbor.io): projects, robot accounts, registries, replication, policies, system settings | 23 | Harbor 2.14, 2.15 |
 
 ---
@@ -86,8 +86,10 @@ looks up its id.
 
 - **Idempotent.** Objects are found by name. A module compares only the
   options you set and changes the server only when they differ.
-- **Check mode and `--diff`** on every module, so you can see a change
-  before making it.
+- **Check mode and `--diff`** on every module that changes something, so you
+  can see a change before making it. The one exception is semaphoreui's
+  `task`, which starts a run: in check mode it starts nothing, and it has no
+  diff.
 - **Names, not ids.** Objects refer to each other by name (a template's
   `repository: ansible`, a robot's project), and the module resolves the ids.
 - **Secrets handled on purpose.** Neither server returns a stored secret, so
@@ -253,6 +255,12 @@ lists them under "Connecting".
 | API tokens | `user_token` |
 | Runners | `runner`, `runner_info` |
 | Users | `user`, `user_info` |
+
+It also has three roles: `project_apply` and `server_apply` apply project and
+server descriptions, and `project_export` writes a project out as such a
+description. The four filters behind the export (`project_export_config`,
+`project_export_vault`, `project_export_vault_variables` and
+`project_export_yaml`) can be used on their own.
 
 Details: [collection README](ansible_collections/ramanavelineni/semaphoreui/)
 

@@ -115,7 +115,7 @@ EXAMPLES = r'''
   ansible.builtin.command: semaphore runner register --stdin-registration-token
   args:
     stdin: "{{ runner.registration_token }}"
-  when: runner.registration_token
+  when: runner.registration_token | length > 0
   no_log: true
 
 - name: New registration token for a runner that lost its credentials
