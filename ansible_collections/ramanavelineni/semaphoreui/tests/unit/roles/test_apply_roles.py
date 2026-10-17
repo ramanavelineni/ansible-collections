@@ -119,7 +119,7 @@ def test_a_create_task_hands_every_option_to_the_module():
         keyed_by = KEYED_BY.get(module, 'name')
         expected = set(PROJECT_LISTS[module]) | {keyed_by}
         if module != 'project':
-            expected.add('project')
+            expected.update(PROJECT_SCOPE)
         assert set(arguments) == expected, module
         for option in PROJECT_LISTS[module]:
             if option in ('name', 'update_secret'):
@@ -129,8 +129,23 @@ def test_a_create_task_hands_every_option_to_the_module():
 
 def test_a_delete_task_names_the_entry_and_nothing_else():
     for module, arguments, task in create_and_delete_tasks()[1]:
-        assert set(arguments) == {'project', KEYED_BY.get(module, 'name'), 'state'}, module
+        assert set(arguments) == set(PROJECT_SCOPE) | {KEYED_BY.get(module, 'name'), 'state'}, module
         assert "== 'absent'" in task['when'], module
+
+
+def test_entries_name_their_project_by_the_id_the_project_task_returned():
+    # Semaphore lists at most 200 projects, so a lookup by name fails on a
+    # larger server. With the id only that project is read. The name is the
+    # fallback for check mode on a project that doesn't exist yet: the project
+    # task returns no id then, and each entry reports a change without comparing.
+    # Text checks, for the reason in the module docstring. tests/roles/apply.yml runs them.
+    tasks = module_tasks(load('project_apply', 'tasks', 'project.yml'))
+    assert tasks[0][0] == 'project'
+    assert tasks[0][1]['id'] == '{{ __project_apply_project.id | default(omit) }}'
+    for module, arguments, dummy in tasks[1:]:
+        assert arguments['project_id'] == '{{ __project_apply_done_project.project.id | default(omit) }}', module
+        assert arguments['project'] == ('{{ omit if __project_apply_done_project.project.id is defined '
+                                        'else __project_apply_project.name }}'), module
 
 
 def test_create_tasks_skip_what_is_to_be_deleted():

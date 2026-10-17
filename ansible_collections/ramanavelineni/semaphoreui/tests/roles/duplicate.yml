@@ -1,0 +1,123 @@
+---
+# Role test of project_apply, run by CI against a throwaway Semaphore (and by
+# hand with `make role-test`). The server comes from the environment:
+# SEMAPHORE_URL, SEMAPHORE_USERNAME and SEMAPHORE_PASSWORD (or
+# SEMAPHORE_API_TOKEN), which the modules read themselves.
+#
+# Two places that declare the same project name must stop the role before it
+# changes anything, also the projects that come before them in the directory.
+# Everything it makes is named roletest-duplicate… and is removed again, also
+# when a check fails. Throwaway servers only.
+- name: Test that project_apply refuses a project name declared twice
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    duplicate_first: roletest-duplicate-first
+    duplicate_project: roletest-duplicate
+  tasks:
+    - name: Check that a server is named
+      ansible.builtin.assert:
+        that: lookup('ansible.builtin.env', 'SEMAPHORE_URL') | length > 0
+        fail_msg: Set SEMAPHORE_URL and SEMAPHORE_USERNAME / SEMAPHORE_PASSWORD (or SEMAPHORE_API_TOKEN) to a throwaway Semaphore.
+        quiet: true
+
+    - name: Run the test and clean up after it
+      block:
+        - name: Remove the projects an earlier run left behind
+          ramanavelineni.semaphoreui.project:
+            name: "{{ item }}"
+            state: absent
+            confirm_delete: true
+          loop:
+            - "{{ duplicate_first }}"
+            - "{{ duplicate_project }}"
+
+        - name: Make a directory of projects
+          ansible.builtin.tempfile:
+            state: directory
+            prefix: roletest-duplicate-
+          register: duplicate_directory
+
+        - name: Make the directory of a project
+          ansible.builtin.file:
+            path: "{{ duplicate_directory.path }}/c"
+            state: directory
+            mode: "0755"
+
+        # a-first.yml sorts first, so the role would apply it before it
+        # reads the two that collide.
+        - name: Write a project that is fine on its own
+          ansible.builtin.copy:
+            dest: "{{ duplicate_directory.path }}/a-first.yml"
+            mode: "0644"
+            content: |
+              ---
+              name: {{ duplicate_first }}
+
+        - name: Write a project file with the name
+          ansible.builtin.copy:
+            dest: "{{ duplicate_directory.path }}/b.yml"
+            mode: "0644"
+            content: |
+              ---
+              name: {{ duplicate_project }}
+              max_parallel_tasks: 1
+
+        - name: Write a project directory with the same name
+          ansible.builtin.copy:
+            dest: "{{ duplicate_directory.path }}/c/project.yml"
+            mode: "0644"
+            content: |
+              ---
+              name: {{ duplicate_project }}
+              max_parallel_tasks: 2
+
+        - name: Apply the directory
+          block:
+            - name: Apply projects that declare one name twice
+              ansible.builtin.include_role:
+                name: ramanavelineni.semaphoreui.project_apply
+              vars:
+                project_apply_path: "{{ duplicate_directory.path }}"
+
+            - name: The role should have failed
+              ansible.builtin.fail:
+                msg: project_apply accepted two files that declare the same project
+          rescue:
+            - name: The role failed and named both places
+              ansible.builtin.assert:
+                that: "'roletest-duplicate (b.yml, c/project.yml)' in ansible_failed_result.msg"
+                fail_msg: "{{ ansible_failed_result.msg }}"
+                quiet: true
+
+        - name: Read the projects after the refusal
+          ramanavelineni.semaphoreui.project_info:
+            name: "{{ item }}"
+          loop:
+            - "{{ duplicate_first }}"
+            - "{{ duplicate_project }}"
+          register: duplicate_read
+
+        - name: Nothing was created, not even the project that came first
+          ansible.builtin.assert:
+            that: duplicate_read.results | map(attribute='projects') | flatten | length == 0
+            fail_msg: >-
+              Found {{ duplicate_read.results | map(attribute='projects') | flatten | map(attribute='name') | join(', ') }}
+              although the role refused the directory
+            quiet: true
+      always:
+        - name: Remove the projects
+          ramanavelineni.semaphoreui.project:
+            name: "{{ item }}"
+            state: absent
+            confirm_delete: true
+          loop:
+            - "{{ duplicate_first }}"
+            - "{{ duplicate_project }}"
+
+        - name: Remove the directory
+          ansible.builtin.file:
+            path: "{{ duplicate_directory.path }}"
+            state: absent
+          when: duplicate_directory.path is defined

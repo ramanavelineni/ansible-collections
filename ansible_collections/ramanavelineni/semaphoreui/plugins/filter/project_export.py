@@ -37,6 +37,7 @@ PROJECT_OPTIONS = (('alert', False), ('alert_chat', ''), ('max_parallel_tasks', 
 # option is always written. Options that are not here are either never
 # returned (secrets, see SECRETS) or mean something for a run only (state,
 # update_secret, purge_secrets, force_repository_key_update, confirm_delete).
+# The one run option the export writes is update_secret, see ON_CREATE.
 KEEP = object()
 OPTIONS = dict(
     key_store=(('type', KEEP),),
@@ -85,6 +86,13 @@ SECRETS = dict(
     key_store=('login_password.password', 'ssh.passphrase', 'ssh.private_key'),
     variable_group=('secrets.value',),
 )
+
+# What an object with a secret is written with. The secret is a vault
+# variable and can't be compared with the stored one, so with the modules'
+# default (always) every apply would send it again and report a change. With
+# this, an apply sends a secret only for a new object (or a new secret of a
+# variable group). Set always on the entry to push a changed vault value.
+ON_CREATE = dict(update_secret='on_create')
 
 # A word for each section inside a variable name.
 SECTION_WORD = dict(key_store='key', variable_group='var')
@@ -177,10 +185,13 @@ def object_options(section, found, vault):
             out[option] = dict((field, vault.reference(section, name, '%s_%s' % (option, field),
                                                        'key %s: %s.%s' % (name, option, field)))
                                for field in fields)
+            out.update(ON_CREATE)
     elif section == 'variable_group':
         for secret in out.get('secrets', []):
             secret['value'] = vault.reference(section, name, secret['name'],
                                               'variable group %s: the value of secret %s' % (name, secret['name']))
+        if out.get('secrets'):
+            out.update(ON_CREATE)
     elif section == 'schedule':
         kind = found.get('kind')
         if kind == 'run_at':

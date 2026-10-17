@@ -37,6 +37,12 @@
     - name: Remove what an earlier run left behind
       ansible.builtin.include_tasks: tasks/apply_cleanup.yml
 
+    - name: Remove the project an earlier run left renamed
+      ramanavelineni.semaphoreui.project:
+        name: roletest-renamed
+        state: absent
+        confirm_delete: true
+
     - name: Test the roles
       block:
         # ---- server_apply ---------------------------------------------------
@@ -377,6 +383,163 @@
             fail_msg: project_apply reported a change when it deleted what was already gone
             quiet: true
 
+        # ---- project_apply with `id:` --------------------------------------
+        # The id is only known once the project exists, so these project
+        # files are written here, into a temporary directory.
+
+        - name: Read the project in one file
+          ramanavelineni.semaphoreui.project_info:
+            name: roletest-full
+          register: roletest_read
+
+        - name: Make a directory for the projects named by id
+          ansible.builtin.tempfile:
+            state: directory
+            suffix: roletest
+          register: roletest_byid_dir
+
+        - name: Name the projects by id
+          vars:
+            roletest_full_id: "{{ roletest_read.projects[0].id }}"
+          block:
+            - name: Make a directory for each set of projects
+              ansible.builtin.file:
+                path: "{{ roletest_byid_dir.path }}/{{ item }}"
+                state: directory
+                mode: "0700"
+              loop:
+                - rename
+                - back
+                - missing
+
+            - name: Describe roletest-full by its id, under a new name and with a new view
+              ansible.builtin.copy:
+                dest: "{{ roletest_byid_dir.path }}/rename/roletest-renamed.yml"
+                content: |
+                  name: roletest-renamed
+                  id: {{ roletest_full_id }}
+                  view:
+                    roletest-byid: {}
+                mode: "0600"
+
+            - name: Describe the rename back, and the new view marked absent
+              ansible.builtin.copy:
+                dest: "{{ roletest_byid_dir.path }}/back/roletest-full.yml"
+                content: |
+                  name: roletest-full
+                  id: {{ roletest_full_id }}
+                  view:
+                    roletest-byid:
+                      state: absent
+                mode: "0600"
+
+            - name: Describe a project by an id that doesn't exist
+              ansible.builtin.copy:
+                dest: "{{ roletest_byid_dir.path }}/missing/roletest-missing.yml"
+                content: |
+                  name: roletest-missing
+                  id: 999999
+                mode: "0600"
+
+            - name: A check run of the rename
+              check_mode: true
+              block:
+                - name: Apply the rename in check mode
+                  ansible.builtin.include_role:
+                    name: ramanavelineni.semaphoreui.project_apply
+                  vars:
+                    project_apply_path: "{{ roletest_byid_dir.path }}/rename"
+
+            - name: Read the project by id after the check run
+              ramanavelineni.semaphoreui.project_info:
+                id: "{{ roletest_full_id | int }}"
+              register: roletest_read_byid
+
+            - name: The check run of the rename reports a change and renames nothing
+              ansible.builtin.assert:
+                that:
+                  - project_apply_changed
+                  - roletest_read_byid.projects | map(attribute='name') | list == ['roletest-full']
+                fail_msg: "changed={{ project_apply_changed }}, by id: {{ roletest_read_byid.projects }}"
+                quiet: true
+
+            - name: Apply the rename
+              ansible.builtin.include_role:
+                name: ramanavelineni.semaphoreui.project_apply
+              vars:
+                project_apply_path: "{{ roletest_byid_dir.path }}/rename"
+
+            - name: Read the project by id after the rename
+              ramanavelineni.semaphoreui.project_info:
+                id: "{{ roletest_full_id | int }}"
+              register: roletest_read_byid
+
+            - name: Read the views of the renamed project by id
+              ramanavelineni.semaphoreui.view_info:
+                project_id: "{{ roletest_full_id | int }}"
+              register: roletest_read_views
+
+            - name: The project is renamed and its new view is in it
+              ansible.builtin.assert:
+                that:
+                  - project_apply_changed
+                  - roletest_read_byid.projects | map(attribute='name') | list == ['roletest-renamed']
+                  - "'roletest-byid' in roletest_read_views.views | map(attribute='name') | list"
+                fail_msg: >-
+                  changed={{ project_apply_changed }}, by id: {{ roletest_read_byid.projects }},
+                  views: {{ roletest_read_views.views | map(attribute='name') | list }}
+                quiet: true
+
+            - name: Apply the rename back
+              ansible.builtin.include_role:
+                name: ramanavelineni.semaphoreui.project_apply
+              vars:
+                project_apply_path: "{{ roletest_byid_dir.path }}/back"
+
+            - name: Read the project by id after the rename back
+              ramanavelineni.semaphoreui.project_info:
+                id: "{{ roletest_full_id | int }}"
+              register: roletest_read_byid
+
+            - name: Read the views after the rename back
+              ramanavelineni.semaphoreui.view_info:
+                project_id: "{{ roletest_full_id | int }}"
+              register: roletest_read_views
+
+            - name: The project has its old name, and the view marked absent is gone
+              ansible.builtin.assert:
+                that:
+                  - project_apply_changed
+                  - roletest_read_byid.projects | map(attribute='name') | list == ['roletest-full']
+                  - "'roletest-byid' not in roletest_read_views.views | map(attribute='name') | list"
+                fail_msg: >-
+                  changed={{ project_apply_changed }}, by id: {{ roletest_read_byid.projects }},
+                  views: {{ roletest_read_views.views | map(attribute='name') | list }}
+                quiet: true
+
+            - name: An id that doesn't exist fails
+              block:
+                - name: Apply a project with an id that doesn't exist
+                  ansible.builtin.include_role:
+                    name: ramanavelineni.semaphoreui.project_apply
+                  vars:
+                    project_apply_path: "{{ roletest_byid_dir.path }}/missing"
+
+                - name: The role should have failed
+                  ansible.builtin.fail:
+                    msg: project_apply accepted a project id that doesn't exist
+              rescue:
+                - name: The role failed for the right reason
+                  ansible.builtin.assert:
+                    that: "'Project with id 999999 does not exist' in ansible_failed_result.msg"
+                    fail_msg: "{{ ansible_failed_result.msg }}"
+                    quiet: true
+          always:
+            - name: Remove the directory of the projects named by id
+              ansible.builtin.file:
+                path: "{{ roletest_byid_dir.path }}"
+                state: absent
+
         - name: Delete the projects
           ansible.builtin.include_role:
             name: ramanavelineni.semaphoreui.project_apply
@@ -426,3 +589,9 @@
       always:
         - name: Remove what the test created
           ansible.builtin.include_tasks: tasks/apply_cleanup.yml
+
+        - name: Remove the project the test may have left renamed
+          ramanavelineni.semaphoreui.project:
+            name: roletest-renamed
+            state: absent
+            confirm_delete: true

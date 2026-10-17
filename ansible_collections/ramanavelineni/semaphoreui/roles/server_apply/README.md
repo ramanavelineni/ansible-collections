@@ -22,6 +22,12 @@ only with `server_apply_no_log: false`. It is valid for one hour. With the
 default the token stays out of the logs. To get one later, set
 `regenerate_token: true` on the runner and run with `server_apply_no_log: false`.
 
+A runner with `project` (or `project_id`) belongs to that project. The project
+must exist when the role runs, or the task fails. When `project_apply` creates
+the project, run `project_apply` before `server_apply` for such a runner. You
+can also leave out `project`, which makes the runner a global one. The example
+below runs `server_apply` first, which works because its runner is global.
+
 Afterwards `server_apply_changed` says whether anything changed.
 
 The connection options are not variables of the role. Set them once for the

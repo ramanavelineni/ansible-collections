@@ -10,6 +10,9 @@ argument_specs:
       - Semaphore never returns a stored secret. Each secret becomes a reference to a variable, and the role
         writes the list of those variables, empty, to a second file. Fill them in and keep them in an Ansible
         Vault file. The exported project can be applied as soon as they are defined.
+      - Every key and variable group with a secret is written with C(update_secret) set to C(on_create).
+        Applying the export again then sends a secret only for a new object, and reports no change. To push a
+        changed vault value, set C(update_secret) to C(always) on that entry.
       - The same project always gives the same files, so a second run reports no change.
       - The connection options are not role variables. Set them once with C(module_defaults) for the action
         group C(ramanavelineni.semaphoreui.semaphoreui), or in the environment.
@@ -27,8 +30,8 @@ argument_specs:
       project_export_project_id:
         description:
           - Id of the project to export, as an alternative to its name.
-          - On a server with 200 or more projects a project cannot be found by name. Semaphore cuts the list
-            of projects off there.
+          - The role reads the project by its id, not from the list of projects. Semaphore cuts that list off
+            at 200 projects, so on a bigger server a project may not be found by name, but always by id.
         type: int
         default: 0
       project_export_dest:
@@ -64,6 +67,8 @@ argument_specs:
           - File the variables that stand for secrets are listed in, each empty, with a comment that says what it
             is the secret of.
           - Empty means C(<dest>/<name>.vault.example).
+          - The role writes this file only when it does not exist yet. A file that is there is never replaced,
+            also not with O(project_export_overwrite). Remove it to get the list again.
           - Inside the directory C(project_apply) reads, its name must not end in C(.yml) or C(.yaml), or it
             would be taken for a project.
         type: path
@@ -72,11 +77,15 @@ argument_specs:
         description:
           - Whether a file that exists and differs from what would be written may be replaced, and a section
             file of a section that has no objects any more removed.
+          - Only the content counts. A file with the same content and another mode does not differ.
           - Without it, the role stops before it writes anything and names the files.
+          - It never replaces the vault file. See O(project_export_vault_file).
         type: bool
         default: false
       project_export_file_mode:
-        description: Mode of the files the role writes.
+        description:
+          - Mode of the files the role writes.
+          - A file that is there with the same content is not written and keeps its mode.
         type: str
         default: "0644"
       project_export_directory_mode:

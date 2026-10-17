@@ -9,6 +9,7 @@ version_added: 0.1.0
 description:
   - Lists the projects the authenticated user can see (all projects for an admin), optionally
     only those with a given name.
+  - With O(id) it reads only that project, so it finds it however many projects there are.
 author:
   - ramanavelineni (@ramanavelineni)
 extends_documentation_fragment:
@@ -23,10 +24,19 @@ options:
   name:
     description:
       - Only return projects with this name.
+      - Mutually exclusive with O(id).
     type: str
+  id:
+    description:
+      - Only return the project with this id.
+      - The list of projects is not read. RV(projects) holds that one project, or nothing when it
+        does not exist or the user cannot see it.
+      - Mutually exclusive with O(name).
+    type: int
+    version_added: 0.5.0
 notes:
   - Semaphore lists at most 200 projects. When the list is that long the module warns that some
-    may be missing.
+    may be missing. Use O(id) to read a project whatever the number of projects.
 seealso:
   - module: ramanavelineni.semaphoreui.project
     description: Creates, changes and deletes projects.
@@ -45,6 +55,13 @@ EXAMPLES = r'''
     api_token: "{{ semaphore_api_token }}"
     name: homelab
   register: homelab
+
+- name: Read project 7, on a server with any number of projects
+  ramanavelineni.semaphoreui.project_info:
+    url: https://semaphore.example.com
+    api_token: "{{ semaphore_api_token }}"
+    id: 7
+  register: project
 '''
 
 RETURN = r'''
@@ -85,6 +102,7 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
     LIST_CAP,
     project_view,
+    read_project,
     run_module,
     semaphore_argument_spec,
     semaphore_module_kwargs,
@@ -93,6 +111,9 @@ from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semapho
 
 def list_projects(module, client):
     client.warn_if_untested()
+    if module.params['id'] is not None:
+        project = read_project(client, module.params['id'])
+        return dict(changed=False, projects=[] if project is None else [project_view(project)])
     projects = client.get('/projects') or []
     if len(projects) >= LIST_CAP:
         module.warn('Semaphore returned %d projects, the most it lists; some may be missing.' % len(projects))
@@ -105,11 +126,14 @@ def list_projects(module, client):
 
 def main():
     argument_spec = semaphore_argument_spec()
-    argument_spec.update(name=dict(type='str'))
+    argument_spec.update(
+        name=dict(type='str'),
+        id=dict(type='int'),
+    )
     module = AnsibleModule(
         argument_spec=argument_spec,
         supports_check_mode=True,
-        **semaphore_module_kwargs()
+        **semaphore_module_kwargs(mutually_exclusive=[('name', 'id')])
     )
     run_module(module, lambda client: list_projects(module, client))
 

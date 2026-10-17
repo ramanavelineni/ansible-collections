@@ -319,8 +319,8 @@ jobs:
       matrix:
         include: >-
           ${{ fromJSON(github.event_name == 'pull_request'
-              && '[{"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "apply"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "export"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "roundtrip"}]'
-              || '[{"semaphore": "v2.18.30", "ansible": "2.18", "playbook": "apply"}, {"semaphore": "v2.18.30", "ansible": "2.18", "playbook": "export"}, {"semaphore": "v2.18.30", "ansible": "2.18", "playbook": "roundtrip"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "apply"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "export"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "roundtrip"}]') }}
+              && '[{"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "apply"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "export"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "roundtrip"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "duplicate"}]'
+              || '[{"semaphore": "v2.18.30", "ansible": "2.18", "playbook": "apply"}, {"semaphore": "v2.18.30", "ansible": "2.18", "playbook": "export"}, {"semaphore": "v2.18.30", "ansible": "2.18", "playbook": "roundtrip"}, {"semaphore": "v2.18.30", "ansible": "2.18", "playbook": "duplicate"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "apply"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "export"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "roundtrip"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "duplicate"}]') }}
     services:
       semaphore:
         image: docker.io/semaphoreui/semaphore:${{ matrix.semaphore }}

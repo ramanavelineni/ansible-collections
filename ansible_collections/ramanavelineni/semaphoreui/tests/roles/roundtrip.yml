@@ -92,9 +92,10 @@
             quiet: true
 
         # The exported file refers to its secrets as vault variables. Semaphore
-        # never shows a stored secret, so the test cannot fill in the real ones;
-        # any value will do, because the drift check below leaves the secrets of
-        # objects that exist alone.
+        # never shows a stored secret, so the test cannot fill in the real ones.
+        # Any value will do: the export writes update_secret: on_create on each
+        # object with a secret, so applying it leaves the secrets of objects
+        # that exist alone.
         - name: Write a vault file with a value for every listed variable
           ansible.builtin.copy:
             dest: "{{ roundtrip_directory.path }}/vault.yml"
@@ -107,17 +108,16 @@
 
         # ---- read it back ----------------------------------------------------
 
-        - name: The exported project describes the server exactly
-          check_mode: true
-          block:
-            - name: Check the server for drift from the exported project
-              ansible.builtin.include_role:
-                name: ramanavelineni.semaphoreui.project_apply
-              vars:
-                project_apply_path: "{{ roundtrip_directory.path }}/projects"
-                project_apply_drift_check: true
+        # A normal apply, not a drift check: the drift check sends no secret
+        # whatever the file says, so it would hide an export that makes every
+        # apply send its secrets again and report a change.
+        - name: Apply the exported project as it is
+          ansible.builtin.include_role:
+            name: ramanavelineni.semaphoreui.project_apply
+          vars:
+            project_apply_path: "{{ roundtrip_directory.path }}/projects"
 
-        - name: The exported project is the one that was read
+        - name: Applying the exported project changed nothing
           ansible.builtin.assert:
             that:
               - not project_apply_changed

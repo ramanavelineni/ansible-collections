@@ -4,6 +4,8 @@
 import copy
 import json
 
+import pytest
+
 from ansible_collections.ramanavelineni.semaphoreui.plugins.modules import project
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import LIST_CAP
 from ansible_collections.ramanavelineni.semaphoreui.tests.unit.plugins.conftest import transport_error
@@ -223,3 +225,109 @@ def test_list_that_is_not_a_list_fails(server, run_module):
     assert result['failed'] is True
     assert 'did not return a list' in result['msg']
     assert server.requests[-1]['path'] == '/auth/logout'
+
+
+# -- by id ----------------------------------------------------------------------
+#
+# The answers to GET /project/7 are hand-written in the shape of the recorded
+# project_get: Semaphore leaves out false, zero and empty fields. No route for
+# GET /projects is set, so a module that reads the capped list fails the test.
+
+def project_7(**fields):
+    body = dict(created='2026-10-03T22:36:11.143205Z', id=7, name='homelab', type='')
+    body.update(fields)
+    return dict(status=200, body=body)
+
+
+NOT_FOUND = dict(status=404, body=None)
+
+
+def test_by_id_matching_project_is_no_change_and_skips_the_list(server, run_module):
+    server.route('GET', '/project/7', project_7(alert=True, alert_chat='ops', max_parallel_tasks=3))
+    result = run_module(project.main, dict(id=7, name='homelab', alert=True, alert_chat='ops', max_parallel_tasks=3))
+    assert result.get('failed') is not True, result.get('msg')
+    assert result['changed'] is False
+    assert result['project'] == dict(id=7, name='homelab', alert=True, alert_chat='ops', max_parallel_tasks=3, type='')
+    assert server.calls('PUT') == []
+
+
+def test_by_id_update_sends_the_whole_object_to_that_project(server, run_module):
+    server.route('GET', '/project/7', project_7())
+    server.route('PUT', '/project/7', 'project_update')
+    result = run_module(project.main, dict(id=7, name='homelab', alert=True))
+    assert result['changed'] is True
+    assert server.calls('PUT', '/project/7')[0]['body'] == dict(
+        id=7, name='homelab', alert=True, alert_chat='', max_parallel_tasks=0)
+    assert result['project'] == dict(id=7, name='homelab', alert=True, alert_chat='', max_parallel_tasks=0, type='')
+
+
+def test_by_id_a_different_name_renames_the_project(server, run_module):
+    server.route('GET', '/project/7', project_7(name='old-name', max_parallel_tasks=2))
+    server.route('PUT', '/project/7', 'project_update')
+    result = run_module(project.main, dict(id=7, name='homelab'))
+    assert result['changed'] is True
+    # The other columns keep their values: the update rewrites them all.
+    assert server.calls('PUT', '/project/7')[0]['body'] == dict(
+        id=7, name='homelab', alert=False, alert_chat='', max_parallel_tasks=2)
+    assert result['project']['name'] == 'homelab'
+    assert result['diff']['before']['name'] == 'old-name'
+    assert result['diff']['after']['name'] == 'homelab'
+
+
+def test_by_id_rename_in_check_mode_shows_the_diff_and_sends_nothing(server, run_module):
+    server.route('GET', '/project/7', project_7(name='old-name'))
+    result = run_module(project.main, dict(id=7, name='homelab'), check_mode=True)
+    assert result['changed'] is True
+    assert result['diff'] == dict(
+        before=dict(id=7, name='old-name', alert=False, alert_chat='', max_parallel_tasks=0, type=''),
+        after=dict(id=7, name='homelab', alert=False, alert_chat='', max_parallel_tasks=0, type=''))
+    assert server.calls('PUT') == []
+
+
+@pytest.mark.parametrize('check_mode', [False, True], ids=['run', 'check_mode'])
+def test_by_id_a_missing_project_fails_instead_of_creating_one(server, run_module, check_mode):
+    server.route('GET', '/project/7', NOT_FOUND)
+    result = run_module(project.main, dict(id=7, name='homelab'), check_mode=check_mode)
+    assert result['failed'] is True
+    assert 'Project with id 7 does not exist' in result['msg']
+    assert 'leave out id' in result['msg']
+    assert [r['path'] for r in server.calls('POST')] == ['/auth/login', '/auth/logout']
+    assert server.calls('PUT') == []
+
+
+@pytest.mark.parametrize('answer', [NOT_FOUND, dict(status=403, body=None)], ids=['404', '403'])
+def test_by_id_deleting_a_missing_project_is_no_change(server, run_module, answer):
+    # 403 is what a project the user is no member of answers; it counts as missing.
+    server.route('GET', '/project/7', answer)
+    result = run_module(project.main, dict(id=7, name='homelab', state='absent', confirm_delete=True))
+    assert result.get('failed') is not True, result.get('msg')
+    assert result['changed'] is False
+    assert result['project'] == {}
+    assert result['diff'] == dict(before={}, after={})
+    assert server.calls('DELETE') == []
+
+
+def test_by_id_delete_removes_that_project(server, run_module):
+    # The name in the task need not match: the id says which project goes.
+    server.route('GET', '/project/7', project_7(name='old-name'))
+    server.route('DELETE', '/project/7', 'project_delete')
+    result = run_module(project.main, dict(id=7, name='homelab', state='absent', confirm_delete=True))
+    assert result['changed'] is True
+    assert result['project'] == {}
+    assert result['diff']['before']['name'] == 'old-name'
+    assert len(server.calls('DELETE', '/project/7')) == 1
+
+
+def test_by_id_delete_in_check_mode_sends_nothing(server, run_module):
+    server.route('GET', '/project/7', project_7())
+    result = run_module(project.main, dict(id=7, name='homelab', state='absent', confirm_delete=True), check_mode=True)
+    assert result['changed'] is True
+    assert result['diff']['before']['id'] == 7
+    assert server.calls('DELETE') == []
+
+
+def test_by_id_a_server_error_is_not_taken_for_a_missing_project(server, run_module):
+    server.route('GET', '/project/7', dict(status=500, body=dict(error='database is locked')))
+    result = run_module(project.main, dict(id=7, name='homelab', state='absent', confirm_delete=True))
+    assert result['failed'] is True
+    assert result['request_details']['status'] == 500
