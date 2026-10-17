@@ -279,14 +279,16 @@
 - name: "Show the webhook URLs of new integrations ({{ __project_apply_project.name }})"
   ansible.builtin.debug:
     msg: "{{ item.item.key }}: {{ item.webhook_urls | join(', ') }}"
+  # With no_log on the loop is empty, so no item exists to be printed: a
+  # skipped item would show in full with -v, URLs included.
   loop: >-
-    {{ __project_apply_done_integration.results | default([])
-       | selectattr('changed', 'defined') | selectattr('changed')
-       | selectattr('diff', 'defined') | selectattr('diff.before', 'equalto', {})
-       | selectattr('webhook_urls', 'defined') | selectattr('webhook_urls') | list }}
+    {{ [] if project_apply_no_log | bool else
+       (__project_apply_done_integration.results | default([])
+        | selectattr('changed', 'defined') | selectattr('changed')
+        | selectattr('diff', 'defined') | selectattr('diff.before', 'equalto', {})
+        | selectattr('webhook_urls', 'defined') | selectattr('webhook_urls') | list) }}
   loop_control:
     label: "{{ item.item.key }}"
-  when: not project_apply_no_log | bool
 
 - name: "Team ({{ __project_apply_project.name }})"
   ramanavelineni.semaphoreui.team_member:

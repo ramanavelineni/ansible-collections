@@ -207,4 +207,7 @@ def test_webhook_urls_and_registration_tokens_are_shown_only_without_no_log(role
     shows = [t for t in tasks if 'ansible.builtin.debug' in t and shown in t['ansible.builtin.debug']['msg']]
     assert shows, role
     for task in shows:
-        assert task['when'] == 'not %s_no_log | bool' % role, task['name']
+        # No `when`: a skipped item is printed in full with -v. The loop itself is
+        # empty when no_log is on (tests/roles checks the printed output).
+        assert 'when' not in task, task['name']
+        assert task['loop'].startswith("{{ [] if %s_no_log | bool else" % role), task['name']
