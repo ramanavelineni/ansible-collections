@@ -146,10 +146,10 @@ def masked(backup):
         if isinstance(runner, dict) and runner.get('token'):
             runner['token'] = MASK
     if shown.get('integration_aliases'):
-        shown['integration_aliases'] = [MASK for _ in shown['integration_aliases']]
+        shown['integration_aliases'] = [MASK] * len(shown['integration_aliases'])
     for integration in shown.get('integrations') or []:
         if isinstance(integration, dict) and integration.get('aliases'):
-            integration['aliases'] = [MASK for _ in integration['aliases']]
+            integration['aliases'] = [MASK] * len(integration['aliases'])
     return shown
 
 
