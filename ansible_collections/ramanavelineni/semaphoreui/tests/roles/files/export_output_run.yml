@@ -1,0 +1,17 @@
+---
+# Not a test of its own: tests/roles/tasks/apply_output.yml runs this playbook
+# in a nested ansible-playbook and reads what it prints. It exports the project
+# roletest-output to roletest_dest. It sets no project_export_no_log: the role's
+# default applies unless the nested run passes it as an extra var.
+- name: Export a project for the output checks of apply.yml
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Export the project
+      ansible.builtin.include_role:
+        name: ramanavelineni.semaphoreui.project_export
+      vars:
+        project_export_project: roletest-output
+        project_export_dest: "{{ roletest_dest }}"
+        project_export_overwrite: true

@@ -130,6 +130,8 @@
       ramanavelineni.semaphoreui.integration_info:
         project_id: "{{ __project_export_found.id }}"
       register: __project_export_integrations
+      # The result holds the webhook URLs, and a URL alone can start a task.
+      no_log: "{{ project_export_no_log | bool }}"
 
     - name: Read the team
       ramanavelineni.semaphoreui.team_member_info:

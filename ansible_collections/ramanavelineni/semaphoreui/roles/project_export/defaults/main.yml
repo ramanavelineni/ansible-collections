@@ -27,5 +27,9 @@ project_export_vault_file: ""
 # it, the role stops before it writes anything.
 project_export_overwrite: false
 
+# Hide the result of reading the integrations, which holds their webhook URLs.
+# Turn it off to see why that read failed.
+project_export_no_log: true
+
 project_export_file_mode: "0644"
 project_export_directory_mode: "0755"

@@ -1,0 +1,5 @@
+---
+security_fixes:
+  - project_export - with ``-v``, the task that reads the integrations printed their webhook URLs. With ``auth_method``
+    ``none``, a URL alone starts the task. The role now hides that result, and the new ``project_export_no_log`` turns
+    this off.

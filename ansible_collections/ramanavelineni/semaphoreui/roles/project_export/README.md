@@ -66,6 +66,7 @@ normally runs on `localhost`.
 | `project_export_vault_prefix` | `vault` | What the names of the variables that stand for secrets start with |
 | `project_export_vault_file` | `<dest>/<name>.vault.example` | File that lists those variables. Written only when it does not exist yet |
 | `project_export_overwrite` | `false` | Whether a project file that exists and differs in content may be replaced. Never the vault file |
+| `project_export_no_log` | `true` | Hide the result of reading the integrations, which holds their webhook URLs. Turn it off to see why that read failed |
 | `project_export_file_mode` | `0644` | Mode of the files |
 | `project_export_directory_mode` | `0755` | Mode of the directories the role creates |
 

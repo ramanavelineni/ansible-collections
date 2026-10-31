@@ -171,3 +171,14 @@ def test_the_filters_the_role_uses_exist_and_have_documentation():
         assert 'ramanavelineni.semaphoreui.%s' % used in text
     parts = read(COLLECTION_ROOT, 'plugins', 'filter', 'project_export_yaml.yml')['DOCUMENTATION']['options']['part']
     assert parts['choices'] == ['project'] + list(plugin.SECTIONS)
+
+
+def test_reading_the_integrations_can_be_hidden():
+    # integration_info returns webhook URLs, and with auth_method none a URL alone
+    # starts the task. Text check, as rendering a task needs GPL ansible-core;
+    # tests/roles/tasks/apply_output.yml checks the printed output.
+    found = [task for task in role_tasks() if COLLECTION + '.integration_info' in task]
+    assert len(found) == 1
+    assert found[0]['no_log'] == '{{ project_export_no_log | bool }}'
+    defaults = read(ROLE, 'defaults', 'main.yml')
+    assert defaults['project_export_no_log'] is True
