@@ -202,3 +202,46 @@ def test_result_has_the_documented_keys(server, run_module, check_mode):
     server.route('POST', '/projects/restore', 'backup_restore')
     result = run_module(project_restore.main, dict(backup=backup(server), name=RESTORED), check_mode=check_mode)
     assert set(result) - set(['changed', 'diff', 'invocation', 'warnings', 'deprecations']) == set(yaml.safe_load(project_restore.RETURN))
+
+
+def with_aliases(server, top, inner):
+    """The recorded backup plus integration aliases, which the recorded project doesn't have."""
+    body = backup(server)
+    body['integration_aliases'] = top
+    body['integrations'] = [dict(name='hook', auth_method='none', template='deploy', aliases=inner,
+                                 matchers=[], extract_values=[])]
+    return body
+
+
+@pytest.mark.parametrize('check_mode', [False, True], ids=['real', 'check'])
+@pytest.mark.parametrize('top, inner', [(['********'], []), ([], ['********']), (['real-one', '********'], [])],
+                         ids=['project-wide', 'of-an-integration', 'among-real-ones'])
+def test_a_masked_alias_is_refused_before_a_project_is_created(server, run_module, check_mode, top, inner):
+    # Semaphore creates an alias as it is given, so the webhook URL of the new
+    # project would end in the mask, which anyone can guess.
+    server.route('GET', '/projects', 'backup_projects')
+    server.route('POST', '/projects/restore', 'backup_restore')
+    given = dict(backup=with_aliases(server, top, inner), name=RESTORED)
+    result = run_module(project_restore.main, given, check_mode=check_mode)
+    assert result['failed'] is True and 'dest' in result['msg']
+    assert restores(server) == []
+
+
+def test_real_aliases_and_a_masked_runner_token_are_restored(server, run_module):
+    # Semaphore clears a runner's token on restore, so a masked one does no harm.
+    server.route('GET', '/projects', 'backup_projects')
+    server.route('POST', '/projects/restore', 'backup_restore')
+    body = with_aliases(server, ['real-one'], ['real-two'])
+    body['runners'] = [dict(name='r', token='********')]
+    result = run_module(project_restore.main, dict(backup=body, name=RESTORED))
+    assert result['changed'] is True
+    sent = restores(server)[0]['body']
+    assert sent['integration_aliases'] == ['real-one']
+    assert sent['integrations'][0]['aliases'] == ['real-two']
+
+
+def test_a_masked_backup_of_a_project_that_exists_changes_nothing(server, run_module):
+    # A play that backs up and restores in one go runs again on a project that is there.
+    server.route('GET', '/projects', 'backup_projects')
+    result = run_module(project_restore.main, dict(backup=with_aliases(server, ['********'], [])))
+    assert result['changed'] is False and result.get('failed') is not True

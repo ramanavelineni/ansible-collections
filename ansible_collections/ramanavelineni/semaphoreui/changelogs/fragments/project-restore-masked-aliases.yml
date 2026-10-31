@@ -1,0 +1,6 @@
+---
+security_fixes:
+  - project_restore - a backup from the result of ``project_backup``, as in the module's own example, sent each
+    integration alias to Semaphore as ``********``, which Semaphore stores as it is. The webhook URLs of the new
+    project then ended in that mask instead of the real alias. The module now refuses to create a project from masked
+    aliases. Restore from the file ``project_backup`` writes at ``dest``.

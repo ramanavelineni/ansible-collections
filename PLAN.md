@@ -173,6 +173,10 @@ each module logs in and out within its own run.
   2026-10-04).
 - Semaphore takes a backup without `meta.name` and creates a project with an
   empty name, so the module refuses one before any request.
+- Semaphore creates integration aliases as the backup gives them and ignores
+  any error, but clears runner tokens. `project_backup`'s result masks both, so
+  the module refuses masked aliases before it creates a project. A project that
+  already exists is still left alone.
 - A reference to a name that is not in the backup is refused before anything
   is created (a bare 400), but not every one is checked up front: a
   schedule's template is looked up after the project exists, and the failure
