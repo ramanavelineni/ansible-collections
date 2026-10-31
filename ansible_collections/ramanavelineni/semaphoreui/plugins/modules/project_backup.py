@@ -17,7 +17,8 @@ description:
   - B(A backup does hold some secrets.) Semaphore writes each runner's auth token (C(runners[].token)) and
     every integration alias, which is the secret part of an integration's webhook URL
     (C(integration_aliases) and C(integrations[].aliases)). The file at O(dest) keeps them, so a restore
-    gets them back. The returned RV(backup) and the diff show each of them as C(********).
+    gets them back. The returned RV(backup) and the diff show each of them as C(********), and
+    M(ramanavelineni.semaphoreui.project_restore) refuses a backup with masked aliases.
 author:
   - ramanavelineni (@ramanavelineni)
 extends_documentation_fragment:

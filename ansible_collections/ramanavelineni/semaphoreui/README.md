@@ -266,6 +266,7 @@ Where one of these can't be avoided, set `no_log: true` on the task.
 `project_backup` shows runner tokens and integration aliases as `********` in
 its result and diff. The file it writes at `dest` keeps the real values, so a
 restore gets them back. Keep that file private (`mode: "0600"`, the default).
+`project_restore` refuses to create a project from masked aliases.
 
 </details>
 

@@ -38,6 +38,9 @@ options:
   backup:
     description:
       - The backup itself, for example RV(ramanavelineni.semaphoreui.project_backup#module:backup).
+      - That result shows integration aliases as C(********), and the module refuses to create a project from
+        masked aliases. For a project with integrations, use O(src) with the file
+        O(ramanavelineni.semaphoreui.project_backup#module:dest) writes.
       - Mutually exclusive with O(src); one of the two is required.
     type: dict
   name:
@@ -73,7 +76,7 @@ EXAMPLES = r'''
 
 - name: Copy a project under another name
   ramanavelineni.semaphoreui.project_restore:
-    backup: "{{ homelab_backup.backup }}"
+    src: /var/backups/semaphore/homelab.json
     name: homelab-copy
 '''
 
@@ -118,6 +121,7 @@ import json
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import (
+    MASK,
     SemaphoreError,
     find_by_name,
     project_view,
@@ -150,6 +154,15 @@ def load(params):
     if not isinstance(meta.get('name'), str) or not meta['name'].strip():
         raise ValueError('%s names no project (meta.name), and the task gives no name.' % where)
     return backup
+
+
+def has_masked_alias(backup):
+    """Whether an integration alias in the backup is the mask project_backup's result shows, not its real value."""
+    lists = [backup.get('integration_aliases')]
+    integrations = backup.get('integrations')
+    if isinstance(integrations, list):
+        lists.extend(integration.get('aliases') for integration in integrations if isinstance(integration, dict))
+    return any(isinstance(aliases, list) and MASK in aliases for aliases in lists)
 
 
 def what_is_left(client, name, error):
@@ -187,6 +200,14 @@ def restore(module, client):
     if existing:
         view = project_view(existing)
         return dict(changed=False, project=view, diff=dict(before=view, after=view))
+
+    if has_masked_alias(backup):
+        # Semaphore creates an alias as it is given (services/project/restore.go). A masked runner token
+        # does no harm: Semaphore clears every runner's token on restore.
+        raise ValueError('The backup holds integration aliases masked as %s, as the result of project_backup shows '
+                         'them. Semaphore would create them as they are, so the webhook URLs of the new project '
+                         'would end in the mask. Restore from the file project_backup writes at dest, which keeps '
+                         'the real aliases.' % MASK)
 
     if module.check_mode:
         after = project_view(backup['meta'])
