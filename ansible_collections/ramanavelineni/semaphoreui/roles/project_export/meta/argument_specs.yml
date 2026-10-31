@@ -82,6 +82,13 @@ argument_specs:
           - It never replaces the vault file. See O(project_export_vault_file).
         type: bool
         default: false
+      project_export_no_log:
+        description:
+          - Hide the result of reading the integrations. It holds their webhook URLs, and with C(auth_method) V(none)
+            a URL alone starts the task.
+          - This also hides why that read failed. Turn it off to see the reason.
+        type: bool
+        default: true
       project_export_file_mode:
         description:
           - Mode of the files the role writes.

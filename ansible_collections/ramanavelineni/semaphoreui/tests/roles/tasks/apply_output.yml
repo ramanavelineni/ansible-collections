@@ -103,6 +103,39 @@
         fail_msg: A key or variable group of files/apply/output is missing, or the run at -v printed one of their secrets.
         quiet: true
 
+    # ---- project_export, at -v -----------------------------------------------
+
+    - name: Export the project with the defaults, at -v
+      ansible.builtin.command:
+        argv: >-
+          {{ ['ansible-playbook', playbook_dir ~ '/files/export_output_run.yml', '-v', '-e',
+              {'roletest_dest': roletest_output_dir.path ~ '/export'} | to_json] }}
+      environment: "{{ roletest_output_environment }}"
+      register: roletest_export_hidden
+      changed_when: false
+
+    - name: Export the project with project_export_no_log off, at -v
+      ansible.builtin.command:
+        argv: >-
+          {{ ['ansible-playbook', playbook_dir ~ '/files/export_output_run.yml', '-v', '-e',
+              {'roletest_dest': roletest_output_dir.path ~ '/export', 'project_export_no_log': false} | to_json] }}
+      environment: "{{ roletest_output_environment }}"
+      register: roletest_export_shown
+      changed_when: false
+
+    - name: The export prints the webhook URL only with project_export_no_log off
+      vars:
+        roletest_url: "{{ roletest_output_hook.integrations[0].webhook_urls[0] }}"
+      ansible.builtin.assert:
+        that:
+          - roletest_url | length > 0
+          - roletest_url not in roletest_export_hidden.stdout
+          - roletest_url in roletest_export_shown.stdout
+        fail_msg: The export printed the URL of roletest-open with no_log on, or didn't print it with no_log off.
+        quiet: true
+      # The message names what leaked, not the value.
+      no_log: true
+
     - name: Delete the integration, so that the next run creates it again
       ramanavelineni.semaphoreui.integration:
         project: roletest-output
