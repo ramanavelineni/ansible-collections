@@ -164,9 +164,10 @@ each module logs in and out within its own run.
 - `GET /project/<id>/backup` and `POST /projects/restore`, the two requests
   behind **Backup** and **Restore Project** in the UI.
 - A backup names everything (a repository's key, a template's inventory) and
-  has no ids. It holds no secrets: a key is its name and type, a secret
-  variable only its name, among the keys with `owner: variable`. A restored
-  project has keys that are `empty`, and no secret variables at all.
+  has no ids. A key is its name and type, a secret variable only its name,
+  among the keys with `owner: variable`. A restored project has keys that are
+  `empty`, and no secret variables at all. It does hold runner tokens and
+  integration aliases.
 - Restoring always creates a project and refuses the name of one that exists
   (400, `project with name '...' already exists`). The module looks for the
   name first and then does nothing, without comparing anything (decided

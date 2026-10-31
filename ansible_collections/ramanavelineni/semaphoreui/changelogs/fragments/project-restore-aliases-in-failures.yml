@@ -1,0 +1,5 @@
+---
+security_fixes:
+  - project_restore - a failed restore returned the real integration aliases of the backup in
+    ``request_details.request``. An alias is the secret part of a webhook URL. The client now masks values under keys
+    that contain ``alias`` in every failure it reports.

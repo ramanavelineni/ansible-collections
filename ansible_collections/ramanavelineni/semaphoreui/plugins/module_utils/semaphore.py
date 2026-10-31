@@ -45,7 +45,7 @@ LIST_CAP = 200
 # Request bodies are shown in failures. Values under keys like these, and any
 # value of a no_log option, are replaced first: Ansible's own masking only
 # finds a secret that appears exactly as it was passed.
-SECRET_KEYS = re.compile(r'secret|password|passphrase|private_key|token', re.IGNORECASE)
+SECRET_KEYS = re.compile(r'secret|password|passphrase|private_key|token|alias', re.IGNORECASE)
 
 
 def semaphore_argument_spec():
