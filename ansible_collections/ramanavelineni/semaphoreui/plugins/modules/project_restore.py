@@ -14,9 +14,11 @@ description:
   - Semaphore refuses a name that any project on the server has, also a project the user is not a member of.
     A user who is not an administrator sees only their own projects, so for them the module fails on such a
     name and says so. Restore under another O(name) then, or as an administrator.
-  - B(A backup holds no secrets), so the keys of the restored project are empty, and the secret variables of
-    its variable groups are gone. Set them afterwards, for example with
+  - A backup holds no key secrets and no values of secret variables, so the keys of the restored project are
+    empty, and the secret variables of its variable groups are gone. Set them afterwards, for example with
     M(ramanavelineni.semaphoreui.key_store) and M(ramanavelineni.semaphoreui.variable_group).
+  - B(A backup does hold integration aliases and runner tokens.) See
+    M(ramanavelineni.semaphoreui.project_backup).
   - The user the module logs in as becomes the owner of the new project. Other team members are not part of
     a backup.
 author:
@@ -41,6 +43,8 @@ options:
       - That result shows integration aliases as C(********), and the module refuses to create a project from
         masked aliases. For a project with integrations, use O(src) with the file
         O(ramanavelineni.semaphoreui.project_backup#module:dest) writes.
+      - Real aliases given here appear in the task's arguments, for example at C(-vvv). Set C(no_log) on the
+        task, or use O(src).
       - Mutually exclusive with O(src); one of the two is required.
     type: dict
   name:

@@ -245,3 +245,18 @@ def test_a_masked_backup_of_a_project_that_exists_changes_nothing(server, run_mo
     server.route('GET', '/projects', 'backup_projects')
     result = run_module(project_restore.main, dict(backup=with_aliases(server, ['********'], [])))
     assert result['changed'] is False and result.get('failed') is not True
+
+
+def test_a_failed_restore_does_not_return_the_real_aliases(server, run_module):
+    # An alias is the secret part of a webhook URL, and Ansible's masking doesn't know it.
+    server.route('GET', '/projects', 'backup_projects', 'backup_projects_after_broken')
+    server.route('POST', '/projects/restore', 'backup_restore_broken')
+    body = with_aliases(server, ['real-one'], ['real-two'])
+    result = run_module(project_restore.main, dict(backup=body, name='bk-fixtures-broken'))
+    assert result['failed'] is True
+    shown = result['request_details']['request']
+    assert shown['integration_aliases'] == ['********']
+    assert shown['integrations'][0]['aliases'] == ['********']
+    # Everything but the invocation, which holds what the task itself passed.
+    outside = dict((k, v) for k, v in result.items() if k != 'invocation')
+    assert 'real-one' not in json.dumps(outside) and 'real-two' not in json.dumps(outside)
