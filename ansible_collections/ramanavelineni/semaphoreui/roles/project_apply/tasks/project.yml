@@ -369,12 +369,15 @@
   ramanavelineni.semaphoreui.variable_group:
     project: "{{ omit if __project_apply_done_project.project.id is defined else __project_apply_project.name }}"
     project_id: "{{ __project_apply_done_project.project.id | default(omit) }}"
-    name: "{{ item.key }}"
+    name: "{{ item }}"
     state: absent
-  loop: "{{ __project_apply_project.variable_group | default({}, true) | dict2items }}"
-  loop_control:
-    label: "{{ item.key }}"
-  when: (item.value | default({}, true)).state | default('present') == 'absent'
+  # The loop holds names only. An item is printed in full with -v, and an entry
+  # of this section can hold secrets. no_log would also hide why a delete was
+  # refused. The same goes for "Delete keys".
+  loop: >-
+    {{ __project_apply_project.variable_group | default({}, true) | dict2items
+       | selectattr('value', 'mapping') | selectattr('value.state', 'defined')
+       | selectattr('value.state', 'equalto', 'absent') | map(attribute='key') | list }}
   register: __project_apply_gone_variable_group
 
 - name: "Delete inventories ({{ __project_apply_project.name }})"
@@ -405,12 +408,12 @@
   ramanavelineni.semaphoreui.key_store:
     project: "{{ omit if __project_apply_done_project.project.id is defined else __project_apply_project.name }}"
     project_id: "{{ __project_apply_done_project.project.id | default(omit) }}"
-    name: "{{ item.key }}"
+    name: "{{ item }}"
     state: absent
-  loop: "{{ __project_apply_project.key_store | default({}, true) | dict2items }}"
-  loop_control:
-    label: "{{ item.key }}"
-  when: (item.value | default({}, true)).state | default('present') == 'absent'
+  loop: >-
+    {{ __project_apply_project.key_store | default({}, true) | dict2items
+       | selectattr('value', 'mapping') | selectattr('value.state', 'defined')
+       | selectattr('value.state', 'equalto', 'absent') | map(attribute='key') | list }}
   register: __project_apply_gone_key_store
 
 - name: "Note what was done ({{ __project_apply_project.name }})"
