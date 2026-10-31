@@ -1,0 +1,5 @@
+---
+security_fixes:
+  - project_apply - with ``-v``, the tasks that delete keys and variable groups printed the whole entry of every key and
+    variable group in the project, secrets included, also with ``project_apply_no_log`` on. A failed delete printed its
+    entry without ``-v`` too. These tasks now loop over the names of the entries to delete.

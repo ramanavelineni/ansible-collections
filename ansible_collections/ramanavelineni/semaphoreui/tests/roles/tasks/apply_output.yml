@@ -81,6 +81,28 @@
       # The message names what leaked, not the value.
       no_log: true
 
+    - name: Read the key that holds a secret
+      ramanavelineni.semaphoreui.key_store_info:
+        project: roletest-output
+        name: roletest-secret-key
+      register: roletest_output_secret_key
+
+    - name: Read the variable group that holds a secret
+      ramanavelineni.semaphoreui.variable_group_info:
+        project: roletest-output
+        name: roletest-secret-vars
+      register: roletest_output_secret_vars
+
+    - name: The run at -v prints no secret of a key or a variable group, kept or deleted
+      ansible.builtin.assert:
+        that:
+          # The entries were applied, so their secrets went through the role.
+          - roletest_output_secret_key.key_store | length == 1
+          - roletest_output_secret_vars.variable_groups | length == 1
+          - "'roletest-printed-secret' not in roletest_output_hidden.stdout"
+        fail_msg: A key or variable group of files/apply/output is missing, or the run at -v printed one of their secrets.
+        quiet: true
+
     - name: Delete the integration, so that the next run creates it again
       ramanavelineni.semaphoreui.integration:
         project: roletest-output

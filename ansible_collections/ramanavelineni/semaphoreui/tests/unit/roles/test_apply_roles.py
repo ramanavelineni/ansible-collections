@@ -131,7 +131,20 @@ def test_a_create_task_hands_every_option_to_the_module():
 def test_a_delete_task_names_the_entry_and_nothing_else():
     for module, arguments, task in create_and_delete_tasks()[1]:
         assert set(arguments) == set(PROJECT_SCOPE) | {KEYED_BY.get(module, 'name'), 'state'}, module
-        assert "== 'absent'" in task['when'], module
+        assert "'absent'" in task.get('when', task['loop']), module
+
+
+def test_deleting_entries_that_hold_secrets_loops_over_their_names_only():
+    # A loop item is printed in full with -v, skipped or not, so an item with the
+    # entry's value in it prints the entry's secrets. Text check, for the reason in
+    # the module docstring; tests/roles/tasks/apply_output.yml checks the printed output.
+    checked = []
+    for module, arguments, task in create_and_delete_tasks()[1]:
+        if module in ('key_store', 'variable_group'):
+            checked.append(module)
+            assert arguments['name'] == '{{ item }}', module
+            assert task['loop'].endswith("| map(attribute='key') | list }}"), module
+    assert sorted(checked) == ['key_store', 'variable_group']
 
 
 def test_entries_name_their_project_by_the_id_the_project_task_returned():

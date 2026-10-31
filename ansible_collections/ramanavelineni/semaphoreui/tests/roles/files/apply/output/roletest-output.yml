@@ -1,12 +1,23 @@
 ---
 # A project with an integration that needs no authentication: its webhook URL
 # alone starts the task. tests/roles/tasks/apply_output.yml applies it and
-# checks whether the URL is printed. Nothing here is a real address.
+# checks whether the URL is printed, and whether a secret below is: each one
+# holds roletest-printed-secret. Nothing here is a real address or secret.
 name: roletest-output
 
 key_store:
   roletest-none:
     type: none
+  roletest-secret-key:
+    type: login_password
+    login_password:
+      login: roletest
+      password: roletest-printed-secret-key
+  roletest-secret-key-gone:
+    state: absent
+    login_password:
+      login: roletest
+      password: roletest-printed-secret-key-gone
 
 repository:
   roletest-repo:
@@ -24,6 +35,15 @@ variable_group:
   roletest-vars:
     env:
       TZ: UTC
+  roletest-secret-vars:
+    secrets:
+      - name: ROLETEST_SECRET
+        value: roletest-printed-secret-group
+  roletest-secret-vars-gone:
+    state: absent
+    secrets:
+      - name: ROLETEST_SECRET
+        value: roletest-printed-secret-group-gone
 
 template:
   roletest-site:
