@@ -58,6 +58,31 @@ def server(request, mocker):
     return fake
 
 
+# Workflow fixtures: a set of their own per version that has workflows (2.19
+# and later; 2.18 has none). Each holds the server's /info as well.
+WORKFLOW_FIXTURES_DIR = FIXTURES_DIR + '_workflow'
+WORKFLOW_VERSIONS = utils.fixture_versions(WORKFLOW_FIXTURES_DIR)
+
+
+class WorkflowServer(FakeServer):
+    """FakeServer without /apps, which the workflow area doesn't record and the workflow modules don't read."""
+
+    ROUTES = tuple(r for r in FakeServer.ROUTES if r[1] != '/apps')
+
+
+@pytest.fixture(params=WORKFLOW_VERSIONS)
+def workflow_server(request, mocker):
+    """A fake Semaphore that has workflows, from fixtures_workflow/<version>/."""
+    fixtures = utils.load_fixtures(WORKFLOW_FIXTURES_DIR, request.param)
+    fixtures.update(login=fixtures['workflow_login'], logout=fixtures['workflow_logout'],
+                    info=fixtures['workflow_server_info'])
+    fake = WorkflowServer(fixtures)
+    fake.version = request.param
+    mocker.patch(PATCH_TARGET, side_effect=fake)
+    mocker.patch('time.sleep')
+    return fake
+
+
 @pytest.fixture
 def run_module(capsys):
     """run_module(main, args) -> the module's result, as a user sees it."""

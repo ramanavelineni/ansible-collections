@@ -25,8 +25,8 @@ REQUIRED = 'ramanavelineni.semaphoreui.project'
 OPTIONAL = 'ramanavelineni.semaphoreui.project.optional'
 
 # module: (its fragment, the release that added project_id to it). project_id
-# came in 0.3.0, except in the modules that are new in 0.4.0 and had it from
-# the start (changelogs/changelog.yaml).
+# came in 0.3.0, except in the modules that are new in 0.4.0 or 0.6.0 and had
+# it from the start (changelogs/changelog.yaml).
 TAKES_A_PROJECT = dict(
     event_info=(OPTIONAL, '0.4.0'),
     integration=(REQUIRED, '0.3.0'),
@@ -52,6 +52,10 @@ TAKES_A_PROJECT = dict(
     variable_group_info=(REQUIRED, '0.3.0'),
     view=(REQUIRED, '0.3.0'),
     view_info=(REQUIRED, '0.3.0'),
+    workflow=(REQUIRED, '0.6.0'),
+    workflow_approval=(REQUIRED, '0.6.0'),
+    workflow_info=(REQUIRED, '0.6.0'),
+    workflow_run=(REQUIRED, '0.6.0'),
 )
 NAMES = sorted(TAKES_A_PROJECT)
 

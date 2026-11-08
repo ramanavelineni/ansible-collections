@@ -57,6 +57,8 @@ from recorder_common import TIMEOUT, keep, parse_args, require_throwaway, run_ar
 HERE = os.path.dirname(os.path.abspath(__file__))
 FIXTURES = os.path.join(HERE, '..', 'ansible_collections', 'ramanavelineni', 'semaphoreui',
                         'tests', 'unit', 'plugins', 'fixtures')
+# Workflow areas: 2.18 has no workflows, so their fixtures are a set of their own.
+WORKFLOW_FIXTURES = FIXTURES + '_workflow'
 
 
 # Not a key: Semaphore stores whatever it is given, and never returns it.
@@ -827,7 +829,187 @@ def record_token(srv, out):
     expect(srv.call('DELETE', '/user/tokens/%s' % expiring['body']['id'][:8]), 204, 'delete expiring token')
 
 
-# Area name -> recorder. Each writes fixtures/<major.minor>/<area>.json.
+# -- workflows (Semaphore Pro) -------------------------------------------------
+
+WORKFLOW_PROJECT = 'fixtures-workflow'
+NOWORKFLOW_PROJECT = 'fixtures-noworkflow'
+
+
+def sweep_workflow(srv):
+    """Delete project fixtures-workflow; its workflows, templates and runs go with it."""
+    delete_projects(srv, WORKFLOW_PROJECT)
+
+
+def sweep_noworkflow(srv):
+    delete_projects(srv, NOWORKFLOW_PROJECT)
+
+
+def record_noworkflow(srv, out):
+    """What a create of a workflow without nodes, and the list, get from the stock servers.
+
+    2.18 has no workflow routes (404). 2.19 lists workflows and refuses one
+    without nodes (400). Recorded into the ordinary fixtures.
+    """
+    pid = expect(srv.call('POST', '/projects', {'name': NOWORKFLOW_PROJECT}), 201, 'create project')['body']['id']
+    base = '/project/%d' % pid
+    out['noworkflow_projects'] = keep(expect(srv.call('GET', '/projects'), 200, 'projects'), lambda p: p['id'] == pid)
+    out['noworkflow_templates'] = expect(srv.call('GET', base + '/templates'), 200, 'templates')
+    out['noworkflow_list'] = srv.call('GET', base + '/workflows')
+    # With one node: 2.19 refuses a workflow without nodes (400) before it answers 404.
+    out['noworkflow_create'] = srv.call('POST', base + '/workflows', {
+        'project_id': pid, 'name': 'wf-none', 'description': '',
+        'nodes': [{'id': 1, 'kind': 'approval', 'approval_message': 'recorded'}], 'edges': []})
+    out['noworkflow_create_empty'] = srv.call('POST', base + '/workflows', {
+        'project_id': pid, 'name': 'wf-none', 'description': '', 'nodes': [], 'edges': []})
+
+
+def record_workflow(srv, out):
+    """Workflows, their runs and approvals, in project fixtures-workflow. Needs 2.19 or later.
+
+    Written from Semaphore's public API description (api-docs.yml of 2.19 and
+    2.20). 2.19 starts a run with POST .../run and has no workflow survey;
+    2.20 starts one with POST .../runs. The templates are the task area's:
+    bash scripts that need nothing from outside the container (see
+    record_task).
+    """
+    newer = srv.minor >= (2, 20)
+    # The workflow fixtures are a set of their own; the tests need the server's /info from it.
+    out['workflow_server_info'] = expect(srv.call('GET', '/info'), 200, 'info')
+    out['workflow_login'] = expect(srv.call('POST', '/auth/login', {'auth': srv.username, 'password': srv.password}),
+                                   204, 'login')
+    pid = expect(srv.call('POST', '/projects', {'name': WORKFLOW_PROJECT}), 201, 'create project')['body']['id']
+    base = '/project/%d' % pid
+    out['workflow_projects'] = keep(expect(srv.call('GET', '/projects'), 200, 'projects'), lambda p: p['id'] == pid)
+    out['workflow_list_empty'] = expect(srv.call('GET', base + '/workflows'), 200, 'workflows, none yet')
+
+    kid = expect(srv.call('POST', base + '/keys', {'project_id': pid, 'name': 'wf-none', 'type': 'none'}),
+                 201, 'create key')['body']['id']
+    rid = expect(srv.call('POST', base + '/repositories', {
+        'project_id': pid, 'name': 'wf-local', 'git_url': '/dev', 'git_branch': '', 'ssh_key_id': kid}),
+        201, 'create repository')['body']['id']
+    iid = expect(srv.call('POST', base + '/inventory', {
+        'project_id': pid, 'name': 'wf-inventory', 'type': 'static', 'inventory': 'localhost', 'ssh_key_id': kid}),
+        201, 'create inventory')['body']['id']
+
+    def group(name, env):
+        return expect(srv.call('POST', base + '/environment', {
+            'project_id': pid, 'name': name, 'json': '{}', 'env': json.dumps(env)}), 201, 'create variable group')['body']['id']
+
+    plain = group('wf-plain', {})
+    slow = group('wf-slow', {'BASH_ENV': '$(sleep %d)' % TASK_SECONDS})
+
+    def template(name, group_id, **more):
+        body = dict({'project_id': pid, 'name': name, 'app': 'bash', 'playbook': 'null', 'repository_id': rid,
+                     'inventory_id': iid, 'environment_id': group_id, 'type': ''}, **more)
+        return expect(srv.call('POST', base + '/templates', body), 201, 'create template %s' % name)['body']['id']
+
+    ok_id = template('wf-ok', plain)
+    template('wf-next', plain)
+    fail_id = template('wf-fail', plain, playbook='wf-missing.sh')
+    slow_id = template('wf-slow', slow)
+    out['workflow_templates'] = expect(srv.call('GET', base + '/templates'), 200, 'templates')
+    names = dict((t['name'], t['id']) for t in out['workflow_templates']['body'])
+
+    # The graph as the workflow module sends it: numbered nodes, edges by number.
+    created = {
+        'project_id': pid, 'name': 'wf-release', 'description': 'recorded',
+        'survey_vars': [{'name': 'release', 'title': 'Release', 'type': '', 'required': False,
+                         'description': '', 'default_value': '1.0'}] if newer else None,
+        'nodes': [
+            {'id': 1, 'kind': 'task', 'template_id': ok_id, 'position_x': 0, 'position_y': 0,
+             'task_params': {'message': 'from the workflow'}},
+            {'id': 2, 'kind': 'approval', 'approval_message': 'Go on?', 'approval_timeout': 3600,
+             'position_x': 300, 'position_y': 0},
+            {'id': 3, 'kind': 'task', 'template_id': names['wf-next'], 'position_x': 600, 'position_y': 0},
+        ],
+        'edges': [
+            {'source_node_id': 1, 'destination_node_id': 2, 'condition': 'on_success'},
+            {'source_node_id': 2, 'destination_node_id': 3, 'condition': 'on_success'},
+        ]}
+    if not newer:
+        del created['survey_vars']
+    out['workflow_create'] = expect(srv.call('POST', base + '/workflows', created), 201, 'create workflow')
+    wid = out['workflow_create']['body']['id']
+    out['workflow_list'] = expect(srv.call('GET', base + '/workflows'), 200, 'workflows')
+    out['workflow_get'] = expect(srv.call('GET', '%s/workflows/%d' % (base, wid)), 200, 'workflow')
+
+    # An update that sends the stored workflow back with one more node.
+    stored = dict(out['workflow_get']['body'])
+    for field in ('permissions', 'revision_id', 'revision'):
+        stored.pop(field, None)
+    numbers = dict((n['id'], i + 1) for i, n in enumerate(stored['nodes']))
+    nodes = [dict(n, id=numbers[n['id']]) for n in stored['nodes']]
+    nodes.append({'id': len(nodes) + 1, 'kind': 'task', 'template_id': fail_id, 'position_x': 600, 'position_y': 150})
+    edges = [dict(source_node_id=numbers[e['source_node_id']], destination_node_id=numbers[e['destination_node_id']],
+                  condition=e.get('condition') or 'on_success') for e in stored['edges']]
+    edges.append(dict(source_node_id=1, destination_node_id=len(nodes), condition='on_failure'))
+    out['workflow_update'] = expect(srv.call('PUT', '%s/workflows/%d' % (base, wid),
+                                             dict(stored, nodes=nodes, edges=edges)), 204, 'update workflow')
+    out['workflow_get_updated'] = expect(srv.call('GET', '%s/workflows/%d' % (base, wid)), 200, 'updated workflow')
+
+    def run_path(run_id=None, more=''):
+        return '%s/workflows/%d/runs%s%s' % (base, wid, '' if run_id is None else '/%d' % run_id, more)
+
+    def watch(path, wanted, what):
+        seen = None
+        for dummy in range(200):
+            seen = expect(srv.call('GET', path), 200, what)
+            status = seen['body']['run']['status']
+            if status in wanted:
+                return seen
+            if status in ('success', 'failed', 'stopped'):
+                break
+            time.sleep(0.5)
+        sys.exit('run %s: waited for %s, it is %s. Record this area again.' % (what, ' or '.join(wanted), status))
+
+    # A run that waits for the approval, is approved, and succeeds.
+    def start(body):
+        if newer:
+            return expect(srv.call('POST', run_path(), body), 201, 'start run')
+        return expect(srv.call('POST', '%s/workflows/%d/run' % (base, wid)), 201, 'start run')
+
+    out['workflow_run_start'] = start({'environment': {'release': '2.0'}})
+    run_id = out['workflow_run_start']['body']['id']
+    out['workflow_run_get_approval'] = watch(run_path(run_id), ('approval',), 'until the approval')
+    out['workflow_approvals_pending'] = expect(srv.call('GET', run_path(run_id, '/approvals')), 200, 'approvals')
+    node_id = out['workflow_approvals_pending']['body'][0]['workflow_node_id']
+    out['workflow_approve'] = expect(srv.call('POST', run_path(run_id, '/approvals/%d' % node_id),
+                                              {'status': 'approved'}), 200, 'approve')
+    out['workflow_approve_again'] = srv.call('POST', run_path(run_id, '/approvals/%d' % node_id), {'status': 'rejected'})
+    out['workflow_run_get_success'] = watch(run_path(run_id), ('success',), 'to its end')
+    out['workflow_approvals_resolved'] = expect(srv.call('GET', run_path(run_id, '/approvals')), 200, 'approvals after')
+    out['workflow_runs'] = expect(srv.call('GET', run_path()), 200, 'runs')
+
+    # A run whose first task fails: the on_failure edge runs wf-fail, which fails too.
+    failing = dict(stored, nodes=[{'id': 1, 'kind': 'task', 'template_id': fail_id}], edges=[])
+    expect(srv.call('PUT', '%s/workflows/%d' % (base, wid), failing), 204, 'make the workflow fail')
+    out['workflow_run_start_failing'] = start({})
+    out['workflow_run_get_failed'] = watch(run_path(out['workflow_run_start_failing']['body']['id']), ('failed',),
+                                           'that fails')
+
+    # A run stopped while its task runs.
+    slowly = dict(stored, nodes=[{'id': 1, 'kind': 'task', 'template_id': slow_id}], edges=[])
+    expect(srv.call('PUT', '%s/workflows/%d' % (base, wid), slowly), 204, 'make the workflow slow')
+    out['workflow_run_start_slow'] = start({})
+    slow_run = out['workflow_run_start_slow']['body']['id']
+    out['workflow_run_get_running'] = watch(run_path(slow_run), ('running',), 'while it runs')
+    out['workflow_run_stop'] = expect(srv.call('POST', run_path(slow_run, '/stop')), 200, 'stop run')
+    out['workflow_run_get_stopped'] = watch(run_path(slow_run), ('stopped',), 'after the stop')
+
+    # What the server refuses, and the delete.
+    out['workflow_get_missing'] = srv.call('GET', '%s/workflows/%d' % (base, wid + 100000))
+    out['workflow_run_get_missing'] = srv.call('GET', run_path(run_id + 100000))
+    out['workflow_create_unknown_template'] = srv.call('POST', base + '/workflows', {
+        'project_id': pid, 'name': 'wf-broken', 'description': '', 'survey_vars': [],
+        'nodes': [{'id': 1, 'kind': 'task', 'template_id': ok_id + 100000}], 'edges': []})
+    out['workflow_delete'] = expect(srv.call('DELETE', '%s/workflows/%d' % (base, wid)), 204, 'delete workflow')
+    out['workflow_list_after_delete'] = expect(srv.call('GET', base + '/workflows'), 200, 'workflows after delete')
+    out['workflow_logout'] = expect(srv.call('POST', '/auth/logout'), 204, 'logout')
+    expect(srv.call('POST', '/auth/login', {'auth': srv.username, 'password': srv.password}), 204, 'login again')
+
+
+# Area name -> recorder. Each writes fixtures/<major.minor>/<area>.json, except
+# the areas in WORKFLOW_AREAS, which write fixtures_workflow/<major.minor>/<area>.json.
 AREAS = {
     'backup': record_backup,
     'core': record_core,
@@ -837,6 +1019,8 @@ AREAS = {
     'runner': record_runner,
     'task': record_task,
     'user': record_user,
+    'noworkflow': record_noworkflow,
+    'workflow': record_workflow,
 }
 # Area name -> what takes the area's own objects off the server (see run_area).
 SWEEPS = {
@@ -848,7 +1032,12 @@ SWEEPS = {
     'runner': sweep_runner,
     'task': sweep_task,
     'user': sweep_user,
+    'noworkflow': sweep_noworkflow,
+    'workflow': sweep_workflow,
 }
+# Areas recorded into WORKFLOW_FIXTURES, from the versions that have workflows
+# (2.19 and later), so that the ordinary fixture sets stay the same as each other.
+WORKFLOW_AREAS = ('workflow',)
 
 
 def main():
@@ -865,15 +1054,30 @@ def main():
     bad_login = expect(srv.call('POST', '/auth/login', {'auth': srv.username, 'password': 'wrong'}), 401, 'bad login')
     login = expect(srv.call('POST', '/auth/login', {'auth': srv.username, 'password': password}), 204, 'login')
     version = expect(srv.call('GET', '/info'), 200, 'info')['body']['version']
-    minor = re.match(r'^v?(\d+\.\d+)', version).group(1)
+    # A build from a branch reports no release ("main-9062235d-..."). It is
+    # recorded only when SEMAPHORE_RECORD_AS names the release it stands for,
+    # and the file keeps both (see write_fixture's recorded_as).
+    found = re.match(r'^v?(\d+\.\d+)', version)
+    recorded_as = os.environ.get('SEMAPHORE_RECORD_AS')
+    if recorded_as and not re.match(r'^\d+\.\d+$', recorded_as):
+        sys.exit('SEMAPHORE_RECORD_AS must be a release like 2.20, not %r' % recorded_as)
+    if found and recorded_as and recorded_as != found.group(1):
+        sys.exit('the server reports %s; SEMAPHORE_RECORD_AS=%s does not match it' % (version, recorded_as))
+    if not found and not recorded_as:
+        sys.exit('the server reports version %r, which names no release. Set SEMAPHORE_RECORD_AS to the '
+                 'release this build stands for (for example 2.20).' % version)
+    minor = found.group(1) if found else recorded_as
+    srv.minor = tuple(int(part) for part in minor.split('.'))
 
     for area in areas:
         out = {}
         if area == 'core':
             out.update(login_bad_password=bad_login, login=login)
         run_area(area, AREAS[area], SWEEPS[area], srv, out)
-        path = os.path.normpath(os.path.join(FIXTURES, minor, '%s.json' % area))
-        write_fixture(path, version, out, srv.secrets, placeholders=(RECORDED_TOKEN,))
+        root = WORKFLOW_FIXTURES if area in WORKFLOW_AREAS else FIXTURES
+        path = os.path.normpath(os.path.join(root, minor, '%s.json' % area))
+        write_fixture(path, version, out, srv.secrets, placeholders=(RECORDED_TOKEN,),
+                      recorded_as=None if found else recorded_as)
 
 
 if __name__ == '__main__':

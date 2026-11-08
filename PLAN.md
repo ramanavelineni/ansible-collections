@@ -14,7 +14,7 @@ along the way. Each quirk is handled inside a module and covered by a test.
 ## Status and roadmap
 
 - [x] Scaffolding: repository, CI, Makefile, pre-commit, changelog setup
-- [x] `ramanavelineni.semaphoreui`: 31 modules
+- [x] `ramanavelineni.semaphoreui`: 35 modules
 - [x] `ramanavelineni.harbor`: 23 modules
 - [x] First releases: `semaphoreui-v0.1.0` and `harbor-v0.1.0`, built and
       published as GitHub Releases by a workflow on tag push
@@ -285,6 +285,44 @@ each module logs in and out within its own run.
 - Tasks on the test servers need nothing from outside the container: the
   repository is the local path `/dev` and the script `null`, and a variable
   group's `BASH_ENV` makes a run take a few seconds.
+
+### workflow, workflow_info, workflow_run, workflow_approval
+- Written from the public API description (`api-docs.yml` of semaphoreui/semaphore
+  at v2.19.18 and at `develop` 573493b, which becomes 2.20). Recorded from the
+  official 2.19.12 image and from a build of `develop`.
+- A server has workflows when `/info` has `features.workflows: true`. The
+  official 2.19 images do, because they are built with Semaphore's Pro module.
+  2.18 has no workflow routes (the list is a 404), and a 2.19 build from source
+  answers empty lists and 404 to everything else. Every workflow module reads `/info`
+  first and fails with that explanation.
+- 2.19 starts a run with `POST .../workflows/<id>/run`, without a body. 2.20
+  uses `POST .../runs` with the survey answers as `environment`. 2.20 also
+  stores delay and note nodes, a survey, a node's `survey_inputs` and an edge's
+  `input_mode` and `input_mappings`; on 2.19 the modules refuse those before
+  any write.
+- Nodes have no name. A create or update sends its own numbers as node ids and
+  the edges refer to those numbers; the server gives out new ids on every
+  save. The task names nodes with `key`, which is not stored, and the module
+  pairs declared and stored nodes by their fields and edges (match_graph).
+  `workflow_info` names stored nodes `node<id>`.
+- The server fills in `convergence_mode: all` and stores `position_x` and
+  `position_y`, which the spec does not list under WorkflowNode (the backup
+  format has them). The module keeps a matching stored node's position and
+  places new nodes one column per step.
+- Semaphore refuses a workflow without nodes (400 `workflow must contain at
+  least one node`) and a node with a template the project lacks (400
+  `workflow node references a missing template`). The module checks both first.
+- `POST .../runs/<id>/stop` answers 200 with the run. The develop spec lists
+  it; the v2.19.18 spec does not. On 2.19 the module relies on upstream's
+  public v2.19.18 `api/router.go`, which routes it, and on the recorded answer
+  of the official 2.19.12 image (`workflow_run_stop`). A second decision on an
+  approval is refused (2.19: 400 `approval has already been resolved`; 2.20:
+  409 `the approval is not pending`), so the module
+  compares first: the same decision is no change, the other one fails.
+- A run waiting at an approval has status `approval`. `workflow_run` returns
+  there without failing; with `run_id` it waits for the rest of the run.
+- Not managed: a workflow's per-role permissions (`/perms`, 2.20) and its
+  revisions.
 
 ### integration
 - `auth_header` is only a header name; the secret is a `login_password` key

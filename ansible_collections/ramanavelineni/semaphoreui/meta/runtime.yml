@@ -39,3 +39,7 @@ action_groups:
     - variable_group_info
     - view
     - view_info
+    - workflow
+    - workflow_approval
+    - workflow_info
+    - workflow_run
