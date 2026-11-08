@@ -1,0 +1,32 @@
+{
+  "recorded_from": "v2.18.30-9dcfe85-1788086332",
+  "responses": {
+    "noworkflow_create": {
+      "body": "Not Found\n",
+      "status": 404
+    },
+    "noworkflow_create_empty": {
+      "body": "Not Found\n",
+      "status": 404
+    },
+    "noworkflow_list": {
+      "body": "Not Found\n",
+      "status": 404
+    },
+    "noworkflow_projects": {
+      "body": [
+        {
+          "created": "2026-11-08T16:26:27.980769Z",
+          "id": 194,
+          "name": "fixtures-noworkflow",
+          "type": ""
+        }
+      ],
+      "status": 200
+    },
+    "noworkflow_templates": {
+      "body": [],
+      "status": 200
+    }
+  }
+}

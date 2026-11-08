@@ -12,7 +12,7 @@ make the server match, and change nothing when it already does.
 
 | Collection | Configures | Modules | Tested with |
 |---|---|---|---|
-| [**`ramanavelineni.semaphoreui`**](ansible_collections/ramanavelineni/semaphoreui/) | [Semaphore UI](https://semaphoreui.com): projects and everything in them, users, runners | 31, plus 3 roles | Semaphore UI 2.18, 2.19 |
+| [**`ramanavelineni.semaphoreui`**](ansible_collections/ramanavelineni/semaphoreui/) | [Semaphore UI](https://semaphoreui.com): projects and everything in them, users, runners | 35, plus 3 roles | Semaphore UI 2.18, 2.19 |
 | [**`ramanavelineni.harbor`**](ansible_collections/ramanavelineni/harbor/) | [Harbor](https://goharbor.io): projects, robot accounts, registries, replication, policies, system settings | 23 | Harbor 2.14, 2.15 |
 
 ---
@@ -234,7 +234,7 @@ lists them under "Connecting".
 ## Modules
 
 <details>
-<summary><b>ramanavelineni.semaphoreui</b>: 31 modules</summary>
+<summary><b>ramanavelineni.semaphoreui</b>: 35 modules</summary>
 
 | Area | Modules |
 |---|---|
@@ -250,6 +250,7 @@ lists them under "Connecting".
 | Task templates | `template`, `template_info` |
 | Schedules and commit pollers | `schedule`, `schedule_info` |
 | Tasks (runs of a template) | `task`, `task_info` |
+| Workflows (2.19 official images, 2.20) | `workflow`, `workflow_info`, `workflow_run`, `workflow_approval` |
 | Integrations (inbound webhooks) | `integration`, `integration_info` |
 | Team | `team_member`, `team_member_info` |
 | API tokens | `user_token` |

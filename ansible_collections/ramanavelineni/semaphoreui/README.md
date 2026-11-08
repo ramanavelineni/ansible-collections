@@ -122,6 +122,7 @@ Run it with `--check --diff` first to see what would change.
 | Task templates | `template` | `template_info` |
 | Schedules | `schedule`: cron, commit poller, run-at | `schedule_info` |
 | Tasks (runs of a template) | `task`: start, wait for the result, stop | `task_info` |
+| Workflows (2.19 official images, 2.20) | `workflow`: nodes and edges by key; `workflow_run`: start, wait, stop; `workflow_approval`: approve or reject | `workflow_info` |
 | Integrations (inbound webhooks) | `integration`: returns the webhook URL | `integration_info` |
 | Team | `team_member` | `team_member_info` |
 | API tokens | `user_token`: of the user that logs in | |

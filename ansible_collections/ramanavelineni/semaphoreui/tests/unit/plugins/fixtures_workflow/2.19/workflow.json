@@ -1,0 +1,842 @@
+{
+  "recorded_from": "v2.19.12-012ed06-1788086368",
+  "responses": {
+    "workflow_approvals_pending": {
+      "body": [
+        {
+          "created": "2026-11-08T16:32:29.302134Z",
+          "id": 4,
+          "project_id": 261,
+          "status": "pending",
+          "workflow_node_id": 26,
+          "workflow_run_id": 8
+        }
+      ],
+      "status": 200
+    },
+    "workflow_approvals_resolved": {
+      "body": [
+        {
+          "created": "2026-11-08T16:32:29.302134Z",
+          "id": 4,
+          "project_id": 261,
+          "resolved": "2026-11-08T16:32:29.31357751Z",
+          "resolved_by_user_id": 1,
+          "status": "approved",
+          "workflow_node_id": 26,
+          "workflow_run_id": 8
+        }
+      ],
+      "status": 200
+    },
+    "workflow_approve": {
+      "body": {
+        "created": "2026-11-08T16:32:29.302134Z",
+        "id": 4,
+        "project_id": 261,
+        "resolved": "2026-11-08T16:32:29.31357751Z",
+        "resolved_by_user_id": 1,
+        "status": "approved",
+        "workflow_node_id": 26,
+        "workflow_run_id": 8
+      },
+      "status": 200
+    },
+    "workflow_approve_again": {
+      "body": {
+        "error": "approval has already been resolved"
+      },
+      "status": 400
+    },
+    "workflow_create": {
+      "body": {
+        "description": "recorded",
+        "edges": [
+          {
+            "condition": "on_success",
+            "destination_node_id": 23,
+            "id": 12,
+            "source_node_id": 22,
+            "workflow_template_id": 5
+          },
+          {
+            "condition": "on_success",
+            "destination_node_id": 24,
+            "id": 13,
+            "source_node_id": 23,
+            "workflow_template_id": 5
+          }
+        ],
+        "id": 5,
+        "name": "wf-release",
+        "nodes": [
+          {
+            "convergence_mode": "all",
+            "id": 22,
+            "kind": "task",
+            "position_x": 0,
+            "position_y": 0,
+            "task_params": {
+              "message": "from the workflow"
+            },
+            "template_id": 528,
+            "workflow_template_id": 5
+          },
+          {
+            "approval_message": "Go on?",
+            "approval_timeout": 3600,
+            "convergence_mode": "all",
+            "id": 23,
+            "kind": "approval",
+            "position_x": 300,
+            "position_y": 0,
+            "workflow_template_id": 5
+          },
+          {
+            "convergence_mode": "all",
+            "id": 24,
+            "kind": "task",
+            "position_x": 600,
+            "position_y": 0,
+            "template_id": 529,
+            "workflow_template_id": 5
+          }
+        ],
+        "project_id": 261
+      },
+      "status": 201
+    },
+    "workflow_create_unknown_template": {
+      "body": {
+        "error": "workflow node references a missing template"
+      },
+      "status": 400
+    },
+    "workflow_delete": {
+      "body": null,
+      "status": 204
+    },
+    "workflow_get": {
+      "body": {
+        "description": "recorded",
+        "edges": [
+          {
+            "condition": "on_success",
+            "destination_node_id": 23,
+            "id": 12,
+            "source_node_id": 22,
+            "workflow_template_id": 5
+          },
+          {
+            "condition": "on_success",
+            "destination_node_id": 24,
+            "id": 13,
+            "source_node_id": 23,
+            "workflow_template_id": 5
+          }
+        ],
+        "id": 5,
+        "name": "wf-release",
+        "nodes": [
+          {
+            "convergence_mode": "all",
+            "id": 22,
+            "kind": "task",
+            "position_x": 0,
+            "position_y": 0,
+            "task_params": {
+              "message": "from the workflow"
+            },
+            "template_id": 528,
+            "workflow_template_id": 5
+          },
+          {
+            "approval_message": "Go on?",
+            "approval_timeout": 3600,
+            "convergence_mode": "all",
+            "id": 23,
+            "kind": "approval",
+            "position_x": 300,
+            "position_y": 0,
+            "workflow_template_id": 5
+          },
+          {
+            "convergence_mode": "all",
+            "id": 24,
+            "kind": "task",
+            "position_x": 600,
+            "position_y": 0,
+            "template_id": 529,
+            "workflow_template_id": 5
+          }
+        ],
+        "project_id": 261
+      },
+      "status": 200
+    },
+    "workflow_get_missing": {
+      "body": null,
+      "status": 404
+    },
+    "workflow_get_updated": {
+      "body": {
+        "description": "recorded",
+        "edges": [
+          {
+            "condition": "on_success",
+            "destination_node_id": 26,
+            "id": 14,
+            "source_node_id": 25,
+            "workflow_template_id": 5
+          },
+          {
+            "condition": "on_success",
+            "destination_node_id": 27,
+            "id": 15,
+            "source_node_id": 26,
+            "workflow_template_id": 5
+          },
+          {
+            "condition": "on_failure",
+            "destination_node_id": 28,
+            "id": 16,
+            "source_node_id": 25,
+            "workflow_template_id": 5
+          }
+        ],
+        "id": 5,
+        "name": "wf-release",
+        "nodes": [
+          {
+            "convergence_mode": "all",
+            "id": 25,
+            "kind": "task",
+            "position_x": 0,
+            "position_y": 0,
+            "task_params": {
+              "message": "from the workflow"
+            },
+            "template_id": 528,
+            "workflow_template_id": 5
+          },
+          {
+            "approval_message": "Go on?",
+            "approval_timeout": 3600,
+            "convergence_mode": "all",
+            "id": 26,
+            "kind": "approval",
+            "position_x": 300,
+            "position_y": 0,
+            "workflow_template_id": 5
+          },
+          {
+            "convergence_mode": "all",
+            "id": 27,
+            "kind": "task",
+            "position_x": 600,
+            "position_y": 0,
+            "template_id": 529,
+            "workflow_template_id": 5
+          },
+          {
+            "convergence_mode": "all",
+            "id": 28,
+            "kind": "task",
+            "position_x": 600,
+            "position_y": 150,
+            "template_id": 530,
+            "workflow_template_id": 5
+          }
+        ],
+        "project_id": 261
+      },
+      "status": 200
+    },
+    "workflow_list": {
+      "body": [
+        {
+          "description": "recorded",
+          "edges": [
+            {
+              "condition": "on_success",
+              "destination_node_id": 23,
+              "id": 12,
+              "source_node_id": 22,
+              "workflow_template_id": 5
+            },
+            {
+              "condition": "on_success",
+              "destination_node_id": 24,
+              "id": 13,
+              "source_node_id": 23,
+              "workflow_template_id": 5
+            }
+          ],
+          "id": 5,
+          "name": "wf-release",
+          "nodes": [
+            {
+              "convergence_mode": "all",
+              "id": 22,
+              "kind": "task",
+              "position_x": 0,
+              "position_y": 0,
+              "task_params": {
+                "message": "from the workflow"
+              },
+              "template_id": 528,
+              "workflow_template_id": 5
+            },
+            {
+              "approval_message": "Go on?",
+              "approval_timeout": 3600,
+              "convergence_mode": "all",
+              "id": 23,
+              "kind": "approval",
+              "position_x": 300,
+              "position_y": 0,
+              "workflow_template_id": 5
+            },
+            {
+              "convergence_mode": "all",
+              "id": 24,
+              "kind": "task",
+              "position_x": 600,
+              "position_y": 0,
+              "template_id": 529,
+              "workflow_template_id": 5
+            }
+          ],
+          "project_id": 261
+        }
+      ],
+      "status": 200
+    },
+    "workflow_list_after_delete": {
+      "body": [],
+      "status": 200
+    },
+    "workflow_list_empty": {
+      "body": [],
+      "status": 200
+    },
+    "workflow_login": {
+      "body": null,
+      "status": 204
+    },
+    "workflow_logout": {
+      "body": null,
+      "status": 204
+    },
+    "workflow_projects": {
+      "body": [
+        {
+          "created": "2026-11-08T16:32:28.194272Z",
+          "id": 261,
+          "name": "fixtures-workflow",
+          "type": ""
+        }
+      ],
+      "status": 200
+    },
+    "workflow_run_get_approval": {
+      "body": {
+        "nodes": [
+          {
+            "node": {
+              "convergence_mode": "all",
+              "id": 25,
+              "kind": "task",
+              "position_x": 0,
+              "position_y": 0,
+              "task_params": {
+                "message": "from the workflow"
+              },
+              "template_id": 528,
+              "workflow_template_id": 5
+            },
+            "task": {
+              "created": "2026-11-08T16:32:28.265523445Z",
+              "end": "2026-11-08T16:32:29.298631185Z",
+              "id": 257,
+              "limit": "",
+              "message": "from the workflow",
+              "playbook": "",
+              "project_id": 261,
+              "start": "2026-11-08T16:32:29.275160032Z",
+              "status": "success",
+              "template_id": 528,
+              "tpl_alias": "wf-ok",
+              "tpl_app": "bash",
+              "tpl_playbook": "null",
+              "user_id": 1,
+              "user_name": "Admin",
+              "workflow_node_id": 25,
+              "workflow_run_id": 8
+            }
+          },
+          {
+            "approval": {
+              "created": "2026-11-08T16:32:29.302134Z",
+              "id": 4,
+              "project_id": 261,
+              "status": "pending",
+              "workflow_node_id": 26,
+              "workflow_run_id": 8
+            },
+            "node": {
+              "approval_message": "Go on?",
+              "approval_timeout": 3600,
+              "convergence_mode": "all",
+              "id": 26,
+              "kind": "approval",
+              "position_x": 300,
+              "position_y": 0,
+              "workflow_template_id": 5
+            }
+          },
+          {
+            "node": {
+              "convergence_mode": "all",
+              "id": 27,
+              "kind": "task",
+              "position_x": 600,
+              "position_y": 0,
+              "template_id": 529,
+              "workflow_template_id": 5
+            }
+          },
+          {
+            "node": {
+              "convergence_mode": "all",
+              "id": 28,
+              "kind": "task",
+              "position_x": 600,
+              "position_y": 150,
+              "template_id": 530,
+              "workflow_template_id": 5
+            }
+          }
+        ],
+        "run": {
+          "id": 8,
+          "project_id": 261,
+          "root_task_id": 257,
+          "start": "2026-11-08T16:32:28.264508862Z",
+          "status": "approval",
+          "workflow_template_id": 5
+        }
+      },
+      "status": 200
+    },
+    "workflow_run_get_failed": {
+      "body": {
+        "nodes": [
+          {
+            "node": {
+              "convergence_mode": "all",
+              "id": 29,
+              "kind": "task",
+              "position_x": 0,
+              "position_y": 0,
+              "template_id": 530,
+              "workflow_template_id": 5
+            },
+            "task": {
+              "created": "2026-11-08T16:32:30.387691851Z",
+              "end": "2026-11-08T16:32:31.413527804Z",
+              "id": 259,
+              "limit": "",
+              "playbook": "",
+              "project_id": 261,
+              "start": "2026-11-08T16:32:31.399424228Z",
+              "status": "error",
+              "template_id": 530,
+              "tpl_alias": "wf-fail",
+              "tpl_app": "bash",
+              "tpl_playbook": "wf-missing.sh",
+              "user_id": 1,
+              "user_name": "Admin",
+              "workflow_node_id": 29,
+              "workflow_run_id": 9
+            }
+          }
+        ],
+        "run": {
+          "end": "2026-11-08T16:32:31.415578427Z",
+          "id": 9,
+          "project_id": 261,
+          "root_task_id": 259,
+          "start": "2026-11-08T16:32:30.385785894Z",
+          "status": "failed",
+          "workflow_template_id": 5
+        }
+      },
+      "status": 200
+    },
+    "workflow_run_get_missing": {
+      "body": null,
+      "status": 404
+    },
+    "workflow_run_get_running": {
+      "body": {
+        "nodes": [
+          {
+            "node": {
+              "convergence_mode": "all",
+              "id": 30,
+              "kind": "task",
+              "position_x": 0,
+              "position_y": 0,
+              "template_id": 531,
+              "workflow_template_id": 5
+            },
+            "task": {
+              "created": "2026-11-08T16:32:31.436514374Z",
+              "id": 260,
+              "limit": "",
+              "playbook": "",
+              "project_id": 261,
+              "status": "waiting",
+              "template_id": 531,
+              "tpl_alias": "wf-slow",
+              "tpl_app": "bash",
+              "tpl_playbook": "null",
+              "user_id": 1,
+              "user_name": "Admin",
+              "workflow_node_id": 30,
+              "workflow_run_id": 10
+            }
+          }
+        ],
+        "run": {
+          "id": 10,
+          "project_id": 261,
+          "root_task_id": 260,
+          "start": "2026-11-08T16:32:31.435291749Z",
+          "status": "running",
+          "workflow_template_id": 5
+        }
+      },
+      "status": 200
+    },
+    "workflow_run_get_stopped": {
+      "body": {
+        "nodes": [
+          {
+            "node": {
+              "convergence_mode": "all",
+              "id": 30,
+              "kind": "task",
+              "position_x": 0,
+              "position_y": 0,
+              "template_id": 531,
+              "workflow_template_id": 5
+            },
+            "task": {
+              "created": "2026-11-08T16:32:31.436514374Z",
+              "id": 260,
+              "limit": "",
+              "playbook": "",
+              "project_id": 261,
+              "status": "stopped",
+              "template_id": 531,
+              "tpl_alias": "wf-slow",
+              "tpl_app": "bash",
+              "tpl_playbook": "null",
+              "user_id": 1,
+              "user_name": "Admin",
+              "workflow_node_id": 30,
+              "workflow_run_id": 10
+            }
+          }
+        ],
+        "run": {
+          "end": "2026-11-08T16:32:31.452040573Z",
+          "id": 10,
+          "project_id": 261,
+          "root_task_id": 260,
+          "start": "2026-11-08T16:32:31.435291749Z",
+          "status": "stopped",
+          "workflow_template_id": 5
+        }
+      },
+      "status": 200
+    },
+    "workflow_run_get_success": {
+      "body": {
+        "nodes": [
+          {
+            "node": {
+              "convergence_mode": "all",
+              "id": 25,
+              "kind": "task",
+              "position_x": 0,
+              "position_y": 0,
+              "task_params": {
+                "message": "from the workflow"
+              },
+              "template_id": 528,
+              "workflow_template_id": 5
+            },
+            "task": {
+              "created": "2026-11-08T16:32:28.265523445Z",
+              "end": "2026-11-08T16:32:29.298631185Z",
+              "id": 257,
+              "limit": "",
+              "message": "from the workflow",
+              "playbook": "",
+              "project_id": 261,
+              "start": "2026-11-08T16:32:29.275160032Z",
+              "status": "success",
+              "template_id": 528,
+              "tpl_alias": "wf-ok",
+              "tpl_app": "bash",
+              "tpl_playbook": "null",
+              "user_id": 1,
+              "user_name": "Admin",
+              "workflow_node_id": 25,
+              "workflow_run_id": 8
+            }
+          },
+          {
+            "approval": {
+              "created": "2026-11-08T16:32:29.302134Z",
+              "id": 4,
+              "project_id": 261,
+              "resolved": "2026-11-08T16:32:29.31357751Z",
+              "resolved_by_user_id": 1,
+              "status": "approved",
+              "workflow_node_id": 26,
+              "workflow_run_id": 8
+            },
+            "node": {
+              "approval_message": "Go on?",
+              "approval_timeout": 3600,
+              "convergence_mode": "all",
+              "id": 26,
+              "kind": "approval",
+              "position_x": 300,
+              "position_y": 0,
+              "workflow_template_id": 5
+            }
+          },
+          {
+            "node": {
+              "convergence_mode": "all",
+              "id": 27,
+              "kind": "task",
+              "position_x": 600,
+              "position_y": 0,
+              "template_id": 529,
+              "workflow_template_id": 5
+            },
+            "task": {
+              "created": "2026-11-08T16:32:29.315457967Z",
+              "end": "2026-11-08T16:32:30.345621084Z",
+              "id": 258,
+              "limit": "",
+              "playbook": "",
+              "project_id": 261,
+              "start": "2026-11-08T16:32:30.329480718Z",
+              "status": "success",
+              "template_id": 529,
+              "tpl_alias": "wf-next",
+              "tpl_app": "bash",
+              "tpl_playbook": "null",
+              "user_id": 1,
+              "user_name": "Admin",
+              "workflow_node_id": 27,
+              "workflow_run_id": 8
+            }
+          },
+          {
+            "node": {
+              "convergence_mode": "all",
+              "id": 28,
+              "kind": "task",
+              "position_x": 600,
+              "position_y": 150,
+              "template_id": 530,
+              "workflow_template_id": 5
+            }
+          }
+        ],
+        "run": {
+          "end": "2026-11-08T16:32:30.348653665Z",
+          "id": 8,
+          "project_id": 261,
+          "root_task_id": 257,
+          "start": "2026-11-08T16:32:28.264508862Z",
+          "status": "success",
+          "workflow_template_id": 5
+        }
+      },
+      "status": 200
+    },
+    "workflow_run_start": {
+      "body": {
+        "id": 8,
+        "project_id": 261,
+        "root_task_id": 257,
+        "start": "2026-11-08T16:32:28.264508862Z",
+        "status": "running",
+        "workflow_template_id": 5
+      },
+      "status": 201
+    },
+    "workflow_run_start_failing": {
+      "body": {
+        "id": 9,
+        "project_id": 261,
+        "root_task_id": 259,
+        "start": "2026-11-08T16:32:30.385785894Z",
+        "status": "running",
+        "workflow_template_id": 5
+      },
+      "status": 201
+    },
+    "workflow_run_start_slow": {
+      "body": {
+        "id": 10,
+        "project_id": 261,
+        "root_task_id": 260,
+        "start": "2026-11-08T16:32:31.435291749Z",
+        "status": "running",
+        "workflow_template_id": 5
+      },
+      "status": 201
+    },
+    "workflow_run_stop": {
+      "body": {
+        "end": "2026-11-08T16:32:31.452040573Z",
+        "id": 10,
+        "project_id": 261,
+        "root_task_id": 260,
+        "start": "2026-11-08T16:32:31.435291749Z",
+        "status": "stopped",
+        "workflow_template_id": 5
+      },
+      "status": 200
+    },
+    "workflow_runs": {
+      "body": [
+        {
+          "end": "2026-11-08T16:32:30.348653665Z",
+          "id": 8,
+          "project_id": 261,
+          "root_task_id": 257,
+          "start": "2026-11-08T16:32:28.264508862Z",
+          "status": "success",
+          "workflow_template_id": 5
+        }
+      ],
+      "status": 200
+    },
+    "workflow_server_info": {
+      "body": {
+        "ansible": "ansible [core 2.20.8]\n  config file = /etc/ansible/ansible.cfg\n  configured module search path = ['/home/semaphore/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']\n  ansible python module location = /opt/semaphore/apps/ansible/13.5.0/venv/lib/python3.12/site-packages/ansible\n  ansible collection location = /home/semaphore/.ansible/collections:/usr/share/ansible/collections\n  executable location = /opt/semaphore/apps/ansible/13.5.0/venv/bin/ansible\n  python version = 3.12.14 (main, Aug 13 2026, 19:38:13) [GCC 14.2.0] (/opt/semaphore/apps/ansible/13.5.0/venv/bin/python3)\n  jinja version = 3.1.6\n  pyyaml version = 6.0.3 (with libyaml v0.2.5)\n",
+        "auth_methods": {},
+        "boltdb_used": false,
+        "features": {
+          "custom_roles_management": false,
+          "docker_executor": false,
+          "high_availability": false,
+          "k8s_executor": false,
+          "project_runners": false,
+          "secret_storage_management": false,
+          "secret_storage_management_ex": false,
+          "secret_storages": false,
+          "task_summary": false,
+          "terraform_backend": false,
+          "workflows": true
+        },
+        "git_client": "cmd_git",
+        "jwt": {
+          "enabled": false,
+          "max_ttl": "24h"
+        },
+        "login_with_password": true,
+        "roles": [],
+        "schedule_timezone": "UTC",
+        "subscription_state": "",
+        "teams": {
+          "invite_type": "username"
+        },
+        "use_remote_runner": false,
+        "version": "v2.19.12-012ed06-1788086368",
+        "web_host": ""
+      },
+      "status": 200
+    },
+    "workflow_templates": {
+      "body": [
+        {
+          "app": "bash",
+          "environment_id": 276,
+          "environment_ids": [
+            276
+          ],
+          "id": 530,
+          "inventory_id": 276,
+          "name": "wf-fail",
+          "permissions": null,
+          "playbook": "wf-missing.sh",
+          "project_id": 261,
+          "repository_id": 215,
+          "tasks": 0
+        },
+        {
+          "app": "bash",
+          "environment_id": 276,
+          "environment_ids": [
+            276
+          ],
+          "id": 529,
+          "inventory_id": 276,
+          "name": "wf-next",
+          "permissions": null,
+          "playbook": "null",
+          "project_id": 261,
+          "repository_id": 215,
+          "tasks": 0
+        },
+        {
+          "app": "bash",
+          "environment_id": 276,
+          "environment_ids": [
+            276
+          ],
+          "id": 528,
+          "inventory_id": 276,
+          "name": "wf-ok",
+          "permissions": null,
+          "playbook": "null",
+          "project_id": 261,
+          "repository_id": 215,
+          "tasks": 0
+        },
+        {
+          "app": "bash",
+          "environment_id": 277,
+          "environment_ids": [
+            277
+          ],
+          "id": 531,
+          "inventory_id": 276,
+          "name": "wf-slow",
+          "permissions": null,
+          "playbook": "null",
+          "project_id": 261,
+          "repository_id": 215,
+          "tasks": 0
+        }
+      ],
+      "status": 200
+    },
+    "workflow_update": {
+      "body": null,
+      "status": 204
+    }
+  }
+}

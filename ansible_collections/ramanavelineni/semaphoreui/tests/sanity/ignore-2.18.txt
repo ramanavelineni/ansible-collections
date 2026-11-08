@@ -29,3 +29,7 @@ plugins/modules/variable_group.py validate-modules:missing-gplv3-license # Apach
 plugins/modules/variable_group_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/view.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/view_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/workflow.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/workflow_approval.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/workflow_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/workflow_run.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE

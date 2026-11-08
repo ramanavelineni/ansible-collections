@@ -154,8 +154,12 @@ def find_secrets(responses, secrets=(), placeholders=(), secret_key=SECRET_KEY):
     return found
 
 
-def write_fixture(path, version, responses, secrets=(), placeholders=(), secret_key=SECRET_KEY):
-    """Write one area's recording, unless something in it looks like a secret."""
+def write_fixture(path, version, responses, secrets=(), placeholders=(), secret_key=SECRET_KEY, recorded_as=None):
+    """Write one area's recording, unless something in it looks like a secret.
+
+    recorded_as is the release a server that reports no release stands for
+    (a build from a branch); it is written next to the version it reported.
+    """
     found = find_secrets(responses, secrets, placeholders, secret_key)
     if found:
         sys.exit('not writing %s, it would publish secrets:\n  %s\n'
@@ -163,6 +167,9 @@ def write_fixture(path, version, responses, secrets=(), placeholders=(), secret_
                  'otherwise), give the throwaway server another one.' % (path, '\n  '.join(found)))
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w') as f:
-        json.dump(dict(recorded_from=version, responses=responses), f, indent=2, sort_keys=True)
+        recording = dict(recorded_from=version, responses=responses)
+        if recorded_as:
+            recording['recorded_as'] = recorded_as
+        json.dump(recording, f, indent=2, sort_keys=True)
         f.write('\n')
     print('wrote %s (%d responses, server %s)' % (path, len(responses), version))

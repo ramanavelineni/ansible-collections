@@ -160,9 +160,10 @@ class SecretScan(unittest.TestCase):
                          ['task: has a value under "secret"'])
 
     def test_committed_fixtures_pass(self):
-        for recorder, placeholders, key in ((semaphore, (semaphore.RECORDED_TOKEN,), common.SECRET_KEY),
-                                            (harbor, (harbor.RECORDED_SECRET,), harbor.SECRET_KEY)):
-            paths = sorted(glob.glob(os.path.join(recorder.FIXTURES, '*', '*.json')))
+        for roots, placeholders, key in (((semaphore.FIXTURES, semaphore.WORKFLOW_FIXTURES), (semaphore.RECORDED_TOKEN,),
+                                          common.SECRET_KEY),
+                                         ((harbor.FIXTURES,), (harbor.RECORDED_SECRET,), harbor.SECRET_KEY)):
+            paths = sorted(path for root in roots for path in glob.glob(os.path.join(root, '*', '*.json')))
             self.assertTrue(paths)
             for path in paths:
                 with open(path) as f:

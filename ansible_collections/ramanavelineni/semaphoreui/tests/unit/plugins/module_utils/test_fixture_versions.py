@@ -10,7 +10,12 @@ import pytest
 
 from ansible_collections.ramanavelineni.semaphoreui.plugins.module_utils.semaphore import TESTED_VERSIONS
 from ansible_collections.ramanavelineni.semaphoreui.tests.unit.plugins import utils
-from ansible_collections.ramanavelineni.semaphoreui.tests.unit.plugins.conftest import FIXTURES_DIR, VERSIONS
+from ansible_collections.ramanavelineni.semaphoreui.tests.unit.plugins.conftest import (
+    FIXTURES_DIR,
+    VERSIONS,
+    WORKFLOW_FIXTURES_DIR,
+    WORKFLOW_VERSIONS,
+)
 
 
 def test_every_recorded_version_is_called_tested():
@@ -51,3 +56,29 @@ def test_files_were_recorded_from_the_version_of_their_directory(version):
         with open(os.path.join(FIXTURES_DIR, version, area + '.json')) as f:
             recorded_from = json.load(f)['recorded_from']
         assert recorded_from.lstrip('v').startswith(version + '.'), '%s/%s.json was recorded from %s' % (version, area, recorded_from)
+
+
+@pytest.mark.parametrize('version', WORKFLOW_VERSIONS)
+def test_workflow_files_were_recorded_from_the_version_of_their_directory(version):
+    for area in utils.fixture_areas(WORKFLOW_FIXTURES_DIR, version):
+        with open(os.path.join(WORKFLOW_FIXTURES_DIR, version, area + '.json')) as f:
+            recording = json.load(f)
+        # A build from a branch reports no release; the recorder then writes the one it was told it stands for.
+        if 'recorded_as' in recording:
+            assert recording['recorded_as'] == version, '%s/%s.json was recorded as %s' % (version, area, recording['recorded_as'])
+            continue
+        recorded_from = recording['recorded_from']
+        assert recorded_from.lstrip('v').startswith(version + '.'), '%s/%s.json was recorded from %s' % (version, area, recorded_from)
+
+
+def test_workflow_fixtures_are_recorded_for_a_version_with_workflows():
+    # 2.18 has no workflows; a workflow fixture set from it would test nothing real.
+    assert WORKFLOW_VERSIONS and all(tuple(int(p) for p in v.split('.')) >= (2, 19) for v in WORKFLOW_VERSIONS)
+
+
+def test_every_workflow_version_has_the_same_responses():
+    # The workflow tests run on every recorded version; a response missing from one fails them with a KeyError.
+    names = dict((version, sorted(utils.load_fixtures(WORKFLOW_FIXTURES_DIR, version))) for version in WORKFLOW_VERSIONS)
+    everywhere = sorted(set(name for found in names.values() for name in found))
+    assert dict((v, sorted(set(everywhere) - set(found))) for v, found in names.items()) == \
+        dict((v, []) for v in WORKFLOW_VERSIONS)

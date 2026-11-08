@@ -1,0 +1,51 @@
+{
+  "recorded_from": "v2.19.12-012ed06-1788086368",
+  "responses": {
+    "noworkflow_create": {
+      "body": {
+        "description": "",
+        "edges": [],
+        "id": 1,
+        "name": "wf-none",
+        "nodes": [
+          {
+            "approval_message": "recorded",
+            "convergence_mode": "all",
+            "id": 1,
+            "kind": "approval",
+            "position_x": 0,
+            "position_y": 0,
+            "workflow_template_id": 1
+          }
+        ],
+        "project_id": 257
+      },
+      "status": 201
+    },
+    "noworkflow_create_empty": {
+      "body": {
+        "error": "workflow must contain at least one node"
+      },
+      "status": 400
+    },
+    "noworkflow_list": {
+      "body": [],
+      "status": 200
+    },
+    "noworkflow_projects": {
+      "body": [
+        {
+          "created": "2026-11-08T16:26:28.63738Z",
+          "id": 257,
+          "name": "fixtures-noworkflow",
+          "type": ""
+        }
+      ],
+      "status": 200
+    },
+    "noworkflow_templates": {
+      "body": [],
+      "status": 200
+    }
+  }
+}
