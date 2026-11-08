@@ -28,10 +28,10 @@ COLLECTION = 'ramanavelineni.harbor'
 MODULES = sorted(name[:-3] for name in os.listdir(list(modules_package.__path__)[0])
                  if name.endswith('.py') and name != '__init__.py')
 
-# The EXAMPLES say that the connection options come from module_defaults or
-# the environment. A task that leaves these out is given a stand-in value, so
-# "required" still holds for every other option.
-CONNECTION_FROM_DEFAULTS = dict(url='https://harbor.example.com', username='admin', password='<password>')
+# The EXAMPLES leave the connection options out: they come from
+# module_defaults or the environment. No stand-in is given for them, so a
+# connection option marked required again would fail every example here,
+# as it fails every such task in ansible-lint.
 ENVIRONMENT_PREFIX = 'HARBOR_'
 
 # What a task may hold next to the module it calls.
@@ -149,9 +149,6 @@ def problems(called, args, skipped=None):
     kwargs = module_spec(called)
     spec = copy.deepcopy(kwargs['argument_spec'])
     args = without_templates(args, spec, [] if skipped is None else skipped)
-    for option, value in CONNECTION_FROM_DEFAULTS.items():
-        if option in spec:
-            args.setdefault(option, value)
     rules = dict((rule, kwargs[rule]) for rule in SPEC_RULES if kwargs.get(rule))
     return ArgumentSpecValidator(spec, **rules).validate(args).error_messages
 
@@ -227,5 +224,3 @@ def test_the_check_itself_refuses_what_ansible_refuses():
     skipped = []
     assert problems('robot_account', dict(good, state='{{ wanted_state }}', duration='{{ value }}'), skipped) == []
     assert sorted(skipped) == sorted(['state', 'duration'])
-    # Only the connection options named above are taken as given.
-    assert set(CONNECTION_FROM_DEFAULTS) <= set(module_spec('robot_account')['argument_spec'])

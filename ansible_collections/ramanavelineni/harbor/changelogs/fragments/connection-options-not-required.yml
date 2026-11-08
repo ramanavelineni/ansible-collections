@@ -1,0 +1,7 @@
+---
+bugfixes:
+  - all modules - ``url``, ``username`` and ``password`` are no longer marked as required in the argument spec.
+    A task that takes them from ``module_defaults``, as the collection's README recommends, left them out, and
+    ansible-lint's ``args[module]`` rule reported them as missing for every such task. The modules still fail
+    before any request when one of them is set neither as an option nor in its ``HARBOR_*`` environment
+    variable, and the message now names the environment variable too.
