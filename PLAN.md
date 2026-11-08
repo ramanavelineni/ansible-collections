@@ -36,7 +36,7 @@ along the way. Each quirk is handled inside a module and covered by a test.
 | Namespace | `ramanavelineni`: `ramanavelineni.semaphoreui` and `ramanavelineni.harbor` |
 | Repository | this monorepo, public at <https://github.com/ramanavelineni/ansible-collections> |
 | License | Apache-2.0 |
-| Supported versions | ansible-core 2.18–2.21 (the versions still getting releases); Semaphore UI 2.18 and 2.19; Harbor 2.14 and 2.15. Other server versions warn but work |
+| Supported versions | ansible-core 2.20–2.22 (the versions still getting releases); Semaphore UI 2.18 and 2.19; Harbor 2.14 and 2.15. Other server versions warn but work |
 | Module names | the servers' UI labels, singular (`key_store`, `variable_group`, `team_member`, `robot_account`, `tag_retention`, …), each with an `_info` module |
 | Option names | follow the old roles' YAML, with name-based references, so the roles can pass their data straight through. Fields the roles didn't use keep the API's names. Where a name clashes with a connection option, the module uses another: `user`, `login`/`user_password`, `endpoint_url` |
 | State | every resource module takes `state: present \| absent` |
@@ -543,7 +543,7 @@ or an OIDC user's CLI secret.
 ## Testing
 
 - `ansible-test sanity` and unit tests for both collections on ansible-core
-  2.18, 2.19, 2.20 and 2.21, in GitHub Actions on every pull request. Changes
+  2.20, 2.21 and 2.22, in GitHub Actions on every pull request. Changes
   that only touch Markdown skip CI. Everything also runs once a week, and the
   unit tests then also run on ansible-core `devel`, as an early warning.
 - Also in CI: the tarball is built, installed into an empty directory and used

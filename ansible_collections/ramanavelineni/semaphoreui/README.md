@@ -6,7 +6,7 @@ users and runners, each described once and kept that way.
 
 [![CI](https://github.com/ramanavelineni/ansible-collections/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ramanavelineni/ansible-collections/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](https://github.com/ramanavelineni/ansible-collections/blob/main/LICENSE)
-![ansible-core 2.18–2.21](https://img.shields.io/badge/ansible--core-2.18%20%E2%80%93%202.21-EE0000?logo=ansible)
+![ansible-core 2.20–2.22](https://img.shields.io/badge/ansible--core-2.20%20%E2%80%93%202.22-EE0000?logo=ansible)
 ![Semaphore UI 2.18 | 2.19](https://img.shields.io/badge/Semaphore%20UI-2.18%20%7C%202.19-7B42BC)
 
 Every module finds its object **by name**, changes only what differs from the
@@ -31,7 +31,7 @@ collections:
 ansible-galaxy collection install -r requirements.yml
 ```
 
-Needs ansible-core 2.18 or newer and Semaphore UI 2.18 or 2.19. Other versions
+Needs ansible-core 2.20 or newer and Semaphore UI 2.18 or 2.19. Other versions
 work but print a warning.
 
 ## Example

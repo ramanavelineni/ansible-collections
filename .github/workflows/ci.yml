@@ -26,7 +26,7 @@ name: CI
 # ansible-lint, the sanity ignore files and the module documentation. Each
 # runs whatever the one before it found.
 #
-# "Units (..., stable-2.21)" also measures how much of the plugin code the unit
+# "Units (..., stable-2.22)" also measures how much of the plugin code the unit
 # tests cover and fails under the floor in .github/scripts/coverage-floor.sh.
 #
 # Once a week everything runs for both collections, whatever changed, so a new
@@ -126,7 +126,7 @@ jobs:
       fail-fast: false
       matrix:
         collection: ${{ fromJSON(needs.changes.outputs.collections) }}
-        ansible: ["2.18", "2.19", "2.20", "2.21"]
+        ansible: ["2.20", "2.21", "2.22"]
     defaults:
       run:
         working-directory: ansible_collections/ramanavelineni/${{ matrix.collection }}
@@ -154,11 +154,10 @@ jobs:
       fail-fast: false
       matrix:
         collection: ${{ fromJSON(needs.changes.outputs.collections) }}
-        ansible: ["2.18", "2.19", "2.20"]
+        ansible: ["2.20", "2.21"]
         include:
-          - {ansible: "2.18", oldest: "3.8", newest: "3.13"}
-          - {ansible: "2.19", oldest: "3.8", newest: "3.13"}
           - {ansible: "2.20", oldest: "3.9", newest: "3.14"}
+          - {ansible: "2.21", oldest: "3.9", newest: "3.14"}
     defaults:
       run:
         working-directory: ansible_collections/ramanavelineni/${{ matrix.collection }}
@@ -187,7 +186,7 @@ jobs:
   # container, then the floor for the plugin code (see the script). Nothing is
   # sent anywhere.
   units-coverage:
-    name: Units (${{ matrix.collection }}, stable-2.21)
+    name: Units (${{ matrix.collection }}, stable-2.22)
     needs: changes
     if: needs.changes.outputs.collections != '[]'
     runs-on: ubuntu-latest
@@ -205,7 +204,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
-      - run: pip install "ansible-core~=2.21.0"
+      - run: pip install "ansible-core~=2.22.0"
       # A pull request measures coverage on one Python, the one the floor is
       # reported with; every other run on all of them.
       - name: Unit tests with coverage
@@ -235,7 +234,7 @@ jobs:
       fail-fast: false
       matrix:
         collection: ${{ fromJSON(needs.changes.outputs.collections) }}
-        ansible: ${{ fromJSON(github.event_name == 'pull_request' && '["2.18"]' || '["2.18", "2.21"]') }}
+        ansible: ${{ fromJSON(github.event_name == 'pull_request' && '["2.20"]' || '["2.20", "2.22"]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -275,7 +274,7 @@ jobs:
         with:
           python-version: "3.13"
       - run: >-
-          pip install "ansible-core~=2.21.0" antsibull-changelog==0.35.1
+          pip install "ansible-core~=2.22.0" antsibull-changelog==0.35.1
           ansible-lint==26.9.0 antsibull-docs==2.27.0
       - name: Changelog fragments
         run: antsibull-changelog lint
@@ -314,8 +313,8 @@ jobs:
       matrix:
         include: >-
           ${{ fromJSON(github.event_name == 'pull_request'
-              && '[{"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "apply"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "export"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "roundtrip"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "duplicate"}]'
-              || '[{"semaphore": "v2.18.30", "ansible": "2.18", "playbook": "apply"}, {"semaphore": "v2.18.30", "ansible": "2.18", "playbook": "export"}, {"semaphore": "v2.18.30", "ansible": "2.18", "playbook": "roundtrip"}, {"semaphore": "v2.18.30", "ansible": "2.18", "playbook": "duplicate"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "apply"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "export"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "roundtrip"}, {"semaphore": "v2.19.12", "ansible": "2.21", "playbook": "duplicate"}]') }}
+              && '[{"semaphore": "v2.19.12", "ansible": "2.22", "playbook": "apply"}, {"semaphore": "v2.19.12", "ansible": "2.22", "playbook": "export"}, {"semaphore": "v2.19.12", "ansible": "2.22", "playbook": "roundtrip"}, {"semaphore": "v2.19.12", "ansible": "2.22", "playbook": "duplicate"}]'
+              || '[{"semaphore": "v2.18.30", "ansible": "2.20", "playbook": "apply"}, {"semaphore": "v2.18.30", "ansible": "2.20", "playbook": "export"}, {"semaphore": "v2.18.30", "ansible": "2.20", "playbook": "roundtrip"}, {"semaphore": "v2.18.30", "ansible": "2.20", "playbook": "duplicate"}, {"semaphore": "v2.19.12", "ansible": "2.22", "playbook": "apply"}, {"semaphore": "v2.19.12", "ansible": "2.22", "playbook": "export"}, {"semaphore": "v2.19.12", "ansible": "2.22", "playbook": "roundtrip"}, {"semaphore": "v2.19.12", "ansible": "2.22", "playbook": "duplicate"}]') }}
     services:
       semaphore:
         image: docker.io/semaphoreui/semaphore:${{ matrix.semaphore }}

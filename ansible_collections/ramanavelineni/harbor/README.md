@@ -6,7 +6,7 @@ settings, each described once and kept that way.
 
 [![CI](https://github.com/ramanavelineni/ansible-collections/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ramanavelineni/ansible-collections/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](https://github.com/ramanavelineni/ansible-collections/blob/main/LICENSE)
-![ansible-core 2.18–2.21](https://img.shields.io/badge/ansible--core-2.18%20%E2%80%93%202.21-EE0000?logo=ansible)
+![ansible-core 2.20–2.22](https://img.shields.io/badge/ansible--core-2.20%20%E2%80%93%202.22-EE0000?logo=ansible)
 ![Harbor 2.14 | 2.15](https://img.shields.io/badge/Harbor-2.14%20%7C%202.15-60B932)
 
 Every module finds its object **by name**, changes only what differs from the
@@ -35,7 +35,7 @@ collections:
 ansible-galaxy collection install -r requirements.yml
 ```
 
-Needs ansible-core 2.18 or newer and Harbor 2.14 or 2.15. Other versions work
+Needs ansible-core 2.20 or newer and Harbor 2.14 or 2.15. Other versions work
 but print a warning on every task; `warn_untested_version: false` turns it off.
 
 ## Example

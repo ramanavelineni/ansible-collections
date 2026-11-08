@@ -32,7 +32,7 @@ docker isn't installed). `ANSIBLE_TEST_FLAGS="--venv --python 3.13"` runs them
 in a virtual environment instead. `lint`, `docs-lint` and `install-test` need
 `ansible-lint`, `antsibull-docs` and `ansible-core` installed.
 
-CI runs sanity and the unit tests on ansible-core 2.18, 2.19, 2.20 and 2.21
+CI runs sanity and the unit tests on ansible-core 2.20, 2.21 and 2.22
 for the collections a change touches, with one job for each collection and
 version. It also runs, for those collections:
 

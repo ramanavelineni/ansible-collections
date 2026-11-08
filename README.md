@@ -6,7 +6,7 @@ make the server match, and change nothing when it already does.
 
 [![CI](https://github.com/ramanavelineni/ansible-collections/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ramanavelineni/ansible-collections/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
-![ansible-core 2.18–2.21](https://img.shields.io/badge/ansible--core-2.18%20%E2%80%93%202.21-EE0000?logo=ansible)
+![ansible-core 2.20–2.22](https://img.shields.io/badge/ansible--core-2.20%20%E2%80%93%202.22-EE0000?logo=ansible)
 ![Semaphore UI 2.18 | 2.19](https://img.shields.io/badge/Semaphore%20UI-2.18%20%7C%202.19-7B42BC)
 ![Harbor 2.14 | 2.15](https://img.shields.io/badge/Harbor-2.14%20%7C%202.15-60B932)
 
@@ -296,7 +296,7 @@ Every module's full documentation is available offline:
 
 | | Supported |
 |---|---|
-| ansible-core | 2.18, 2.19, 2.20, 2.21 |
+| ansible-core | 2.20, 2.21, 2.22 |
 | Semaphore UI | 2.18, 2.19 (Community; project runners need Pro) |
 | Harbor | 2.14, 2.15 |
 | Python | whatever your ansible-core supports |

@@ -2,6 +2,11 @@
 # ansible-lint for this collection: `make lint` and the "Lint" job in CI.
 profile: production
 offline: true
+# ansible-lint's meta-runtime rule knows ansible-core versions up to 2.19
+# (_default_supported in its config.py, 26.11.0 included); the collection
+# needs 2.20 or newer, see requires_ansible in meta/runtime.yml.
+supported_ansible_also:
+  - "2.20."
 
 exclude_paths:
   # Written by antsibull-changelog in its own YAML style; reformatting them by
