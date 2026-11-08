@@ -1,5 +1,5 @@
 {
-  "recorded_from": "v2.19.12-012ed06-1788086368",
+  "recorded_from": "v2.19.17-f8cefe6-1792391887",
   "responses": {
     "backup_get": {
       "body": {
@@ -104,8 +104,8 @@
     },
     "backup_project_get": {
       "body": {
-        "created": "2026-10-04T16:01:34.772985Z",
-        "id": 90,
+        "created": "2026-11-08T21:41:18.033731Z",
+        "id": 1,
         "max_parallel_tasks": 2,
         "name": "bk-fixtures",
         "type": ""
@@ -115,8 +115,8 @@
     "backup_projects": {
       "body": [
         {
-          "created": "2026-10-04T16:01:34.772985Z",
-          "id": 90,
+          "created": "2026-11-08T21:41:18.033731Z",
+          "id": 1,
           "max_parallel_tasks": 2,
           "name": "bk-fixtures",
           "type": ""
@@ -127,8 +127,8 @@
     "backup_projects_after_broken": {
       "body": [
         {
-          "created": "2026-10-04T16:01:34.772985Z",
-          "id": 90,
+          "created": "2026-11-08T21:41:18.033731Z",
+          "id": 1,
           "max_parallel_tasks": 2,
           "name": "bk-fixtures",
           "type": ""
@@ -139,15 +139,15 @@
     "backup_projects_after_partial": {
       "body": [
         {
-          "created": "2026-10-04T16:01:34.772985Z",
-          "id": 90,
+          "created": "2026-11-08T21:41:18.033731Z",
+          "id": 1,
           "max_parallel_tasks": 2,
           "name": "bk-fixtures",
           "type": ""
         },
         {
-          "created": "2026-10-04T16:01:34.838129Z",
-          "id": 92,
+          "created": "2026-11-08T21:41:18.104627Z",
+          "id": 3,
           "name": "bk-fixtures-partial",
           "type": ""
         }
@@ -157,15 +157,15 @@
     "backup_projects_restored": {
       "body": [
         {
-          "created": "2026-10-04T16:01:34.772985Z",
-          "id": 90,
+          "created": "2026-11-08T21:41:18.033731Z",
+          "id": 1,
           "max_parallel_tasks": 2,
           "name": "bk-fixtures",
           "type": ""
         },
         {
-          "created": "2026-10-04T16:01:34.81252Z",
-          "id": 91,
+          "created": "2026-11-08T21:41:18.072974Z",
+          "id": 2,
           "max_parallel_tasks": 2,
           "name": "bk-fixtures-restored",
           "type": ""
@@ -175,8 +175,8 @@
     },
     "backup_restore": {
       "body": {
-        "created": "2026-10-04T16:01:34.81252005Z",
-        "id": 91,
+        "created": "2026-11-08T21:41:18.072974046Z",
+        "id": 2,
         "max_parallel_tasks": 2,
         "name": "bk-fixtures-restored",
         "type": ""
@@ -201,11 +201,11 @@
       "body": [
         {
           "env": "{\"TZ\": \"UTC\"}",
-          "id": 78,
+          "id": 2,
           "json": "{}",
           "name": "vars",
           "password": null,
-          "project_id": 91,
+          "project_id": 2,
           "sync_enabled": false,
           "sync_interval": 0,
           "sync_paths": []
@@ -217,13 +217,13 @@
       "body": [
         {
           "IgnorePlain": false,
-          "id": 254,
+          "id": 5,
           "login_password": {
             "login": "",
             "password": ""
           },
           "name": "None",
-          "project_id": 91,
+          "project_id": 2,
           "ssh": {
             "login": "",
             "passphrase": "",
@@ -235,13 +235,13 @@
         {
           "IgnorePlain": false,
           "empty": true,
-          "id": 255,
+          "id": 6,
           "login_password": {
             "login": "",
             "password": ""
           },
           "name": "deploy",
-          "project_id": 91,
+          "project_id": 2,
           "ssh": {
             "login": "",
             "passphrase": "",

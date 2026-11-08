@@ -1,5 +1,5 @@
 {
-  "recorded_from": "v2.19.12-012ed06-1788086368",
+  "recorded_from": "v2.19.17-f8cefe6-1792391887",
   "responses": {
     "noworkflow_create": {
       "body": {
@@ -18,7 +18,7 @@
             "workflow_template_id": 1
           }
         ],
-        "project_id": 257
+        "project_id": 6
       },
       "status": 201
     },
@@ -35,8 +35,8 @@
     "noworkflow_projects": {
       "body": [
         {
-          "created": "2026-11-08T16:26:28.63738Z",
-          "id": 257,
+          "created": "2026-11-08T21:41:19.049194Z",
+          "id": 6,
           "name": "fixtures-noworkflow",
           "type": ""
         }

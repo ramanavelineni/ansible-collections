@@ -181,7 +181,7 @@ podman run -d --name semfx -p 127.0.0.1:3019:3000 \
     -e SEMAPHORE_DB_DIALECT=sqlite -e SEMAPHORE_ADMIN=admin \
     -e SEMAPHORE_ADMIN_PASSWORD=<password> -e SEMAPHORE_ADMIN_NAME=Admin \
     -e SEMAPHORE_ADMIN_EMAIL=admin@localhost \
-    docker.io/semaphoreui/semaphore:v2.19.12
+    docker.io/semaphoreui/semaphore:v2.19.17
 ```
 
 Harbor is several containers. `tools/harbor_up.sh` starts them the way the
