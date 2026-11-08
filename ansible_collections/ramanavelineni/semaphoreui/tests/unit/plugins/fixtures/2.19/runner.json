@@ -1,11 +1,11 @@
 {
-  "recorded_from": "v2.19.12-012ed06-1788086368",
+  "recorded_from": "v2.19.17-f8cefe6-1792391887",
   "responses": {
     "runner_create": {
       "body": {
         "active": true,
         "cleaning_requested": null,
-        "id": 6,
+        "id": 1,
         "is_default": false,
         "max_parallel_tasks": 2,
         "name": "rn-fixture",
@@ -31,7 +31,7 @@
       "body": {
         "active": true,
         "cleaning_requested": null,
-        "id": 6,
+        "id": 1,
         "is_default": false,
         "max_parallel_tasks": 2,
         "name": "rn-fixture",
@@ -59,7 +59,7 @@
         {
           "active": true,
           "cleaning_requested": null,
-          "id": 6,
+          "id": 1,
           "is_default": false,
           "max_parallel_tasks": 2,
           "name": "rn-fixture",
@@ -82,7 +82,7 @@
         {
           "active": true,
           "cleaning_requested": null,
-          "id": 6,
+          "id": 1,
           "is_default": false,
           "max_parallel_tasks": 2,
           "name": "rn-fixture",
@@ -113,7 +113,7 @@
     "runner_registration_token": {
       "body": {
         "registration_token": "smrs_recorded-registration-token",
-        "runner_id": 6
+        "runner_id": 1
       },
       "status": 200
     },

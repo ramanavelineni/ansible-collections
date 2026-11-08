@@ -12,7 +12,7 @@ is passed. Start one per tested version, for example with podman:
         -e SEMAPHORE_DB_DIALECT=sqlite -e SEMAPHORE_ADMIN=admin \\
         -e SEMAPHORE_ADMIN_PASSWORD=<password> -e SEMAPHORE_ADMIN_NAME=Admin \\
         -e SEMAPHORE_ADMIN_EMAIL=admin@localhost \\
-        docker.io/semaphoreui/semaphore:v2.19.12
+        docker.io/semaphoreui/semaphore:v2.19.17
 
     SEMAPHORE_PASSWORD=<password> tools/record_semaphoreui_fixtures.py [--allow-remote] http://127.0.0.1:3019 [AREA ...]
 

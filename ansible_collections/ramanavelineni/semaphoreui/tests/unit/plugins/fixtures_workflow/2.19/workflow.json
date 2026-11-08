@@ -1,15 +1,15 @@
 {
-  "recorded_from": "v2.19.12-012ed06-1788086368",
+  "recorded_from": "v2.19.17-f8cefe6-1792391887",
   "responses": {
     "workflow_approvals_pending": {
       "body": [
         {
-          "created": "2026-11-08T16:32:29.302134Z",
-          "id": 4,
-          "project_id": 261,
+          "created": "2026-11-08T21:41:40.383712Z",
+          "id": 1,
+          "project_id": 10,
           "status": "pending",
-          "workflow_node_id": 26,
-          "workflow_run_id": 8
+          "workflow_node_id": 6,
+          "workflow_run_id": 1
         }
       ],
       "status": 200
@@ -17,28 +17,28 @@
     "workflow_approvals_resolved": {
       "body": [
         {
-          "created": "2026-11-08T16:32:29.302134Z",
-          "id": 4,
-          "project_id": 261,
-          "resolved": "2026-11-08T16:32:29.31357751Z",
+          "created": "2026-11-08T21:41:40.383712Z",
+          "id": 1,
+          "project_id": 10,
+          "resolved": "2026-11-08T21:41:40.423140799Z",
           "resolved_by_user_id": 1,
           "status": "approved",
-          "workflow_node_id": 26,
-          "workflow_run_id": 8
+          "workflow_node_id": 6,
+          "workflow_run_id": 1
         }
       ],
       "status": 200
     },
     "workflow_approve": {
       "body": {
-        "created": "2026-11-08T16:32:29.302134Z",
-        "id": 4,
-        "project_id": 261,
-        "resolved": "2026-11-08T16:32:29.31357751Z",
+        "created": "2026-11-08T21:41:40.383712Z",
+        "id": 1,
+        "project_id": 10,
+        "resolved": "2026-11-08T21:41:40.423140799Z",
         "resolved_by_user_id": 1,
         "status": "approved",
-        "workflow_node_id": 26,
-        "workflow_run_id": 8
+        "workflow_node_id": 6,
+        "workflow_run_id": 1
       },
       "status": 200
     },
@@ -54,55 +54,55 @@
         "edges": [
           {
             "condition": "on_success",
-            "destination_node_id": 23,
-            "id": 12,
-            "source_node_id": 22,
-            "workflow_template_id": 5
+            "destination_node_id": 3,
+            "id": 1,
+            "source_node_id": 2,
+            "workflow_template_id": 2
           },
           {
             "condition": "on_success",
-            "destination_node_id": 24,
-            "id": 13,
-            "source_node_id": 23,
-            "workflow_template_id": 5
+            "destination_node_id": 4,
+            "id": 2,
+            "source_node_id": 3,
+            "workflow_template_id": 2
           }
         ],
-        "id": 5,
+        "id": 2,
         "name": "wf-release",
         "nodes": [
           {
             "convergence_mode": "all",
-            "id": 22,
+            "id": 2,
             "kind": "task",
             "position_x": 0,
             "position_y": 0,
             "task_params": {
               "message": "from the workflow"
             },
-            "template_id": 528,
-            "workflow_template_id": 5
+            "template_id": 11,
+            "workflow_template_id": 2
           },
           {
             "approval_message": "Go on?",
             "approval_timeout": 3600,
             "convergence_mode": "all",
-            "id": 23,
+            "id": 3,
             "kind": "approval",
             "position_x": 300,
             "position_y": 0,
-            "workflow_template_id": 5
+            "workflow_template_id": 2
           },
           {
             "convergence_mode": "all",
-            "id": 24,
+            "id": 4,
             "kind": "task",
             "position_x": 600,
             "position_y": 0,
-            "template_id": 529,
-            "workflow_template_id": 5
+            "template_id": 12,
+            "workflow_template_id": 2
           }
         ],
-        "project_id": 261
+        "project_id": 10
       },
       "status": 201
     },
@@ -122,55 +122,55 @@
         "edges": [
           {
             "condition": "on_success",
-            "destination_node_id": 23,
-            "id": 12,
-            "source_node_id": 22,
-            "workflow_template_id": 5
+            "destination_node_id": 3,
+            "id": 1,
+            "source_node_id": 2,
+            "workflow_template_id": 2
           },
           {
             "condition": "on_success",
-            "destination_node_id": 24,
-            "id": 13,
-            "source_node_id": 23,
-            "workflow_template_id": 5
+            "destination_node_id": 4,
+            "id": 2,
+            "source_node_id": 3,
+            "workflow_template_id": 2
           }
         ],
-        "id": 5,
+        "id": 2,
         "name": "wf-release",
         "nodes": [
           {
             "convergence_mode": "all",
-            "id": 22,
+            "id": 2,
             "kind": "task",
             "position_x": 0,
             "position_y": 0,
             "task_params": {
               "message": "from the workflow"
             },
-            "template_id": 528,
-            "workflow_template_id": 5
+            "template_id": 11,
+            "workflow_template_id": 2
           },
           {
             "approval_message": "Go on?",
             "approval_timeout": 3600,
             "convergence_mode": "all",
-            "id": 23,
+            "id": 3,
             "kind": "approval",
             "position_x": 300,
             "position_y": 0,
-            "workflow_template_id": 5
+            "workflow_template_id": 2
           },
           {
             "convergence_mode": "all",
-            "id": 24,
+            "id": 4,
             "kind": "task",
             "position_x": 600,
             "position_y": 0,
-            "template_id": 529,
-            "workflow_template_id": 5
+            "template_id": 12,
+            "workflow_template_id": 2
           }
         ],
-        "project_id": 261
+        "project_id": 10
       },
       "status": 200
     },
@@ -184,71 +184,71 @@
         "edges": [
           {
             "condition": "on_success",
-            "destination_node_id": 26,
-            "id": 14,
-            "source_node_id": 25,
-            "workflow_template_id": 5
+            "destination_node_id": 6,
+            "id": 3,
+            "source_node_id": 5,
+            "workflow_template_id": 2
           },
           {
             "condition": "on_success",
-            "destination_node_id": 27,
-            "id": 15,
-            "source_node_id": 26,
-            "workflow_template_id": 5
+            "destination_node_id": 7,
+            "id": 4,
+            "source_node_id": 6,
+            "workflow_template_id": 2
           },
           {
             "condition": "on_failure",
-            "destination_node_id": 28,
-            "id": 16,
-            "source_node_id": 25,
-            "workflow_template_id": 5
+            "destination_node_id": 8,
+            "id": 5,
+            "source_node_id": 5,
+            "workflow_template_id": 2
           }
         ],
-        "id": 5,
+        "id": 2,
         "name": "wf-release",
         "nodes": [
           {
             "convergence_mode": "all",
-            "id": 25,
+            "id": 5,
             "kind": "task",
             "position_x": 0,
             "position_y": 0,
             "task_params": {
               "message": "from the workflow"
             },
-            "template_id": 528,
-            "workflow_template_id": 5
+            "template_id": 11,
+            "workflow_template_id": 2
           },
           {
             "approval_message": "Go on?",
             "approval_timeout": 3600,
             "convergence_mode": "all",
-            "id": 26,
+            "id": 6,
             "kind": "approval",
             "position_x": 300,
             "position_y": 0,
-            "workflow_template_id": 5
+            "workflow_template_id": 2
           },
           {
             "convergence_mode": "all",
-            "id": 27,
+            "id": 7,
             "kind": "task",
             "position_x": 600,
             "position_y": 0,
-            "template_id": 529,
-            "workflow_template_id": 5
+            "template_id": 12,
+            "workflow_template_id": 2
           },
           {
             "convergence_mode": "all",
-            "id": 28,
+            "id": 8,
             "kind": "task",
             "position_x": 600,
             "position_y": 150,
-            "template_id": 530,
-            "workflow_template_id": 5
+            "template_id": 13,
+            "workflow_template_id": 2
           }
         ],
-        "project_id": 261
+        "project_id": 10
       },
       "status": 200
     },
@@ -259,55 +259,55 @@
           "edges": [
             {
               "condition": "on_success",
-              "destination_node_id": 23,
-              "id": 12,
-              "source_node_id": 22,
-              "workflow_template_id": 5
+              "destination_node_id": 3,
+              "id": 1,
+              "source_node_id": 2,
+              "workflow_template_id": 2
             },
             {
               "condition": "on_success",
-              "destination_node_id": 24,
-              "id": 13,
-              "source_node_id": 23,
-              "workflow_template_id": 5
+              "destination_node_id": 4,
+              "id": 2,
+              "source_node_id": 3,
+              "workflow_template_id": 2
             }
           ],
-          "id": 5,
+          "id": 2,
           "name": "wf-release",
           "nodes": [
             {
               "convergence_mode": "all",
-              "id": 22,
+              "id": 2,
               "kind": "task",
               "position_x": 0,
               "position_y": 0,
               "task_params": {
                 "message": "from the workflow"
               },
-              "template_id": 528,
-              "workflow_template_id": 5
+              "template_id": 11,
+              "workflow_template_id": 2
             },
             {
               "approval_message": "Go on?",
               "approval_timeout": 3600,
               "convergence_mode": "all",
-              "id": 23,
+              "id": 3,
               "kind": "approval",
               "position_x": 300,
               "position_y": 0,
-              "workflow_template_id": 5
+              "workflow_template_id": 2
             },
             {
               "convergence_mode": "all",
-              "id": 24,
+              "id": 4,
               "kind": "task",
               "position_x": 600,
               "position_y": 0,
-              "template_id": 529,
-              "workflow_template_id": 5
+              "template_id": 12,
+              "workflow_template_id": 2
             }
           ],
-          "project_id": 261
+          "project_id": 10
         }
       ],
       "status": 200
@@ -331,8 +331,8 @@
     "workflow_projects": {
       "body": [
         {
-          "created": "2026-11-08T16:32:28.194272Z",
-          "id": 261,
+          "created": "2026-11-08T21:41:39.2878Z",
+          "id": 10,
           "name": "fixtures-workflow",
           "type": ""
         }
@@ -345,86 +345,86 @@
           {
             "node": {
               "convergence_mode": "all",
-              "id": 25,
+              "id": 5,
               "kind": "task",
               "position_x": 0,
               "position_y": 0,
               "task_params": {
                 "message": "from the workflow"
               },
-              "template_id": 528,
-              "workflow_template_id": 5
+              "template_id": 11,
+              "workflow_template_id": 2
             },
             "task": {
-              "created": "2026-11-08T16:32:28.265523445Z",
-              "end": "2026-11-08T16:32:29.298631185Z",
-              "id": 257,
+              "created": "2026-11-08T21:41:39.348199705Z",
+              "end": "2026-11-08T21:41:40.380122494Z",
+              "id": 7,
               "limit": "",
               "message": "from the workflow",
               "playbook": "",
-              "project_id": 261,
-              "start": "2026-11-08T16:32:29.275160032Z",
+              "project_id": 10,
+              "start": "2026-11-08T21:41:40.36373529Z",
               "status": "success",
-              "template_id": 528,
+              "template_id": 11,
               "tpl_alias": "wf-ok",
               "tpl_app": "bash",
               "tpl_playbook": "null",
               "user_id": 1,
               "user_name": "Admin",
-              "workflow_node_id": 25,
-              "workflow_run_id": 8
+              "workflow_node_id": 5,
+              "workflow_run_id": 1
             }
           },
           {
             "approval": {
-              "created": "2026-11-08T16:32:29.302134Z",
-              "id": 4,
-              "project_id": 261,
+              "created": "2026-11-08T21:41:40.383712Z",
+              "id": 1,
+              "project_id": 10,
               "status": "pending",
-              "workflow_node_id": 26,
-              "workflow_run_id": 8
+              "workflow_node_id": 6,
+              "workflow_run_id": 1
             },
             "node": {
               "approval_message": "Go on?",
               "approval_timeout": 3600,
               "convergence_mode": "all",
-              "id": 26,
+              "id": 6,
               "kind": "approval",
               "position_x": 300,
               "position_y": 0,
-              "workflow_template_id": 5
+              "workflow_template_id": 2
             }
           },
           {
             "node": {
               "convergence_mode": "all",
-              "id": 27,
+              "id": 7,
               "kind": "task",
               "position_x": 600,
               "position_y": 0,
-              "template_id": 529,
-              "workflow_template_id": 5
+              "template_id": 12,
+              "workflow_template_id": 2
             }
           },
           {
             "node": {
               "convergence_mode": "all",
-              "id": 28,
+              "id": 8,
               "kind": "task",
               "position_x": 600,
               "position_y": 150,
-              "template_id": 530,
-              "workflow_template_id": 5
+              "template_id": 13,
+              "workflow_template_id": 2
             }
           }
         ],
         "run": {
-          "id": 8,
-          "project_id": 261,
-          "root_task_id": 257,
-          "start": "2026-11-08T16:32:28.264508862Z",
+          "id": 1,
+          "project_id": 10,
+          "root_task_id": 7,
+          "start": "2026-11-08T21:41:39.347251162Z",
           "status": "approval",
-          "workflow_template_id": 5
+          "workflow_template_id": 2
         }
       },
       "status": 200
@@ -435,41 +435,41 @@
           {
             "node": {
               "convergence_mode": "all",
-              "id": 29,
+              "id": 9,
               "kind": "task",
               "position_x": 0,
               "position_y": 0,
-              "template_id": 530,
-              "workflow_template_id": 5
+              "template_id": 13,
+              "workflow_template_id": 2
             },
             "task": {
-              "created": "2026-11-08T16:32:30.387691851Z",
-              "end": "2026-11-08T16:32:31.413527804Z",
-              "id": 259,
+              "created": "2026-11-08T21:41:41.547267712Z",
+              "end": "2026-11-08T21:41:42.592836156Z",
+              "id": 9,
               "limit": "",
               "playbook": "",
-              "project_id": 261,
-              "start": "2026-11-08T16:32:31.399424228Z",
+              "project_id": 10,
+              "start": "2026-11-08T21:41:42.566436263Z",
               "status": "error",
-              "template_id": 530,
+              "template_id": 13,
               "tpl_alias": "wf-fail",
               "tpl_app": "bash",
               "tpl_playbook": "wf-missing.sh",
               "user_id": 1,
               "user_name": "Admin",
-              "workflow_node_id": 29,
-              "workflow_run_id": 9
+              "workflow_node_id": 9,
+              "workflow_run_id": 2
             }
           }
         ],
         "run": {
-          "end": "2026-11-08T16:32:31.415578427Z",
-          "id": 9,
-          "project_id": 261,
-          "root_task_id": 259,
-          "start": "2026-11-08T16:32:30.385785894Z",
+          "end": "2026-11-08T21:41:42.595357453Z",
+          "id": 2,
+          "project_id": 10,
+          "root_task_id": 9,
+          "start": "2026-11-08T21:41:41.545193249Z",
           "status": "failed",
-          "workflow_template_id": 5
+          "workflow_template_id": 2
         }
       },
       "status": 200
@@ -484,38 +484,38 @@
           {
             "node": {
               "convergence_mode": "all",
-              "id": 30,
+              "id": 10,
               "kind": "task",
               "position_x": 0,
               "position_y": 0,
-              "template_id": 531,
-              "workflow_template_id": 5
+              "template_id": 14,
+              "workflow_template_id": 2
             },
             "task": {
-              "created": "2026-11-08T16:32:31.436514374Z",
-              "id": 260,
+              "created": "2026-11-08T21:41:42.632078703Z",
+              "id": 10,
               "limit": "",
               "playbook": "",
-              "project_id": 261,
+              "project_id": 10,
               "status": "waiting",
-              "template_id": 531,
+              "template_id": 14,
               "tpl_alias": "wf-slow",
               "tpl_app": "bash",
               "tpl_playbook": "null",
               "user_id": 1,
               "user_name": "Admin",
-              "workflow_node_id": 30,
-              "workflow_run_id": 10
+              "workflow_node_id": 10,
+              "workflow_run_id": 3
             }
           }
         ],
         "run": {
-          "id": 10,
-          "project_id": 261,
-          "root_task_id": 260,
-          "start": "2026-11-08T16:32:31.435291749Z",
+          "id": 3,
+          "project_id": 10,
+          "root_task_id": 10,
+          "start": "2026-11-08T21:41:42.629589989Z",
           "status": "running",
-          "workflow_template_id": 5
+          "workflow_template_id": 2
         }
       },
       "status": 200
@@ -526,39 +526,39 @@
           {
             "node": {
               "convergence_mode": "all",
-              "id": 30,
+              "id": 10,
               "kind": "task",
               "position_x": 0,
               "position_y": 0,
-              "template_id": 531,
-              "workflow_template_id": 5
+              "template_id": 14,
+              "workflow_template_id": 2
             },
             "task": {
-              "created": "2026-11-08T16:32:31.436514374Z",
-              "id": 260,
+              "created": "2026-11-08T21:41:42.632078703Z",
+              "id": 10,
               "limit": "",
               "playbook": "",
-              "project_id": 261,
+              "project_id": 10,
               "status": "stopped",
-              "template_id": 531,
+              "template_id": 14,
               "tpl_alias": "wf-slow",
               "tpl_app": "bash",
               "tpl_playbook": "null",
               "user_id": 1,
               "user_name": "Admin",
-              "workflow_node_id": 30,
-              "workflow_run_id": 10
+              "workflow_node_id": 10,
+              "workflow_run_id": 3
             }
           }
         ],
         "run": {
-          "end": "2026-11-08T16:32:31.452040573Z",
-          "id": 10,
-          "project_id": 261,
-          "root_task_id": 260,
-          "start": "2026-11-08T16:32:31.435291749Z",
+          "end": "2026-11-08T21:41:42.654372962Z",
+          "id": 3,
+          "project_id": 10,
+          "root_task_id": 10,
+          "start": "2026-11-08T21:41:42.629589989Z",
           "status": "stopped",
-          "workflow_template_id": 5
+          "workflow_template_id": 2
         }
       },
       "status": 200
@@ -569,173 +569,173 @@
           {
             "node": {
               "convergence_mode": "all",
-              "id": 25,
+              "id": 5,
               "kind": "task",
               "position_x": 0,
               "position_y": 0,
               "task_params": {
                 "message": "from the workflow"
               },
-              "template_id": 528,
-              "workflow_template_id": 5
+              "template_id": 11,
+              "workflow_template_id": 2
             },
             "task": {
-              "created": "2026-11-08T16:32:28.265523445Z",
-              "end": "2026-11-08T16:32:29.298631185Z",
-              "id": 257,
+              "created": "2026-11-08T21:41:39.348199705Z",
+              "end": "2026-11-08T21:41:40.380122494Z",
+              "id": 7,
               "limit": "",
               "message": "from the workflow",
               "playbook": "",
-              "project_id": 261,
-              "start": "2026-11-08T16:32:29.275160032Z",
+              "project_id": 10,
+              "start": "2026-11-08T21:41:40.36373529Z",
               "status": "success",
-              "template_id": 528,
+              "template_id": 11,
               "tpl_alias": "wf-ok",
               "tpl_app": "bash",
               "tpl_playbook": "null",
               "user_id": 1,
               "user_name": "Admin",
-              "workflow_node_id": 25,
-              "workflow_run_id": 8
+              "workflow_node_id": 5,
+              "workflow_run_id": 1
             }
           },
           {
             "approval": {
-              "created": "2026-11-08T16:32:29.302134Z",
-              "id": 4,
-              "project_id": 261,
-              "resolved": "2026-11-08T16:32:29.31357751Z",
+              "created": "2026-11-08T21:41:40.383712Z",
+              "id": 1,
+              "project_id": 10,
+              "resolved": "2026-11-08T21:41:40.423140799Z",
               "resolved_by_user_id": 1,
               "status": "approved",
-              "workflow_node_id": 26,
-              "workflow_run_id": 8
+              "workflow_node_id": 6,
+              "workflow_run_id": 1
             },
             "node": {
               "approval_message": "Go on?",
               "approval_timeout": 3600,
               "convergence_mode": "all",
-              "id": 26,
+              "id": 6,
               "kind": "approval",
               "position_x": 300,
               "position_y": 0,
-              "workflow_template_id": 5
+              "workflow_template_id": 2
             }
           },
           {
             "node": {
               "convergence_mode": "all",
-              "id": 27,
+              "id": 7,
               "kind": "task",
               "position_x": 600,
               "position_y": 0,
-              "template_id": 529,
-              "workflow_template_id": 5
+              "template_id": 12,
+              "workflow_template_id": 2
             },
             "task": {
-              "created": "2026-11-08T16:32:29.315457967Z",
-              "end": "2026-11-08T16:32:30.345621084Z",
-              "id": 258,
+              "created": "2026-11-08T21:41:40.426849474Z",
+              "end": "2026-11-08T21:41:41.474085214Z",
+              "id": 8,
               "limit": "",
               "playbook": "",
-              "project_id": 261,
-              "start": "2026-11-08T16:32:30.329480718Z",
+              "project_id": 10,
+              "start": "2026-11-08T21:41:41.447217903Z",
               "status": "success",
-              "template_id": 529,
+              "template_id": 12,
               "tpl_alias": "wf-next",
               "tpl_app": "bash",
               "tpl_playbook": "null",
               "user_id": 1,
               "user_name": "Admin",
-              "workflow_node_id": 27,
-              "workflow_run_id": 8
+              "workflow_node_id": 7,
+              "workflow_run_id": 1
             }
           },
           {
             "node": {
               "convergence_mode": "all",
-              "id": 28,
+              "id": 8,
               "kind": "task",
               "position_x": 600,
               "position_y": 150,
-              "template_id": 530,
-              "workflow_template_id": 5
+              "template_id": 13,
+              "workflow_template_id": 2
             }
           }
         ],
         "run": {
-          "end": "2026-11-08T16:32:30.348653665Z",
-          "id": 8,
-          "project_id": 261,
-          "root_task_id": 257,
-          "start": "2026-11-08T16:32:28.264508862Z",
+          "end": "2026-11-08T21:41:41.477433554Z",
+          "id": 1,
+          "project_id": 10,
+          "root_task_id": 7,
+          "start": "2026-11-08T21:41:39.347251162Z",
           "status": "success",
-          "workflow_template_id": 5
+          "workflow_template_id": 2
         }
       },
       "status": 200
     },
     "workflow_run_start": {
       "body": {
-        "id": 8,
-        "project_id": 261,
-        "root_task_id": 257,
-        "start": "2026-11-08T16:32:28.264508862Z",
+        "id": 1,
+        "project_id": 10,
+        "root_task_id": 7,
+        "start": "2026-11-08T21:41:39.347251162Z",
         "status": "running",
-        "workflow_template_id": 5
+        "workflow_template_id": 2
       },
       "status": 201
     },
     "workflow_run_start_failing": {
       "body": {
-        "id": 9,
-        "project_id": 261,
-        "root_task_id": 259,
-        "start": "2026-11-08T16:32:30.385785894Z",
+        "id": 2,
+        "project_id": 10,
+        "root_task_id": 9,
+        "start": "2026-11-08T21:41:41.545193249Z",
         "status": "running",
-        "workflow_template_id": 5
+        "workflow_template_id": 2
       },
       "status": 201
     },
     "workflow_run_start_slow": {
       "body": {
-        "id": 10,
-        "project_id": 261,
-        "root_task_id": 260,
-        "start": "2026-11-08T16:32:31.435291749Z",
+        "id": 3,
+        "project_id": 10,
+        "root_task_id": 10,
+        "start": "2026-11-08T21:41:42.629589989Z",
         "status": "running",
-        "workflow_template_id": 5
+        "workflow_template_id": 2
       },
       "status": 201
     },
     "workflow_run_stop": {
       "body": {
-        "end": "2026-11-08T16:32:31.452040573Z",
-        "id": 10,
-        "project_id": 261,
-        "root_task_id": 260,
-        "start": "2026-11-08T16:32:31.435291749Z",
+        "end": "2026-11-08T21:41:42.654372962Z",
+        "id": 3,
+        "project_id": 10,
+        "root_task_id": 10,
+        "start": "2026-11-08T21:41:42.629589989Z",
         "status": "stopped",
-        "workflow_template_id": 5
+        "workflow_template_id": 2
       },
       "status": 200
     },
     "workflow_runs": {
       "body": [
         {
-          "end": "2026-11-08T16:32:30.348653665Z",
-          "id": 8,
-          "project_id": 261,
-          "root_task_id": 257,
-          "start": "2026-11-08T16:32:28.264508862Z",
+          "end": "2026-11-08T21:41:41.477433554Z",
+          "id": 1,
+          "project_id": 10,
+          "root_task_id": 7,
+          "start": "2026-11-08T21:41:39.347251162Z",
           "status": "success",
-          "workflow_template_id": 5
+          "workflow_template_id": 2
         }
       ],
       "status": 200
     },
     "workflow_server_info": {
       "body": {
-        "ansible": "ansible [core 2.20.8]\n  config file = /etc/ansible/ansible.cfg\n  configured module search path = ['/home/semaphore/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']\n  ansible python module location = /opt/semaphore/apps/ansible/13.5.0/venv/lib/python3.12/site-packages/ansible\n  ansible collection location = /home/semaphore/.ansible/collections:/usr/share/ansible/collections\n  executable location = /opt/semaphore/apps/ansible/13.5.0/venv/bin/ansible\n  python version = 3.12.14 (main, Aug 13 2026, 19:38:13) [GCC 14.2.0] (/opt/semaphore/apps/ansible/13.5.0/venv/bin/python3)\n  jinja version = 3.1.6\n  pyyaml version = 6.0.3 (with libyaml v0.2.5)\n",
+        "ansible": "ansible [core 2.20.10]\n  config file = /etc/ansible/ansible.cfg\n  configured module search path = ['/home/semaphore/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']\n  ansible python module location = /opt/semaphore/apps/ansible/13.5.0/venv/lib/python3.12/site-packages/ansible\n  ansible collection location = /home/semaphore/.ansible/collections:/usr/share/ansible/collections\n  executable location = /opt/semaphore/apps/ansible/13.5.0/venv/bin/ansible\n  python version = 3.12.15 (main, Oct  1 2026, 09:33:41) [GCC 14.2.0] (/opt/semaphore/apps/ansible/13.5.0/venv/bin/python3)\n  jinja version = 3.1.6\n  pyyaml version = 6.0.3 (with libyaml v0.2.5)\n",
         "auth_methods": {},
         "boltdb_used": false,
         "features": {
@@ -764,7 +764,7 @@
           "invite_type": "username"
         },
         "use_remote_runner": false,
-        "version": "v2.19.12-012ed06-1788086368",
+        "version": "v2.19.17-f8cefe6-1792391887",
         "web_host": ""
       },
       "status": 200
@@ -773,62 +773,62 @@
       "body": [
         {
           "app": "bash",
-          "environment_id": 276,
+          "environment_id": 7,
           "environment_ids": [
-            276
+            7
           ],
-          "id": 530,
-          "inventory_id": 276,
+          "id": 13,
+          "inventory_id": 7,
           "name": "wf-fail",
           "permissions": null,
           "playbook": "wf-missing.sh",
-          "project_id": 261,
-          "repository_id": 215,
+          "project_id": 10,
+          "repository_id": 6,
           "tasks": 0
         },
         {
           "app": "bash",
-          "environment_id": 276,
+          "environment_id": 7,
           "environment_ids": [
-            276
+            7
           ],
-          "id": 529,
-          "inventory_id": 276,
+          "id": 12,
+          "inventory_id": 7,
           "name": "wf-next",
           "permissions": null,
           "playbook": "null",
-          "project_id": 261,
-          "repository_id": 215,
+          "project_id": 10,
+          "repository_id": 6,
           "tasks": 0
         },
         {
           "app": "bash",
-          "environment_id": 276,
+          "environment_id": 7,
           "environment_ids": [
-            276
+            7
           ],
-          "id": 528,
-          "inventory_id": 276,
+          "id": 11,
+          "inventory_id": 7,
           "name": "wf-ok",
           "permissions": null,
           "playbook": "null",
-          "project_id": 261,
-          "repository_id": 215,
+          "project_id": 10,
+          "repository_id": 6,
           "tasks": 0
         },
         {
           "app": "bash",
-          "environment_id": 277,
+          "environment_id": 8,
           "environment_ids": [
-            277
+            8
           ],
-          "id": 531,
-          "inventory_id": 276,
+          "id": 14,
+          "inventory_id": 7,
           "name": "wf-slow",
           "permissions": null,
           "playbook": "null",
-          "project_id": 261,
-          "repository_id": 215,
+          "project_id": 10,
+          "repository_id": 6,
           "tasks": 0
         }
       ],

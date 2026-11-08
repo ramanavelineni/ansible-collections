@@ -1,5 +1,5 @@
 {
-  "recorded_from": "v2.18.30-9dcfe85-1788086332",
+  "recorded_from": "v2.18.31-2909315-1791373674",
   "responses": {
     "apps": {
       "body": [
@@ -85,7 +85,7 @@
     },
     "info": {
       "body": {
-        "ansible": "ansible [core 2.20.8]\n  config file = /etc/ansible/ansible.cfg\n  configured module search path = ['/home/semaphore/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']\n  ansible python module location = /opt/semaphore/apps/ansible/13.5.0/venv/lib/python3.12/site-packages/ansible\n  ansible collection location = /home/semaphore/.ansible/collections:/usr/share/ansible/collections\n  executable location = /opt/semaphore/apps/ansible/13.5.0/venv/bin/ansible\n  python version = 3.12.14 (main, Aug 13 2026, 19:38:13) [GCC 14.2.0] (/opt/semaphore/apps/ansible/13.5.0/venv/bin/python3)\n  jinja version = 3.1.6\n  pyyaml version = 6.0.3 (with libyaml v0.2.5)\n",
+        "ansible": "ansible [core 2.20.10]\n  config file = /etc/ansible/ansible.cfg\n  configured module search path = ['/home/semaphore/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']\n  ansible python module location = /opt/semaphore/apps/ansible/13.5.0/venv/lib/python3.12/site-packages/ansible\n  ansible collection location = /home/semaphore/.ansible/collections:/usr/share/ansible/collections\n  executable location = /opt/semaphore/apps/ansible/13.5.0/venv/bin/ansible\n  python version = 3.12.15 (main, Oct  1 2026, 09:33:41) [GCC 14.2.0] (/opt/semaphore/apps/ansible/13.5.0/venv/bin/python3)\n  jinja version = 3.1.6\n  pyyaml version = 6.0.3 (with libyaml v0.2.5)\n",
         "auth_methods": {},
         "boltdb_used": false,
         "features": {
@@ -107,15 +107,15 @@
           "invite_type": "username"
         },
         "use_remote_runner": false,
-        "version": "v2.18.30-9dcfe85-1788086332",
+        "version": "v2.18.31-2909315-1791373674",
         "web_host": ""
       },
       "status": 200
     },
     "integration_alias_create": {
       "body": {
-        "id": 7,
-        "url": "http://localhost:3000/api/integrations/k7ryewq1iajxs9mt"
+        "id": 1,
+        "url": "http://localhost:3000/api/integrations/8go198qy2mxjujw5"
       },
       "status": 200
     },
@@ -126,8 +126,8 @@
     "integration_aliases_one": {
       "body": [
         {
-          "id": 7,
-          "url": "http://localhost:3000/api/integrations/k7ryewq1iajxs9mt"
+          "id": 1,
+          "url": "http://localhost:3000/api/integrations/8go198qy2mxjujw5"
         }
       ],
       "status": 200
@@ -136,12 +136,12 @@
       "body": {
         "auth_header": "X-Token",
         "auth_method": "token",
-        "auth_secret_id": 119,
-        "id": 7,
+        "auth_secret_id": 8,
+        "id": 1,
         "name": "gh",
-        "project_id": 45,
+        "project_id": 4,
         "searchable": false,
-        "template_id": 41
+        "template_id": 3
       },
       "status": 201
     },
@@ -153,20 +153,20 @@
       "body": {
         "auth_header": "X-Token",
         "auth_method": "token",
-        "auth_secret_id": 119,
-        "id": 7,
+        "auth_secret_id": 8,
+        "id": 1,
         "name": "gh",
-        "project_id": 45,
+        "project_id": 4,
         "searchable": false,
-        "template_id": 41
+        "template_id": 3
       },
       "status": 200
     },
     "integration_matcher_create": {
       "body": {
         "body_data_type": "json",
-        "id": 7,
-        "integration_id": 7,
+        "id": 1,
+        "integration_id": 1,
         "key": "ref",
         "match_type": "body",
         "method": "equals",
@@ -183,6 +183,21 @@
       "body": null,
       "status": 204
     },
+    "integration_matchers_after_delete": {
+      "body": [
+        {
+          "body_data_type": "json",
+          "id": 1,
+          "integration_id": 1,
+          "key": "ref",
+          "match_type": "body",
+          "method": "equals",
+          "name": "main",
+          "value": "refs/heads/develop"
+        }
+      ],
+      "status": 200
+    },
     "integration_matchers_empty": {
       "body": [],
       "status": 200
@@ -191,8 +206,8 @@
       "body": [
         {
           "body_data_type": "json",
-          "id": 7,
-          "integration_id": 7,
+          "id": 1,
+          "integration_id": 1,
           "key": "ref",
           "match_type": "body",
           "method": "equals",
@@ -216,8 +231,8 @@
     "integration_value_create": {
       "body": {
         "body_data_type": "json",
-        "id": 5,
-        "integration_id": 7,
+        "id": 1,
+        "integration_id": 1,
         "key": "after",
         "name": "sha",
         "value_source": "body",
@@ -225,6 +240,25 @@
         "variable_type": "environment"
       },
       "status": 201
+    },
+    "integration_value_delete": {
+      "body": null,
+      "status": 204
+    },
+    "integration_values_after_delete": {
+      "body": [
+        {
+          "body_data_type": "json",
+          "id": 1,
+          "integration_id": 1,
+          "key": "after",
+          "name": "sha",
+          "value_source": "body",
+          "variable": "COMMIT_SHA",
+          "variable_type": "environment"
+        }
+      ],
+      "status": 200
     },
     "integration_values_empty": {
       "body": [],
@@ -234,8 +268,8 @@
       "body": [
         {
           "body_data_type": "json",
-          "id": 5,
-          "integration_id": 7,
+          "id": 1,
+          "integration_id": 1,
           "key": "after",
           "name": "sha",
           "value_source": "body",
@@ -254,12 +288,12 @@
         {
           "auth_header": "X-Token",
           "auth_method": "token",
-          "auth_secret_id": 119,
-          "id": 7,
+          "auth_secret_id": 8,
+          "id": 1,
           "name": "gh",
-          "project_id": 45,
+          "project_id": 4,
           "searchable": false,
-          "template_id": 41
+          "template_id": 3
         }
       ],
       "status": 200
@@ -272,12 +306,12 @@
       "body": [
         {
           "become_key_id": null,
-          "id": 47,
+          "id": 3,
           "inventory": "inventories/homelab/hosts",
           "name": "homelab",
-          "project_id": 45,
-          "repository_id": 42,
-          "ssh_key_id": 119,
+          "project_id": 4,
+          "repository_id": 3,
+          "ssh_key_id": 8,
           "template_id": null,
           "type": "file"
         }
@@ -287,13 +321,13 @@
     "inventories_one_updated": {
       "body": [
         {
-          "become_key_id": 119,
-          "id": 47,
+          "become_key_id": 8,
+          "id": 3,
           "inventory": "inventories/homelab/hosts",
           "name": "homelab",
-          "project_id": 45,
-          "repository_id": 42,
-          "ssh_key_id": 119,
+          "project_id": 4,
+          "repository_id": 3,
+          "ssh_key_id": 8,
           "template_id": null,
           "type": "file"
         }
@@ -303,12 +337,12 @@
     "inventory_create": {
       "body": {
         "become_key_id": null,
-        "id": 47,
+        "id": 3,
         "inventory": "inventories/homelab/hosts",
         "name": "homelab",
-        "project_id": 45,
-        "repository_id": 42,
-        "ssh_key_id": 119,
+        "project_id": 4,
+        "repository_id": 3,
+        "ssh_key_id": 8,
         "template_id": null,
         "type": "file"
       },
@@ -321,13 +355,13 @@
     "inventory_get_workspace": {
       "body": {
         "become_key_id": null,
-        "id": 49,
+        "id": 5,
         "inventory": "default",
         "name": "default",
-        "project_id": 45,
+        "project_id": 4,
         "repository_id": null,
         "ssh_key_id": null,
-        "template_id": 42,
+        "template_id": 4,
         "type": "tofu-workspace"
       },
       "status": 200
@@ -335,13 +369,13 @@
     "inventory_list_hides_workspace": {
       "body": [
         {
-          "become_key_id": 119,
-          "id": 47,
+          "become_key_id": 8,
+          "id": 3,
           "inventory": "inventories/homelab/hosts",
           "name": "homelab",
-          "project_id": 45,
-          "repository_id": 42,
-          "ssh_key_id": 119,
+          "project_id": 4,
+          "repository_id": 3,
+          "ssh_key_id": 8,
           "template_id": null,
           "type": "file"
         }
@@ -372,13 +406,13 @@
     "key_create": {
       "body": {
         "IgnorePlain": false,
-        "id": 119,
+        "id": 8,
         "login_password": {
           "login": "",
           "password": ""
         },
         "name": "deploy",
-        "project_id": 45,
+        "project_id": 4,
         "ssh": {
           "login": "",
           "passphrase": "",
@@ -415,7 +449,7 @@
         "inventories": [],
         "repositories": [
           {
-            "id": 42,
+            "id": 3,
             "name": "ansible"
           }
         ],
@@ -438,13 +472,13 @@
       "body": [
         {
           "IgnorePlain": false,
-          "id": 118,
+          "id": 7,
           "login_password": {
             "login": "",
             "password": ""
           },
           "name": "None",
-          "project_id": 45,
+          "project_id": 4,
           "ssh": {
             "login": "",
             "passphrase": "",
@@ -460,13 +494,13 @@
       "body": [
         {
           "IgnorePlain": false,
-          "id": 118,
+          "id": 7,
           "login_password": {
             "login": "",
             "password": ""
           },
           "name": "None",
-          "project_id": 45,
+          "project_id": 4,
           "ssh": {
             "login": "",
             "passphrase": "",
@@ -477,13 +511,13 @@
         },
         {
           "IgnorePlain": false,
-          "id": 119,
+          "id": 8,
           "login_password": {
             "login": "",
             "password": ""
           },
           "name": "deploy",
-          "project_id": 45,
+          "project_id": 4,
           "ssh": {
             "login": "",
             "passphrase": "",
@@ -499,13 +533,13 @@
       "body": [
         {
           "IgnorePlain": false,
-          "id": 118,
+          "id": 7,
           "login_password": {
             "login": "",
             "password": ""
           },
           "name": "None",
-          "project_id": 45,
+          "project_id": 4,
           "ssh": {
             "login": "",
             "passphrase": "",
@@ -516,13 +550,13 @@
         },
         {
           "IgnorePlain": false,
-          "id": 119,
+          "id": 8,
           "login_password": {
             "login": "",
             "password": ""
           },
           "name": "deploy",
-          "project_id": 45,
+          "project_id": 4,
           "ssh": {
             "login": "",
             "passphrase": "",
@@ -548,8 +582,8 @@
     },
     "project_create": {
       "body": {
-        "created": "2026-10-03T22:36:13.267885973Z",
-        "id": 45,
+        "created": "2026-11-08T21:40:56.139301151Z",
+        "id": 4,
         "name": "homelab",
         "type": ""
       },
@@ -561,8 +595,8 @@
     },
     "project_get": {
       "body": {
-        "created": "2026-10-03T22:36:13.267885Z",
-        "id": 45,
+        "created": "2026-11-08T21:40:56.139301Z",
+        "id": 4,
         "name": "homelab",
         "type": ""
       },
@@ -589,8 +623,8 @@
     "projects_one": {
       "body": [
         {
-          "created": "2026-10-03T22:36:13.267885Z",
-          "id": 45,
+          "created": "2026-11-08T21:40:56.139301Z",
+          "id": 4,
           "name": "homelab",
           "type": ""
         }
@@ -602,8 +636,8 @@
         {
           "alert": true,
           "alert_chat": "ops",
-          "created": "2026-10-03T22:36:13.267885Z",
-          "id": 45,
+          "created": "2026-11-08T21:40:56.139301Z",
+          "id": 4,
           "max_parallel_tasks": 3,
           "name": "homelab",
           "type": ""
@@ -620,10 +654,10 @@
         {
           "git_branch": "main",
           "git_url": "git@github.com:example/ansible.git",
-          "id": 42,
+          "id": 3,
           "name": "ansible",
-          "project_id": 45,
-          "ssh_key_id": 119
+          "project_id": 4,
+          "ssh_key_id": 8
         }
       ],
       "status": 200
@@ -633,10 +667,10 @@
         {
           "git_branch": "develop",
           "git_url": "git@github.com:example/ansible.git",
-          "id": 42,
+          "id": 3,
           "name": "ansible",
-          "project_id": 45,
-          "ssh_key_id": 119
+          "project_id": 4,
+          "ssh_key_id": 8
         }
       ],
       "status": 200
@@ -645,10 +679,10 @@
       "body": {
         "git_branch": "main",
         "git_url": "git@github.com:example/ansible.git",
-        "id": 42,
+        "id": 3,
         "name": "ansible",
-        "project_id": 45,
-        "ssh_key_id": 119
+        "project_id": 4,
+        "ssh_key_id": 8
       },
       "status": 201
     },
@@ -676,11 +710,11 @@
         "active": true,
         "cron_format": "0 3 * * *",
         "delete_after_run": false,
-        "id": 15,
+        "id": 3,
         "name": "nightly",
-        "project_id": 45,
+        "project_id": 4,
         "repository_id": null,
-        "template_id": 41,
+        "template_id": 3,
         "type": ""
       },
       "status": 201
@@ -690,11 +724,11 @@
         "active": true,
         "cron_format": "*/5 * * * *",
         "delete_after_run": false,
-        "id": 16,
+        "id": 4,
         "name": "on-push",
-        "project_id": 45,
-        "repository_id": 42,
-        "template_id": 41,
+        "project_id": 4,
+        "repository_id": 3,
+        "template_id": 3,
         "type": ""
       },
       "status": 201
@@ -708,11 +742,11 @@
         "active": true,
         "cron_format": "0 3 * * *",
         "delete_after_run": false,
-        "id": 15,
+        "id": 3,
         "name": "nightly",
-        "project_id": 45,
+        "project_id": 4,
         "repository_id": null,
-        "template_id": 41,
+        "template_id": 3,
         "type": ""
       },
       "status": 200
@@ -737,11 +771,11 @@
           "active": true,
           "cron_format": "0 3 * * *",
           "delete_after_run": false,
-          "id": 15,
+          "id": 3,
           "name": "nightly",
-          "project_id": 45,
+          "project_id": 4,
           "repository_id": null,
-          "template_id": 41,
+          "template_id": 3,
           "tpl_name": "site",
           "type": ""
         }
@@ -754,11 +788,11 @@
           "active": true,
           "cron_format": "*/5 * * * *",
           "delete_after_run": false,
-          "id": 16,
+          "id": 4,
           "name": "on-push",
-          "project_id": 45,
-          "repository_id": 42,
-          "template_id": 41,
+          "project_id": 4,
+          "repository_id": 3,
+          "template_id": 3,
           "type": ""
         }
       ],
@@ -768,16 +802,16 @@
       "body": {
         "app": "ansible",
         "arguments": "[\"-v\"]",
-        "environment_id": 36,
+        "environment_id": 3,
         "environment_ids": [
-          36
+          3
         ],
-        "id": 41,
-        "inventory_id": 47,
+        "id": 3,
+        "inventory_id": 3,
         "name": "site",
         "playbook": "site.yml",
-        "project_id": 45,
-        "repository_id": 42,
+        "project_id": 4,
+        "repository_id": 3,
         "survey_vars": [
           {
             "name": "host",
@@ -797,26 +831,26 @@
             "project_id": 0,
             "template_id": 0,
             "type": "password",
-            "vault_key_id": 119
+            "vault_key_id": 8
           }
         ],
-        "view_id": 62
+        "view_id": 4
       },
       "status": 201
     },
     "template_create_survey_target": {
       "body": {
         "app": "ansible",
-        "environment_id": 36,
+        "environment_id": 3,
         "environment_ids": [
-          36
+          3
         ],
-        "id": 43,
-        "inventory_id": 47,
+        "id": 5,
+        "inventory_id": 3,
         "name": "surveyed",
         "playbook": "site.yml",
-        "project_id": 45,
-        "repository_id": 42,
+        "project_id": 4,
+        "repository_id": 3,
         "survey_vars": [
           {
             "name": "region",
@@ -830,16 +864,16 @@
     "template_create_tofu": {
       "body": {
         "app": "tofu",
-        "environment_id": 36,
+        "environment_id": 3,
         "environment_ids": [
-          36
+          3
         ],
-        "id": 42,
-        "inventory_id": 49,
+        "id": 4,
+        "inventory_id": 5,
         "name": "infra",
         "playbook": "",
-        "project_id": 45,
-        "repository_id": 42,
+        "project_id": 4,
+        "repository_id": 3,
         "tasks": 0
       },
       "status": 201
@@ -852,17 +886,17 @@
       "body": {
         "app": "ansible",
         "arguments": "[\"-v\"]",
-        "environment_id": 36,
+        "environment_id": 3,
         "environment_ids": [
-          36
+          3
         ],
-        "id": 41,
-        "inventory_id": 47,
+        "id": 3,
+        "inventory_id": 3,
         "name": "site",
         "permissions": 15,
         "playbook": "site.yml",
-        "project_id": 45,
-        "repository_id": 42,
+        "project_id": 4,
+        "repository_id": 3,
         "survey_vars": [
           {
             "name": "host",
@@ -877,32 +911,32 @@
         "tasks": 0,
         "vaults": [
           {
-            "id": 19,
+            "id": 1,
             "name": "default",
-            "project_id": 45,
-            "template_id": 41,
+            "project_id": 4,
+            "template_id": 3,
             "type": "password",
-            "vault_key_id": 119
+            "vault_key_id": 8
           }
         ],
-        "view_id": 62
+        "view_id": 4
       },
       "status": 200
     },
     "template_get_survey_target": {
       "body": {
         "app": "ansible",
-        "environment_id": 36,
+        "environment_id": 3,
         "environment_ids": [
-          36
+          3
         ],
-        "id": 43,
-        "inventory_id": 47,
+        "id": 5,
+        "inventory_id": 3,
         "name": "surveyed",
         "permissions": 15,
         "playbook": "site.yml",
-        "project_id": 45,
-        "repository_id": 42,
+        "project_id": 4,
+        "repository_id": 3,
         "survey_vars": [
           {
             "name": "region",
@@ -917,17 +951,17 @@
       "body": {
         "app": "ansible",
         "description": "updated",
-        "environment_id": 36,
+        "environment_id": 3,
         "environment_ids": [
-          36
+          3
         ],
-        "id": 43,
-        "inventory_id": 47,
+        "id": 5,
+        "inventory_id": 3,
         "name": "surveyed",
         "permissions": 15,
         "playbook": "site.yml",
-        "project_id": 45,
-        "repository_id": 42,
+        "project_id": 4,
+        "repository_id": 3,
         "survey_vars": [
           {
             "name": "region",
@@ -943,17 +977,17 @@
         "app": "ansible",
         "arguments": "[\"-v\"]",
         "description": "updated",
-        "environment_id": 36,
+        "environment_id": 3,
         "environment_ids": [
-          36
+          3
         ],
-        "id": 41,
-        "inventory_id": 47,
+        "id": 3,
+        "inventory_id": 3,
         "name": "site",
         "permissions": 15,
         "playbook": "site.yml",
-        "project_id": 45,
-        "repository_id": 42,
+        "project_id": 4,
+        "repository_id": 3,
         "survey_vars": [
           {
             "name": "host",
@@ -968,15 +1002,15 @@
         "tasks": 0,
         "vaults": [
           {
-            "id": 19,
+            "id": 1,
             "name": "default",
-            "project_id": 45,
-            "template_id": 41,
+            "project_id": 4,
+            "template_id": 3,
             "type": "password",
-            "vault_key_id": 119
+            "vault_key_id": 8
           }
         ],
-        "view_id": 62
+        "view_id": 4
       },
       "status": 200
     },
@@ -1014,17 +1048,17 @@
         {
           "app": "ansible",
           "arguments": "[\"-v\"]",
-          "environment_id": 36,
+          "environment_id": 3,
           "environment_ids": [
-            36
+            3
           ],
-          "id": 41,
-          "inventory_id": 47,
+          "id": 3,
+          "inventory_id": 3,
           "name": "site",
           "permissions": null,
           "playbook": "site.yml",
-          "project_id": 45,
-          "repository_id": 42,
+          "project_id": 4,
+          "repository_id": 3,
           "survey_vars": [
             {
               "name": "host",
@@ -1037,7 +1071,7 @@
             ]
           },
           "tasks": 0,
-          "view_id": 62
+          "view_id": 4
         }
       ],
       "status": 200
@@ -1046,34 +1080,34 @@
       "body": [
         {
           "app": "tofu",
-          "environment_id": 36,
+          "environment_id": 3,
           "environment_ids": [
-            36
+            3
           ],
-          "id": 42,
-          "inventory_id": 49,
+          "id": 4,
+          "inventory_id": 5,
           "name": "infra",
           "permissions": null,
           "playbook": "",
-          "project_id": 45,
-          "repository_id": 42,
+          "project_id": 4,
+          "repository_id": 3,
           "tasks": 0
         },
         {
           "app": "ansible",
           "arguments": "[\"-v\"]",
           "description": "updated",
-          "environment_id": 36,
+          "environment_id": 3,
           "environment_ids": [
-            36
+            3
           ],
-          "id": 41,
-          "inventory_id": 47,
+          "id": 3,
+          "inventory_id": 3,
           "name": "site",
           "permissions": null,
           "playbook": "site.yml",
-          "project_id": 45,
-          "repository_id": 42,
+          "project_id": 4,
+          "repository_id": 3,
           "survey_vars": [
             {
               "name": "host",
@@ -1086,7 +1120,7 @@
             ]
           },
           "tasks": 0,
-          "view_id": 62
+          "view_id": 4
         }
       ],
       "status": 200
@@ -1094,11 +1128,11 @@
     "variable_group_create": {
       "body": {
         "env": "{\"TZ\": \"UTC\"}",
-        "id": 37,
+        "id": 4,
         "json": "{\"harbor_url\": \"https://harbor.example.com\"}",
         "name": "harbor",
         "password": null,
-        "project_id": 45,
+        "project_id": 4,
         "sync_enabled": false,
         "sync_interval": 0,
         "sync_paths": []
@@ -1112,21 +1146,21 @@
     "variable_group_get": {
       "body": {
         "env": "{\"TZ\": \"UTC\"}",
-        "id": 37,
+        "id": 4,
         "json": "{\"harbor_url\": \"https://harbor.example.com\"}",
         "name": "harbor",
         "password": null,
-        "project_id": 45,
+        "project_id": 4,
         "secrets": [
           {
-            "id": 120,
+            "id": 9,
             "name": "TOKEN",
             "operation": "",
             "secret": "",
             "type": "env"
           },
           {
-            "id": 121,
+            "id": 10,
             "name": "db_pw",
             "operation": "",
             "secret": "",
@@ -1142,21 +1176,21 @@
     "variable_group_get_updated": {
       "body": {
         "env": "{\"TZ\": \"Europe/Oslo\"}",
-        "id": 37,
+        "id": 4,
         "json": "{\"harbor_url\": \"https://harbor.example.com\"}",
         "name": "harbor",
         "password": null,
-        "project_id": 45,
+        "project_id": 4,
         "secrets": [
           {
-            "id": 122,
+            "id": 11,
             "name": "TOKEN",
             "operation": "",
             "secret": "",
             "type": "var"
           },
           {
-            "id": 121,
+            "id": 10,
             "name": "db_pw",
             "operation": "",
             "secret": "",
@@ -1198,11 +1232,11 @@
       "body": [
         {
           "env": "{}",
-          "id": 36,
+          "id": 3,
           "json": "{}",
           "name": "empty",
           "password": null,
-          "project_id": 45,
+          "project_id": 4,
           "sync_enabled": false,
           "sync_interval": 0,
           "sync_paths": []
@@ -1214,11 +1248,11 @@
       "body": [
         {
           "env": "{\"TZ\": \"UTC\"}",
-          "id": 37,
+          "id": 4,
           "json": "{\"harbor_url\": \"https://harbor.example.com\"}",
           "name": "harbor",
           "password": null,
-          "project_id": 45,
+          "project_id": 4,
           "sync_enabled": false,
           "sync_interval": 0,
           "sync_paths": []
@@ -1228,9 +1262,9 @@
     },
     "view_create": {
       "body": {
-        "id": 62,
+        "id": 4,
         "position": 1,
-        "project_id": 45,
+        "project_id": 4,
         "title": "k8s"
       },
       "status": 201
@@ -1246,9 +1280,9 @@
     "views_new_project": {
       "body": [
         {
-          "id": 61,
+          "id": 3,
           "position": 0,
-          "project_id": 45,
+          "project_id": 4,
           "title": "All",
           "type": "all"
         }
@@ -1258,16 +1292,16 @@
     "views_two": {
       "body": [
         {
-          "id": 61,
+          "id": 3,
           "position": 0,
-          "project_id": 45,
+          "project_id": 4,
           "title": "All",
           "type": "all"
         },
         {
-          "id": 62,
+          "id": 4,
           "position": 1,
-          "project_id": 45,
+          "project_id": 4,
           "title": "k8s"
         }
       ],

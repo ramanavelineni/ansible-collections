@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Runs ansible-test with the given arguments. When it fails while starting its
-# test container, it runs again, up to three attempts in all; any other
-# failure ends it at once with ansible-test's exit status.
+# test container, it runs again, up to five attempts in all with a pause
+# between them; any other failure ends it at once with ansible-test's exit
+# status.
 #
 # ansible-test 2.22.0 sometimes fails to start the default test container
 # (v2.22-8) on GitHub's runners: the privileged helper that remounts the
@@ -14,7 +15,9 @@
 # Usage: ansible-test-retry.sh <ansible-test arguments>   (from a collection directory)
 set -uo pipefail
 
-attempts=3
+attempts=5
+# Seconds between two attempts; three attempts in a row once failed without it.
+pause=10
 log="$(mktemp)"
 trap 'rm -f "${log}"' EXIT
 
@@ -30,7 +33,8 @@ for attempt in $(seq 1 "${attempts}"); do
     exit "${status}"
   fi
   if [ "${attempt}" -lt "${attempts}" ]; then
-    echo "::warning::ansible-test could not start its test container (attempt ${attempt} of ${attempts}); running it again."
+    echo "::warning::ansible-test could not start its test container (attempt ${attempt} of ${attempts}); running it again in ${pause} seconds."
+    sleep "${pause}"
   fi
 done
 echo "::error::ansible-test could not start its test container in ${attempts} attempts."

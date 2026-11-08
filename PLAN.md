@@ -25,7 +25,12 @@ along the way. Each quirk is handled inside a module and covered by a test.
 - [x] Roles `project_apply`, `server_apply` and `project_export`, and the
       modules `task`, `task_info`, `project_backup`, `project_restore`,
       `user_token` and `event_info` (semaphoreui 0.4.0)
-- [ ] Switch the homelab `harbor_config` role to the collection
+- [ ] Harbor modules `project_member` and `project_member_info` (see
+      [Planned: project_member](#planned-project_member)), then a harbor
+      release
+- [ ] Switch the homelab `harbor_config` role to the collection. Every API
+      area the role calls today has a module, so project members (needed for
+      the role's OIDC groups) are the last gap
 
 ---
 
@@ -289,7 +294,7 @@ each module logs in and out within its own run.
 ### workflow, workflow_info, workflow_run, workflow_approval
 - Written from the public API description (`api-docs.yml` of semaphoreui/semaphore
   at v2.19.18 and at `develop` 573493b, which becomes 2.20). Recorded from the
-  official 2.19.12 image and from a build of `develop`.
+  official 2.19.12 and 2.19.17 images and from a build of `develop`.
 - A server has workflows when `/info` has `features.workflows: true`. The
   official 2.19 images do, because they are built with Semaphore's Pro module.
   2.18 has no workflow routes (the list is a 404), and a 2.19 build from source
@@ -315,7 +320,7 @@ each module logs in and out within its own run.
 - `POST .../runs/<id>/stop` answers 200 with the run. The develop spec lists
   it; the v2.19.18 spec does not. On 2.19 the module relies on upstream's
   public v2.19.18 `api/router.go`, which routes it, and on the recorded answer
-  of the official 2.19.12 image (`workflow_run_stop`). A second decision on an
+  of the official 2.19 image (`workflow_run_stop`, recorded from 2.19.12 and 2.19.17). A second decision on an
   approval is refused (2.19: 400 `approval has already been resolved`; 2.20:
   409 `the approval is not pending`), so the module
   compares first: the same decision is no change, the other one fails.
@@ -538,6 +543,34 @@ or an OIDC user's CLI secret.
   `include_event_types`, removing the schedule included. The old role's
   example omitted `include_event_types` and would have been rejected.
 
+### Planned: project_member
+Not built yet. It manages a project's members: a user, or an LDAP or OIDC
+group, with one role. The homelab `harbor_config` role needs it to add an
+OIDC group such as `harbor-readonly` to a project. Facts below are from
+goharbor/harbor `v2.15.1` (`api/v2.0/swagger.yaml`, `src/common/const.go`,
+`src/controller/member/controller.go`, `src/pkg/member/dao/dao.go`). 2.14 is
+not checked yet.
+- `POST /projects/{project_name_or_id}/members` with `ProjectMember`:
+  `role_id` plus either `member_user` (`username`) or `member_group`
+  (`group_name`, `group_type`). It answers 201 with the id only in `Location`,
+  like project create. A duplicate member answers 409.
+- Role ids: Project Admin 1, Developer 2, Guest 3, Maintainer 4,
+  Limited Guest 5. The swagger lists only 1 to 4, but the code accepts 5.
+- `group_type`: 1 LDAP, 2 HTTP, 3 OIDC. An OIDC group doesn't need to exist in
+  `/usergroups` first. Given only `group_name`, Harbor looks the group up by
+  name and type and creates it. This works only while `auth_mode` is
+  `oidc_auth`, so the module should fail with that reason instead of passing on
+  Harbor's error. Always send `group_type`, because the lookup filters on it.
+- Read with `GET /projects/{p}/members?page_size=100` (maximum 100, so page
+  through). Each item has `id`, `entity_name`, `entity_type` (`u` user, `g`
+  group) and `role_id`. Match on name and type together, because a user and a
+  group can share a name. The `entityname=` filter is an exact match.
+- A role change is `PUT /projects/{p}/members/{mid}` with `{"role_id": N}`.
+  Removing a member is `DELETE` on the same path.
+- Address projects by id, as the `project` module does, since the path reads a
+  numeric name as an id.
+- `project_member_info` lists a project's members with the same paging.
+
 ---
 
 ## Testing
@@ -555,7 +588,7 @@ or an OIDC user's CLI secret.
   container, once per tested version (`tests/roles`): a role can't be tested
   without a server.
 - Unit tests replay API responses recorded from throwaway local servers:
-  Semaphore UI 2.18.30 and 2.19.12, Harbor 2.14.4 and 2.15.2. Each quirk above
+  Semaphore UI 2.18.31 and 2.19.17, Harbor 2.14.4 and 2.15.2. Each quirk above
   has at least one test. The recorders live in `tools/`, one area at a time.
   They refuse a server that isn't on a loopback address unless
   `--allow-remote` is passed, keep only their own objects from listings, and
