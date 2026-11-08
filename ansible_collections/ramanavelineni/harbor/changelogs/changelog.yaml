@@ -341,3 +341,18 @@ releases:
     - release-summary.yml
     - scan-all-next-scheduled-time.yml
     release_date: '2026-10-17'
+  0.5.0:
+    changes:
+      breaking_changes:
+      - The collection needs ansible-core 2.20 or newer (``requires_ansible`` is now
+        ``>=2.20.0``). ansible-core 2.18 reached its end of life in May 2026 and 2.19
+        does in November 2026, so neither is tested any more.
+      minor_changes:
+      - The collection is tested with ansible-core 2.22.
+      release_summary: The collection now needs ansible-core 2.20 or newer and is
+        tested with 2.20, 2.21 and 2.22. ansible-core 2.18 and 2.19 are no longer
+        supported; stay on harbor 0.4.1 for them. The modules are unchanged.
+    fragments:
+    - ansible-core-2.20-minimum.yml
+    - release-summary.yml
+    release_date: '2026-11-08'

@@ -24,7 +24,7 @@ In `requirements.yml` (no Galaxy account needed):
 collections:
   - name: https://github.com/ramanavelineni/ansible-collections.git#/ansible_collections/ramanavelineni/semaphoreui
     type: git
-    version: semaphoreui-v0.6.0
+    version: semaphoreui-v0.7.0
 ```
 
 ```sh
