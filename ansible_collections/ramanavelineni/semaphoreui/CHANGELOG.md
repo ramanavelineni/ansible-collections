@@ -2,20 +2,24 @@
 
 **Topics**
 
-- <a href="#v0-6-0">v0\.6\.0</a>
+- <a href="#v0-7-0">v0\.7\.0</a>
     - <a href="#release-summary">Release Summary</a>
+    - <a href="#minor-changes">Minor Changes</a>
+    - <a href="#breaking-changes--porting-guide">Breaking Changes / Porting Guide</a>
+- <a href="#v0-6-0">v0\.6\.0</a>
+    - <a href="#release-summary-1">Release Summary</a>
     - <a href="#security-fixes">Security Fixes</a>
     - <a href="#new-modules">New Modules</a>
 - <a href="#v0-5-1">v0\.5\.1</a>
-    - <a href="#release-summary-1">Release Summary</a>
+    - <a href="#release-summary-2">Release Summary</a>
     - <a href="#bugfixes">Bugfixes</a>
 - <a href="#v0-5-0">v0\.5\.0</a>
-    - <a href="#release-summary-2">Release Summary</a>
-    - <a href="#minor-changes">Minor Changes</a>
+    - <a href="#release-summary-3">Release Summary</a>
+    - <a href="#minor-changes-1">Minor Changes</a>
     - <a href="#security-fixes-1">Security Fixes</a>
     - <a href="#bugfixes-1">Bugfixes</a>
 - <a href="#v0-4-0">v0\.4\.0</a>
-    - <a href="#release-summary-3">Release Summary</a>
+    - <a href="#release-summary-4">Release Summary</a>
     - <a href="#security-fixes-2">Security Fixes</a>
     - <a href="#bugfixes-2">Bugfixes</a>
     - <a href="#new-plugins">New Plugins</a>
@@ -23,29 +27,47 @@
     - <a href="#new-modules-1">New Modules</a>
     - <a href="#new-roles">New Roles</a>
 - <a href="#v0-3-1">v0\.3\.1</a>
-    - <a href="#release-summary-4">Release Summary</a>
+    - <a href="#release-summary-5">Release Summary</a>
     - <a href="#bugfixes-3">Bugfixes</a>
     - <a href="#known-issues">Known Issues</a>
 - <a href="#v0-3-0">v0\.3\.0</a>
-    - <a href="#release-summary-5">Release Summary</a>
-    - <a href="#minor-changes-1">Minor Changes</a>
+    - <a href="#release-summary-6">Release Summary</a>
+    - <a href="#minor-changes-2">Minor Changes</a>
     - <a href="#bugfixes-4">Bugfixes</a>
 - <a href="#v0-2-1">v0\.2\.1</a>
-    - <a href="#release-summary-6">Release Summary</a>
+    - <a href="#release-summary-7">Release Summary</a>
     - <a href="#bugfixes-5">Bugfixes</a>
 - <a href="#v0-2-0">v0\.2\.0</a>
-    - <a href="#release-summary-7">Release Summary</a>
-    - <a href="#breaking-changes--porting-guide">Breaking Changes / Porting Guide</a>
+    - <a href="#release-summary-8">Release Summary</a>
+    - <a href="#breaking-changes--porting-guide-1">Breaking Changes / Porting Guide</a>
     - <a href="#security-fixes-3">Security Fixes</a>
     - <a href="#bugfixes-6">Bugfixes</a>
 - <a href="#v0-1-0">v0\.1\.0</a>
-    - <a href="#release-summary-8">Release Summary</a>
+    - <a href="#release-summary-9">Release Summary</a>
     - <a href="#new-modules-2">New Modules</a>
+
+<a id="v0-7-0"></a>
+## v0\.7\.0
+
+<a id="release-summary"></a>
+### Release Summary
+
+The collection now needs ansible\-core 2\.20 or newer and is tested with 2\.20\, 2\.21 and 2\.22\. ansible\-core 2\.18 and 2\.19 are no longer supported\; stay on semaphoreui 0\.6\.0 for them\. The modules are unchanged\.
+
+<a id="minor-changes"></a>
+### Minor Changes
+
+* The collection is tested with ansible\-core 2\.22\.
+
+<a id="breaking-changes--porting-guide"></a>
+### Breaking Changes / Porting Guide
+
+* The collection needs ansible\-core 2\.20 or newer \(<code>requires\_ansible</code> is now <code>\>\=2\.20\.0</code>\)\. ansible\-core 2\.18 reached its end of life in May 2026 and 2\.19 does in November 2026\, so neither is tested any more\.
 
 <a id="v0-6-0"></a>
 ## v0\.6\.0
 
-<a id="release-summary"></a>
+<a id="release-summary-1"></a>
 ### Release Summary
 
 Four new modules manage workflows on Semaphore 2\.19 official images and on 2\.20 \(<code>workflow</code>\, <code>workflow\_info</code>\, <code>workflow\_run</code>\, <code>workflow\_approval</code>\)\. Four security fixes stop <code>project\_apply</code>\, <code>project\_export</code> and <code>project\_restore</code> from showing secrets\, webhook URLs and integration aliases\, and stop <code>project\_restore</code> from storing masked aliases\.
@@ -69,7 +91,7 @@ Four new modules manage workflows on Semaphore 2\.19 official images and on 2\.2
 <a id="v0-5-1"></a>
 ## v0\.5\.1
 
-<a id="release-summary-1"></a>
+<a id="release-summary-2"></a>
 ### Release Summary
 
 A task the module waited for now always comes back with its end time\, and the fields Semaphore stores as JSON in a string are read with one rule in every module\.
@@ -84,12 +106,12 @@ A task the module waited for now always comes back with its end time\, and the f
 <a id="v0-5-0"></a>
 ## v0\.5\.0
 
-<a id="release-summary-2"></a>
+<a id="release-summary-3"></a>
 ### Release Summary
 
 Exported projects apply again without changes\, projects past the first 200 can be reached by id\, the roles no longer print webhook URLs or registration tokens with \-v\, and the modules gain secret survey variables\, settled run\_at schedules and a shared transport that stops at once on certificate errors\.
 
-<a id="minor-changes"></a>
+<a id="minor-changes-1"></a>
 ### Minor Changes
 
 * project \- new option <code>id</code>\. The module reads only that project\, not the list of projects that Semaphore cuts off at 200\, and renames it when its name differs from <code>name</code>\. A missing id fails with <code>state\=present</code> and is no change with <code>state\=absent</code>\.
@@ -119,7 +141,7 @@ Exported projects apply again without changes\, projects past the first 200 can 
 <a id="v0-4-0"></a>
 ## v0\.4\.0
 
-<a id="release-summary-3"></a>
+<a id="release-summary-4"></a>
 ### Release Summary
 
 New roles that apply whole projects and servers from YAML descriptions and export a project as one\, six new modules for tasks\, project backups\, API tokens and the event log\, and fixes that keep runner tokens\, webhook URLs and echoed secrets out of task output\.
@@ -168,7 +190,7 @@ New roles that apply whole projects and servers from YAML descriptions and expor
 <a id="v0-3-1"></a>
 ## v0\.3\.1
 
-<a id="release-summary-4"></a>
+<a id="release-summary-5"></a>
 ### Release Summary
 
 Bug fixes found by running the modules against real servers\. One of them changes what a task does on some servers\: <code>integration</code> now fails when a task drops a matcher or an extracted value and the server keeps it\, where it used to report a change on every run\. See the known issue below for the servers this applies to\.
@@ -188,12 +210,12 @@ Bug fixes found by running the modules against real servers\. One of them change
 <a id="v0-3-0"></a>
 ## v0\.3\.0
 
-<a id="release-summary-5"></a>
+<a id="release-summary-6"></a>
 ### Release Summary
 
 New connection options \(<code>client\_cert</code>\, <code>client\_key</code>\, <code>use\_proxy</code>\)\, <code>project\_id</code> as an alternative to the project name\, custom apps in <code>template</code>\, and a round of bug fixes\. Some checks are stricter than in 0\.2\.1 and can make a task fail that ran before\: <code>template</code> refuses <code>start\_version</code> and <code>build\_template</code> on a template type that does not take them\, <code>schedule</code> refuses a <code>run\_at</code> without a time zone\, and negative <code>retries</code> or <code>retry\_delay</code> are refused\. Run with <code>\-\-check</code> once after upgrading\.
 
-<a id="minor-changes-1"></a>
+<a id="minor-changes-2"></a>
 ### Minor Changes
 
 * all modules \- new connection option <code>use\_proxy</code> \(default <code>true</code>\, or <code>SEMAPHORE\_USE\_PROXY</code>\)\. <code>false</code> reaches the server directly even when <code>http\_proxy</code> or <code>https\_proxy</code> is set in the environment\. Until now the proxy from the environment was always used\.
@@ -229,7 +251,7 @@ New connection options \(<code>client\_cert</code>\, <code>client\_key</code>\, 
 <a id="v0-2-1"></a>
 ## v0\.2\.1
 
-<a id="release-summary-6"></a>
+<a id="release-summary-7"></a>
 ### Release Summary
 
 Check mode now works for a play that builds a project from nothing\.
@@ -242,12 +264,12 @@ Check mode now works for a play that builds a project from nothing\.
 <a id="v0-2-0"></a>
 ## v0\.2\.0
 
-<a id="release-summary-7"></a>
+<a id="release-summary-8"></a>
 ### Release Summary
 
 A security release\. A failed request no longer shows secrets\, and the collection now includes its <code>LICENSE</code>\. Also several fixes to the client and the <code>\_info</code> modules\. Two results changed form\, see the breaking changes\.
 
-<a id="breaking-changes--porting-guide"></a>
+<a id="breaking-changes--porting-guide-1"></a>
 ### Breaking Changes / Porting Guide
 
 * All modules \- <code>request\_details\.request</code> in a failed result is now a dictionary\, not a JSON string\.
@@ -271,7 +293,7 @@ A security release\. A failed request no longer shows secrets\, and the collecti
 <a id="v0-1-0"></a>
 ## v0\.1\.0
 
-<a id="release-summary-8"></a>
+<a id="release-summary-9"></a>
 ### Release Summary
 
 First release\. 25 modules that manage Semaphore UI 2\.18 and 2\.19 declaratively\: projects\, the Key Store\, repositories\, inventories\, variable groups\, views\, task templates\, schedules and commit pollers\, integrations\, team members\, runners and users\, each with an <code>\_info</code> module\. Objects are found and referenced by name\, only the options you set are compared\, and every module supports check mode and diff\.

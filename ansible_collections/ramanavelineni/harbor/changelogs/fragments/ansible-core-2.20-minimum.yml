@@ -1,6 +1,0 @@
----
-breaking_changes:
-  - The collection needs ansible-core 2.20 or newer (``requires_ansible`` is now ``>=2.20.0``). ansible-core 2.18
-    reached its end of life in May 2026 and 2.19 does in November 2026, so neither is tested any more.
-minor_changes:
-  - The collection is tested with ansible-core 2.22.
