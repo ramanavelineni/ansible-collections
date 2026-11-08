@@ -34,13 +34,12 @@ def patch_module_args(args=None):
 
     Deliberately not ansible.module_utils.testing.patch_module_args: that file
     carries ansible-core's GPL-3.0, and this collection is Apache-2.0. basic.py
-    (Simplified BSD) reads these two module globals; 2.18 has no profile.
+    (Simplified BSD) reads these two module globals.
     """
     payload = json.dumps(dict(ANSIBLE_MODULE_ARGS=args or {})).encode()
-    saved = dict((name, getattr(basic, name)) for name in ('_ANSIBLE_ARGS', '_ANSIBLE_PROFILE') if hasattr(basic, name))
+    saved = dict((name, getattr(basic, name)) for name in ('_ANSIBLE_ARGS', '_ANSIBLE_PROFILE'))
     basic._ANSIBLE_ARGS = payload
-    if '_ANSIBLE_PROFILE' in saved:
-        basic._ANSIBLE_PROFILE = 'legacy'
+    basic._ANSIBLE_PROFILE = 'legacy'
     try:
         yield
     finally:
