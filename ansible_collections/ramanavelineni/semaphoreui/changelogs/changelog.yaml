@@ -481,3 +481,50 @@ releases:
     - task-end-time.yml
     - user-token-dead-branch.yml
     release_date: '2026-10-17'
+  0.6.0:
+    changes:
+      release_summary: Four new modules manage workflows on Semaphore 2.19 official
+        images and on 2.20 (``workflow``, ``workflow_info``, ``workflow_run``, ``workflow_approval``).
+        Four security fixes stop ``project_apply``, ``project_export`` and ``project_restore``
+        from showing secrets, webhook URLs and integration aliases, and stop ``project_restore``
+        from storing masked aliases.
+      security_fixes:
+      - project_apply - with ``-v``, the tasks that delete keys and variable groups
+        printed the whole entry of every key and variable group in the project, secrets
+        included, also with ``project_apply_no_log`` on. A failed delete printed its
+        entry without ``-v`` too. These tasks now loop over the names of the entries
+        to delete.
+      - project_export - with ``-v``, the task that reads the integrations printed
+        their webhook URLs. With ``auth_method`` ``none``, a URL alone starts the
+        task. The role now hides that result, and the new ``project_export_no_log``
+        turns this off.
+      - project_restore - a backup from the result of ``project_backup``, as in the
+        module's own example, sent each integration alias to Semaphore as ``********``,
+        which Semaphore stores as it is. The webhook URLs of the new project then
+        ended in that mask instead of the real alias. The module now refuses to create
+        a project from masked aliases. Restore from the file ``project_backup`` writes
+        at ``dest``.
+      - project_restore - a failed restore returned the real integration aliases of
+        the backup in ``request_details.request``. An alias is the secret part of
+        a webhook URL. The client now masks values under keys that contain ``alias``
+        in every failure it reports.
+    fragments:
+    - project-apply-delete-tasks-verbose-leak.yml
+    - project-export-webhook-urls-verbose.yml
+    - project-restore-aliases-in-failures.yml
+    - project-restore-masked-aliases.yml
+    - release-summary.yml
+    modules:
+    - description: Manage a Semaphore UI workflow.
+      name: workflow
+      namespace: ''
+    - description: Approve or reject an approval node of a Semaphore UI workflow run.
+      name: workflow_approval
+      namespace: ''
+    - description: Read Semaphore UI workflows.
+      name: workflow_info
+      namespace: ''
+    - description: Run a Semaphore UI workflow, or stop a run.
+      name: workflow_run
+      namespace: ''
+    release_date: '2026-11-08'

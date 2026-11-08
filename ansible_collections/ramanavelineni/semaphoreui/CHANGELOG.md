@@ -2,46 +2,74 @@
 
 **Topics**
 
-- <a href="#v0-5-1">v0\.5\.1</a>
+- <a href="#v0-6-0">v0\.6\.0</a>
     - <a href="#release-summary">Release Summary</a>
+    - <a href="#security-fixes">Security Fixes</a>
+    - <a href="#new-modules">New Modules</a>
+- <a href="#v0-5-1">v0\.5\.1</a>
+    - <a href="#release-summary-1">Release Summary</a>
     - <a href="#bugfixes">Bugfixes</a>
 - <a href="#v0-5-0">v0\.5\.0</a>
-    - <a href="#release-summary-1">Release Summary</a>
+    - <a href="#release-summary-2">Release Summary</a>
     - <a href="#minor-changes">Minor Changes</a>
-    - <a href="#security-fixes">Security Fixes</a>
+    - <a href="#security-fixes-1">Security Fixes</a>
     - <a href="#bugfixes-1">Bugfixes</a>
 - <a href="#v0-4-0">v0\.4\.0</a>
-    - <a href="#release-summary-2">Release Summary</a>
-    - <a href="#security-fixes-1">Security Fixes</a>
+    - <a href="#release-summary-3">Release Summary</a>
+    - <a href="#security-fixes-2">Security Fixes</a>
     - <a href="#bugfixes-2">Bugfixes</a>
     - <a href="#new-plugins">New Plugins</a>
         - <a href="#filter">Filter</a>
-    - <a href="#new-modules">New Modules</a>
+    - <a href="#new-modules-1">New Modules</a>
     - <a href="#new-roles">New Roles</a>
 - <a href="#v0-3-1">v0\.3\.1</a>
-    - <a href="#release-summary-3">Release Summary</a>
+    - <a href="#release-summary-4">Release Summary</a>
     - <a href="#bugfixes-3">Bugfixes</a>
     - <a href="#known-issues">Known Issues</a>
 - <a href="#v0-3-0">v0\.3\.0</a>
-    - <a href="#release-summary-4">Release Summary</a>
+    - <a href="#release-summary-5">Release Summary</a>
     - <a href="#minor-changes-1">Minor Changes</a>
     - <a href="#bugfixes-4">Bugfixes</a>
 - <a href="#v0-2-1">v0\.2\.1</a>
-    - <a href="#release-summary-5">Release Summary</a>
+    - <a href="#release-summary-6">Release Summary</a>
     - <a href="#bugfixes-5">Bugfixes</a>
 - <a href="#v0-2-0">v0\.2\.0</a>
-    - <a href="#release-summary-6">Release Summary</a>
+    - <a href="#release-summary-7">Release Summary</a>
     - <a href="#breaking-changes--porting-guide">Breaking Changes / Porting Guide</a>
-    - <a href="#security-fixes-2">Security Fixes</a>
+    - <a href="#security-fixes-3">Security Fixes</a>
     - <a href="#bugfixes-6">Bugfixes</a>
 - <a href="#v0-1-0">v0\.1\.0</a>
-    - <a href="#release-summary-7">Release Summary</a>
-    - <a href="#new-modules-1">New Modules</a>
+    - <a href="#release-summary-8">Release Summary</a>
+    - <a href="#new-modules-2">New Modules</a>
+
+<a id="v0-6-0"></a>
+## v0\.6\.0
+
+<a id="release-summary"></a>
+### Release Summary
+
+Four new modules manage workflows on Semaphore 2\.19 official images and on 2\.20 \(<code>workflow</code>\, <code>workflow\_info</code>\, <code>workflow\_run</code>\, <code>workflow\_approval</code>\)\. Four security fixes stop <code>project\_apply</code>\, <code>project\_export</code> and <code>project\_restore</code> from showing secrets\, webhook URLs and integration aliases\, and stop <code>project\_restore</code> from storing masked aliases\.
+
+<a id="security-fixes"></a>
+### Security Fixes
+
+* project\_apply \- with <code>\-v</code>\, the tasks that delete keys and variable groups printed the whole entry of every key and variable group in the project\, secrets included\, also with <code>project\_apply\_no\_log</code> on\. A failed delete printed its entry without <code>\-v</code> too\. These tasks now loop over the names of the entries to delete\.
+* project\_export \- with <code>\-v</code>\, the task that reads the integrations printed their webhook URLs\. With <code>auth\_method</code> <code>none</code>\, a URL alone starts the task\. The role now hides that result\, and the new <code>project\_export\_no\_log</code> turns this off\.
+* project\_restore \- a backup from the result of <code>project\_backup</code>\, as in the module\'s own example\, sent each integration alias to Semaphore as <code>\*\*\*\*\*\*\*\*</code>\, which Semaphore stores as it is\. The webhook URLs of the new project then ended in that mask instead of the real alias\. The module now refuses to create a project from masked aliases\. Restore from the file <code>project\_backup</code> writes at <code>dest</code>\.
+* project\_restore \- a failed restore returned the real integration aliases of the backup in <code>request\_details\.request</code>\. An alias is the secret part of a webhook URL\. The client now masks values under keys that contain <code>alias</code> in every failure it reports\.
+
+<a id="new-modules"></a>
+### New Modules
+
+* ramanavelineni\.semaphoreui\.workflow \- Manage a Semaphore UI workflow\.
+* ramanavelineni\.semaphoreui\.workflow\_approval \- Approve or reject an approval node of a Semaphore UI workflow run\.
+* ramanavelineni\.semaphoreui\.workflow\_info \- Read Semaphore UI workflows\.
+* ramanavelineni\.semaphoreui\.workflow\_run \- Run a Semaphore UI workflow\, or stop a run\.
 
 <a id="v0-5-1"></a>
 ## v0\.5\.1
 
-<a id="release-summary"></a>
+<a id="release-summary-1"></a>
 ### Release Summary
 
 A task the module waited for now always comes back with its end time\, and the fields Semaphore stores as JSON in a string are read with one rule in every module\.
@@ -56,7 +84,7 @@ A task the module waited for now always comes back with its end time\, and the f
 <a id="v0-5-0"></a>
 ## v0\.5\.0
 
-<a id="release-summary-1"></a>
+<a id="release-summary-2"></a>
 ### Release Summary
 
 Exported projects apply again without changes\, projects past the first 200 can be reached by id\, the roles no longer print webhook URLs or registration tokens with \-v\, and the modules gain secret survey variables\, settled run\_at schedules and a shared transport that stops at once on certificate errors\.
@@ -68,7 +96,7 @@ Exported projects apply again without changes\, projects past the first 200 can 
 * project\_apply role \- a project file may set <code>id\:</code>\. The project is then read by its id and renamed to <code>name</code> when that differs\. Every entry of a project now names it by the id the project task returned\, so a project with an id is found on a server with more than 200 projects\.
 * project\_info \- new option <code>id</code>\. It reads only that project and returns it\, or an empty list when it does not exist or the user cannot see it\.
 
-<a id="security-fixes"></a>
+<a id="security-fixes-1"></a>
 ### Security Fixes
 
 * project\_apply\, server\_apply \- with <code>project\_apply\_no\_log</code> or <code>server\_apply\_no\_log</code> on\, a run with <code>\-v</code> printed the skipped items of the tasks that show new webhook URLs and registration tokens\, the URLs and tokens included\. These tasks now loop over nothing when no\_log is on\.
@@ -91,12 +119,12 @@ Exported projects apply again without changes\, projects past the first 200 can 
 <a id="v0-4-0"></a>
 ## v0\.4\.0
 
-<a id="release-summary-2"></a>
+<a id="release-summary-3"></a>
 ### Release Summary
 
 New roles that apply whole projects and servers from YAML descriptions and export a project as one\, six new modules for tasks\, project backups\, API tokens and the event log\, and fixes that keep runner tokens\, webhook URLs and echoed secrets out of task output\.
 
-<a id="security-fixes-1"></a>
+<a id="security-fixes-2"></a>
 ### Security Fixes
 
 * a failed request now masks every <code>no\_log</code> value of the task in what the server answered\, as written and in the escaped forms JSON from Python and from Go use\. Before\, only the API token and the password were masked there\, so a server that repeated a private key or a secret in an error showed it\.
@@ -120,7 +148,7 @@ New roles that apply whole projects and servers from YAML descriptions and expor
 * ramanavelineni\.semaphoreui\.project\_export\_vault\_variables \- List the vault variables an exported Semaphore project needs\.
 * ramanavelineni\.semaphoreui\.project\_export\_yaml \- Write a Semaphore project as the YAML file the project\_apply role reads\.
 
-<a id="new-modules"></a>
+<a id="new-modules-1"></a>
 ### New Modules
 
 * ramanavelineni\.semaphoreui\.event\_info \- Read the activity log of Semaphore UI\.
@@ -140,7 +168,7 @@ New roles that apply whole projects and servers from YAML descriptions and expor
 <a id="v0-3-1"></a>
 ## v0\.3\.1
 
-<a id="release-summary-3"></a>
+<a id="release-summary-4"></a>
 ### Release Summary
 
 Bug fixes found by running the modules against real servers\. One of them changes what a task does on some servers\: <code>integration</code> now fails when a task drops a matcher or an extracted value and the server keeps it\, where it used to report a change on every run\. See the known issue below for the servers this applies to\.
@@ -160,7 +188,7 @@ Bug fixes found by running the modules against real servers\. One of them change
 <a id="v0-3-0"></a>
 ## v0\.3\.0
 
-<a id="release-summary-4"></a>
+<a id="release-summary-5"></a>
 ### Release Summary
 
 New connection options \(<code>client\_cert</code>\, <code>client\_key</code>\, <code>use\_proxy</code>\)\, <code>project\_id</code> as an alternative to the project name\, custom apps in <code>template</code>\, and a round of bug fixes\. Some checks are stricter than in 0\.2\.1 and can make a task fail that ran before\: <code>template</code> refuses <code>start\_version</code> and <code>build\_template</code> on a template type that does not take them\, <code>schedule</code> refuses a <code>run\_at</code> without a time zone\, and negative <code>retries</code> or <code>retry\_delay</code> are refused\. Run with <code>\-\-check</code> once after upgrading\.
@@ -201,7 +229,7 @@ New connection options \(<code>client\_cert</code>\, <code>client\_key</code>\, 
 <a id="v0-2-1"></a>
 ## v0\.2\.1
 
-<a id="release-summary-5"></a>
+<a id="release-summary-6"></a>
 ### Release Summary
 
 Check mode now works for a play that builds a project from nothing\.
@@ -214,7 +242,7 @@ Check mode now works for a play that builds a project from nothing\.
 <a id="v0-2-0"></a>
 ## v0\.2\.0
 
-<a id="release-summary-6"></a>
+<a id="release-summary-7"></a>
 ### Release Summary
 
 A security release\. A failed request no longer shows secrets\, and the collection now includes its <code>LICENSE</code>\. Also several fixes to the client and the <code>\_info</code> modules\. Two results changed form\, see the breaking changes\.
@@ -225,7 +253,7 @@ A security release\. A failed request no longer shows secrets\, and the collecti
 * All modules \- <code>request\_details\.request</code> in a failed result is now a dictionary\, not a JSON string\.
 * inventory\_info\, project\_info\, repository\_info \- fields of the raw API answer that the matching module does not return \(such as a project\'s <code>created</code>\) are no longer returned\.
 
-<a id="security-fixes-2"></a>
+<a id="security-fixes-3"></a>
 ### Security Fixes
 
 * All modules \- a failed request no longer shows secrets\. The request body in <code>request\_details</code> was returned as JSON text\, where a secret containing a newline\, a quote\, a backslash or a non\-ASCII character is escaped and so was not masked\: every SSH private key of <code>key\_store</code>\, and such values of <code>variable\_group</code> secrets\, <code>user\_password</code> and the login <code>password</code>\. The body is now returned as a dictionary with secret values replaced by <code>\*\*\*\*\*\*\*\*</code>\.
@@ -243,12 +271,12 @@ A security release\. A failed request no longer shows secrets\, and the collecti
 <a id="v0-1-0"></a>
 ## v0\.1\.0
 
-<a id="release-summary-7"></a>
+<a id="release-summary-8"></a>
 ### Release Summary
 
 First release\. 25 modules that manage Semaphore UI 2\.18 and 2\.19 declaratively\: projects\, the Key Store\, repositories\, inventories\, variable groups\, views\, task templates\, schedules and commit pollers\, integrations\, team members\, runners and users\, each with an <code>\_info</code> module\. Objects are found and referenced by name\, only the options you set are compared\, and every module supports check mode and diff\.
 
-<a id="new-modules-1"></a>
+<a id="new-modules-2"></a>
 ### New Modules
 
 * ramanavelineni\.semaphoreui\.info \- Read Semaphore UI server information and registered apps\.
