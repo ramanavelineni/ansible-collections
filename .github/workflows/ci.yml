@@ -138,7 +138,8 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install "ansible-core~=${{ matrix.ansible }}.0"
-      - run: ansible-test sanity --docker --color yes
+      # The retry is for a container start failure of ansible-test 2.22.0; see the script.
+      - run: ../../../.github/scripts/ansible-test-retry.sh sanity --docker --color yes
 
   # The older ansible-core versions, without coverage (units-coverage measures
   # it). A pull request runs the oldest and the newest Python each version
@@ -176,10 +177,10 @@ jobs:
           NEWEST: ${{ matrix.newest }}
         run: |
           if [ "${EVENT}" = pull_request ]; then
-            ansible-test units --docker default --python "${OLDEST}" --color yes
-            ansible-test units --docker default --python "${NEWEST}" --color yes
+            ../../../.github/scripts/ansible-test-retry.sh units --docker default --python "${OLDEST}" --color yes
+            ../../../.github/scripts/ansible-test-retry.sh units --docker default --python "${NEWEST}" --color yes
           else
-            ansible-test units --docker default --color yes
+            ../../../.github/scripts/ansible-test-retry.sh units --docker default --color yes
           fi
 
   # The newest ansible-core, with coverage: the same unit tests in ansible-test's
@@ -212,9 +213,9 @@ jobs:
           EVENT: ${{ github.event_name }}
         run: |
           if [ "${EVENT}" = pull_request ]; then
-            ansible-test units --docker --coverage --python 3.13 --color yes
+            ../../../.github/scripts/ansible-test-retry.sh units --docker --coverage --python 3.13 --color yes
           else
-            ansible-test units --docker --coverage --color yes
+            ../../../.github/scripts/ansible-test-retry.sh units --docker --coverage --color yes
           fi
       # The report is made on the runner, from what the container left in
       # tests/output/coverage/: ansible-test only takes exported data with
