@@ -7,6 +7,8 @@ plugins/modules/log_rotation.py validate-modules:missing-gplv3-license # Apache-
 plugins/modules/log_rotation_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/project.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/project_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/project_member.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/project_member_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/registry.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/registry_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/replication.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE

@@ -22,6 +22,8 @@ from ansible_collections.ramanavelineni.harbor.plugins.modules import (
     robot_account_info,
     tag_immutability_info,
     tag_retention_info,
+    project_member,
+    project_member_info,
     webhook,
     webhook_info,
 )
@@ -239,6 +241,11 @@ def webhook_routes(server):
                  'webhook_list_one')
 
 
+def member_routes(server):
+    server.route('GET', '/projects/%d/members' % server.fixtures['member_projects']['body'][0]['project_id'],
+                 'member_list_creator')
+
+
 def robot_routes(server):
     server.route('GET', '/robots', 'robot_list_project')
     server.route('GET', '/configurations', 'robot_configurations')
@@ -259,8 +266,12 @@ SCOPED = [
      'robot_projects_by_name', robot_routes),
     (tag_retention_info, dict(project='fixtures-tag-policy'), 'tag_projects_list', tag_routes),
     (tag_immutability_info, dict(project='fixtures-tag-policy'), 'tag_projects_list', tag_routes),
+    (project_member_info, dict(project='fixtures-member'), 'member_projects', member_routes),
+    (project_member, dict(project='fixtures-member', user='no-such-user', state='absent'), 'member_projects',
+     member_routes),
 ]
-IDS = ['webhook_info', 'webhook', 'robot_account_info', 'robot_account', 'tag_retention_info', 'tag_immutability_info']
+IDS = ['webhook_info', 'webhook', 'robot_account_info', 'robot_account', 'tag_retention_info', 'tag_immutability_info',
+       'project_member_info', 'project_member']
 
 
 @pytest.mark.parametrize('module, args, listing, routes', SCOPED, ids=IDS)

@@ -25,12 +25,11 @@ along the way. Each quirk is handled inside a module and covered by a test.
 - [x] Roles `project_apply`, `server_apply` and `project_export`, and the
       modules `task`, `task_info`, `project_backup`, `project_restore`,
       `user_token` and `event_info` (semaphoreui 0.4.0)
-- [ ] Harbor modules `project_member` and `project_member_info` (see
-      [Planned: project_member](#planned-project_member)), then a harbor
-      release
-- [ ] Switch the homelab `harbor_config` role to the collection. Every API
-      area the role calls today has a module, so project members (needed for
-      the role's OIDC groups) are the last gap
+- [x] Harbor modules `project_member` and `project_member_info` (see
+      [project_member](#project_member)); next: a harbor release
+- [x] Switch the homelab `harbor_config` role to the collection (homelab
+      ansible repo). Project members, for the role's OIDC groups, can be
+      added once a release carries `project_member`
 
 ---
 
@@ -551,34 +550,40 @@ or an OIDC user's CLI secret.
   `include_event_types`, removing the schedule included. The old role's
   example omitted `include_event_types` and would have been rejected.
 
-### Planned: project_member
-Not built yet. It manages a project's members: a user, or an LDAP or OIDC
-group, with one role. The homelab `harbor_config` role needs it to add an
-OIDC group such as `harbor-readonly` to a project. Facts below are from
-goharbor/harbor `v2.15.1` (`api/v2.0/swagger.yaml`, `src/common/const.go`,
-`src/controller/member/controller.go`, `src/pkg/member/dao/dao.go`). 2.14 is
-not checked yet.
-- `POST /projects/{project_name_or_id}/members` with `ProjectMember`:
-  `role_id` plus either `member_user` (`username`) or `member_group`
-  (`group_name`, `group_type`). It answers 201 with the id only in `Location`,
-  like project create. A duplicate member answers 409.
-- Role ids: Project Admin 1, Developer 2, Guest 3, Maintainer 4,
-  Limited Guest 5. The swagger lists only 1 to 4, but the code accepts 5.
-- `group_type`: 1 LDAP, 2 HTTP, 3 OIDC. An OIDC group doesn't need to exist in
-  `/usergroups` first. Given only `group_name`, Harbor looks the group up by
-  name and type and creates it. This works only while `auth_mode` is
-  `oidc_auth`, so the module should fail with that reason instead of passing on
-  Harbor's error. Always send `group_type`, because the lookup filters on it.
-- Read with `GET /projects/{p}/members?page_size=100` (maximum 100, so page
-  through). Each item has `id`, `entity_name`, `entity_type` (`u` user, `g`
-  group) and `role_id`. Match on name and type together, because a user and a
-  group can share a name. The `entityname=` filter is an exact match.
-- A role change is `PUT /projects/{p}/members/{mid}` with `{"role_id": N}`.
-  Removing a member is `DELETE` on the same path.
-- Address projects by id, as the `project` module does, since the path reads a
-  numeric name as an id.
-- `project_member_info` lists a project's members with the same paging.
-
+### project_member
+Facts from goharbor/harbor `v2.14.6` and `v2.15.4` (`api/v2.0/swagger.yaml`,
+`src/common/const.go`, `src/controller/member/controller.go`,
+`src/server/v2.0/handler/member.go` and `usergroup.go`); the member code is
+the same in both apart from two error messages. The recorded answers
+(`member` area) are the same on both servers.
+- `POST /projects/{id}/members` takes `role_id` and either `member_user`
+  (`username`) or `member_group` (`id`, or `group_name` with `group_type`).
+  It answers 201 with the id only in `Location`. A duplicate member answers
+  409, an unknown database user 404 (`user <name> is not found`).
+- Role ids: Project Admin 1, Developer 2, Guest 3, Maintainer 4, Limited
+  Guest 5. The swagger lists 1 to 4; the create accepts all five. An update
+  with role id 9 was answered 200 too: the update doesn't check the role. The
+  module only sends the five it names.
+- Group types: 1 LDAP, 2 HTTP, 3 OIDC. Given `group_name` and `group_type`,
+  Harbor uses the user group of that name and type, or asks the login
+  backend to create it (`SearchAndOnBoardGroup`). With database logins that
+  is answered 404 `<name> not found: not supported`, so the module fails with
+  the reason before it sends anything when `auth_mode` doesn't match the
+  group type.
+- `POST /usergroups` stores an OIDC or HTTP group in any auth mode (only an
+  LDAP group is looked up), which is how the recorder and the live test make
+  a group member on servers with database logins. Only a system administrator
+  may list user groups (403 otherwise). Under `ldap_auth` and `http_auth` the
+  list shows only groups of that type, so the module doesn't take a missing
+  group of another type for missing there.
+- The member list has `id`, `entity_name`, `entity_type` (`u`, `g`),
+  `entity_id` and `role_id`, but no group type. So a group is found in
+  `/usergroups` first and matched by `entity_id`; a user who can't read user
+  groups gets a match by name, refused when two group members share it.
+- A role change is `PUT /projects/{id}/members/{mid}` with `{"role_id": N}`;
+  removal is `DELETE` on that path, answered 200 also when the membership is
+  already gone.
+- The project's creator is its first member, as project admin.
 ---
 
 ## Testing

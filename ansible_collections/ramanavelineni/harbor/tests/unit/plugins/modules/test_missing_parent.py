@@ -19,6 +19,7 @@ import pytest
 
 from ansible_collections.ramanavelineni.harbor.plugins.modules import (
     project,
+    project_member,
     replication,
     robot_account,
     tag_immutability,
@@ -49,10 +50,11 @@ def no_replication_registry(server):
 IN_A_PROJECT = [
     (robot_account, dict(level='project', project='gone', name='ci'), dict(robot_account={}, secret_updated=False)),
     (webhook, dict(project='gone', name='ci-notify'), dict(webhook={})),
+    (project_member, dict(project='gone', user='alice'), dict(member={})),
     (tag_retention, dict(project='gone'), dict(tag_retention={})),
     (tag_immutability, dict(project='gone', tags='v*'), dict(tag_immutability={})),
 ]
-IN_A_PROJECT_IDS = ['robot_account', 'webhook', 'tag_retention', 'tag_immutability']
+IN_A_PROJECT_IDS = ['robot_account', 'webhook', 'project_member', 'tag_retention', 'tag_immutability']
 
 
 @pytest.mark.parametrize('module, task, empty', IN_A_PROJECT, ids=IN_A_PROJECT_IDS)
@@ -85,6 +87,8 @@ PRESENT = [
      dict(robot_account={}, secret_updated=False), "Project 'gone' does not exist"),
     (webhook, dict(project='gone', name='ci-notify', event_types=['PUSH_ARTIFACT'], address='https://ci.example.com/hook'),
      no_project, dict(webhook={}), "Project 'gone' does not exist"),
+    (project_member, dict(project='gone', user='alice', role='guest'), no_project, dict(member={}),
+     "Project 'gone' does not exist"),
     (tag_retention, dict(project='gone', rules=[dict(template='always')]), no_project, dict(tag_retention={}),
      "Project 'gone' does not exist"),
     (tag_immutability, dict(project='gone', tags='v*'), no_project, dict(tag_immutability={}),
@@ -94,7 +98,7 @@ PRESENT = [
     (project, dict(name='proxy-hub', proxy_registry='hub'), no_registry, dict(project={}),
      "Registry 'hub' does not exist"),
 ]
-PRESENT_IDS = ['robot_account', 'webhook', 'tag_retention', 'tag_immutability', 'replication', 'project']
+PRESENT_IDS = ['robot_account', 'webhook', 'project_member', 'tag_retention', 'tag_immutability', 'replication', 'project']
 
 
 @pytest.mark.parametrize('module, task, routes, empty, missing', PRESENT, ids=PRESENT_IDS)

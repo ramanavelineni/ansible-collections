@@ -18,6 +18,8 @@ action_groups:
     - log_rotation_info
     - project
     - project_info
+    - project_member
+    - project_member_info
     - registry
     - registry_info
     - replication

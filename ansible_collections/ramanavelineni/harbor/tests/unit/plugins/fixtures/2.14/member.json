@@ -1,0 +1,278 @@
+{
+  "recorded_from": "v2.14.6-f435c950",
+  "responses": {
+    "member_configurations": {
+      "body": {
+        "auth_mode": {
+          "editable": true,
+          "value": "db_auth"
+        }
+      },
+      "headers": {},
+      "status": 200
+    },
+    "member_create_group": {
+      "body": null,
+      "headers": {
+        "location": "/api/v2.0/projects/30/members/44"
+      },
+      "status": 201
+    },
+    "member_create_unknown_group": {
+      "body": {
+        "errors": [
+          {
+            "code": "NOT_FOUND",
+            "message": "fixtures-member-nogroup not found: not supported"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 404
+    },
+    "member_create_unknown_user": {
+      "body": {
+        "errors": [
+          {
+            "code": "NOT_FOUND",
+            "message": "user fixtures-member-nobody is not found"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 404
+    },
+    "member_create_user": {
+      "body": null,
+      "headers": {
+        "location": "/api/v2.0/projects/30/members/43"
+      },
+      "status": 201
+    },
+    "member_create_user_conflict": {
+      "body": {
+        "errors": [
+          {
+            "code": "CONFLICT",
+            "message": "The project member specified already exist"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 409
+    },
+    "member_delete": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "member_delete_missing": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "member_get_group": {
+      "body": {
+        "entity_id": 1,
+        "entity_name": "fixtures-member-group",
+        "entity_type": "g",
+        "id": 44,
+        "project_id": 30,
+        "role_id": 3,
+        "role_name": "guest"
+      },
+      "headers": {},
+      "status": 200
+    },
+    "member_get_updated": {
+      "body": {
+        "entity_id": 16,
+        "entity_name": "fixtures-member-user",
+        "entity_type": "u",
+        "id": 43,
+        "project_id": 30,
+        "role_id": 4,
+        "role_name": "maintainer"
+      },
+      "headers": {},
+      "status": 200
+    },
+    "member_get_user": {
+      "body": {
+        "entity_id": 16,
+        "entity_name": "fixtures-member-user",
+        "entity_type": "u",
+        "id": 43,
+        "project_id": 30,
+        "role_id": 2,
+        "role_name": "developer"
+      },
+      "headers": {},
+      "status": 200
+    },
+    "member_list_after_delete": {
+      "body": [
+        {
+          "entity_id": 1,
+          "entity_name": "admin",
+          "entity_type": "u",
+          "id": 42,
+          "project_id": 30,
+          "role_id": 1,
+          "role_name": "projectAdmin"
+        },
+        {
+          "entity_id": 1,
+          "entity_name": "fixtures-member-group",
+          "entity_type": "g",
+          "id": 44,
+          "project_id": 30,
+          "role_id": 3,
+          "role_name": "guest"
+        }
+      ],
+      "headers": {
+        "x-total-count": "2"
+      },
+      "status": 200
+    },
+    "member_list_all": {
+      "body": [
+        {
+          "entity_id": 1,
+          "entity_name": "admin",
+          "entity_type": "u",
+          "id": 42,
+          "project_id": 30,
+          "role_id": 1,
+          "role_name": "projectAdmin"
+        },
+        {
+          "entity_id": 1,
+          "entity_name": "fixtures-member-group",
+          "entity_type": "g",
+          "id": 44,
+          "project_id": 30,
+          "role_id": 3,
+          "role_name": "guest"
+        },
+        {
+          "entity_id": 16,
+          "entity_name": "fixtures-member-user",
+          "entity_type": "u",
+          "id": 43,
+          "project_id": 30,
+          "role_id": 2,
+          "role_name": "developer"
+        }
+      ],
+      "headers": {
+        "x-total-count": "3"
+      },
+      "status": 200
+    },
+    "member_list_creator": {
+      "body": [
+        {
+          "entity_id": 1,
+          "entity_name": "admin",
+          "entity_type": "u",
+          "id": 42,
+          "project_id": 30,
+          "role_id": 1,
+          "role_name": "projectAdmin"
+        }
+      ],
+      "headers": {
+        "x-total-count": "1"
+      },
+      "status": 200
+    },
+    "member_projects": {
+      "body": [
+        {
+          "creation_time": "2026-11-09T06:18:24.124Z",
+          "current_user_role_id": 1,
+          "current_user_role_ids": [
+            1
+          ],
+          "cve_allowlist": {
+            "creation_time": "0001-01-01T00:00:00.000Z",
+            "id": 29,
+            "items": [],
+            "project_id": 30,
+            "update_time": "0001-01-01T00:00:00.000Z"
+          },
+          "metadata": {
+            "public": "false"
+          },
+          "name": "fixtures-member",
+          "owner_id": 1,
+          "owner_name": "admin",
+          "project_id": 30,
+          "repo_count": 0,
+          "update_time": "2026-11-09T06:18:24.124Z"
+        }
+      ],
+      "headers": {
+        "x-total-count": "1"
+      },
+      "status": 200
+    },
+    "member_update": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "member_update_bad_role": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "member_usergroups_all": {
+      "body": [
+        {
+          "group_name": "fixtures-member-group",
+          "group_type": 3,
+          "id": 1
+        }
+      ],
+      "headers": {
+        "x-total-count": "1"
+      },
+      "status": 200
+    },
+    "member_usergroups_anonymous": {
+      "body": {
+        "errors": [
+          {
+            "code": "UNAUTHORIZED",
+            "message": "unauthorized"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 401
+    },
+    "member_usergroups_empty": {
+      "body": [],
+      "headers": {
+        "x-total-count": "0"
+      },
+      "status": 200
+    },
+    "member_usergroups_one": {
+      "body": [
+        {
+          "group_name": "fixtures-member-group",
+          "group_type": 3,
+          "id": 1
+        }
+      ],
+      "headers": {
+        "x-total-count": "1"
+      },
+      "status": 200
+    }
+  }
+}

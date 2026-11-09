@@ -179,6 +179,9 @@ class Api(object):
         for user in self.listing('/users?q=%s' % quote('username=~%s' % PREFIX)):
             if user['username'].startswith(PREFIX):
                 self.ok('DELETE', '/users/%d' % user['user_id'])
+        for group in self.listing('/usergroups?group_name=%s' % PREFIX):
+            if group['group_name'].startswith(PREFIX):
+                self.ok('DELETE', '/usergroups/%d' % group['id'])
         for path in ('/system/gc/schedule', '/system/purgeaudit/schedule', '/system/scanAll/schedule'):
             if cron_of(self.schedule(path)) in OWN_CRONS:
                 self.ok('PUT', path, dict(schedule=dict(type='None', cron='')))

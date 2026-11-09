@@ -1,8 +1,8 @@
 # ramanavelineni.harbor
 
-**Configure [Harbor](https://goharbor.io) as code.** Projects, robot accounts,
-registries, replication, retention and immutability rules, webhooks and system
-settings, each described once and kept that way.
+**Configure [Harbor](https://goharbor.io) as code.** Projects and their
+members, robot accounts, registries, replication, retention and immutability
+rules, webhooks and system settings, each described once and kept that way.
 
 [![CI](https://github.com/ramanavelineni/ansible-collections/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ramanavelineni/ansible-collections/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](https://github.com/ramanavelineni/ansible-collections/blob/main/LICENSE)
@@ -105,6 +105,7 @@ Run it with `--check --diff` first to see what would change.
 |---|---|---|
 | Server | | `info`: version, tested flag |
 | Projects | `project`: visibility, metadata, proxy cache, quota | `project_info` |
+| Project members | `project_member`: users and OIDC, LDAP or HTTP groups, with a role | `project_member_info` |
 | Robot accounts | `robot_account`: system or project level | `robot_account_info` |
 | Registries (endpoints) | `registry` | `registry_info` |
 | Replication rules | `replication`: pull or push, trigger, filters | `replication_info` |

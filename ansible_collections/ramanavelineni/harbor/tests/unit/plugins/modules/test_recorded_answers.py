@@ -21,6 +21,7 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
 from ansible_collections.ramanavelineni.harbor.plugins.modules import (
     configuration,
     project,
+    project_member,
     registry,
     replication,
     robot_account,
@@ -157,15 +158,25 @@ def conflict_webhook(server):
     return webhook.main, HOOK
 
 
+def conflict_member(server):
+    server.route('GET', '/projects', 'member_projects')
+    base = '/projects/%d/members' % server.fixtures['member_projects']['body'][0]['project_id']
+    server.route('GET', base, 'member_list_creator')
+    server.route('POST', base, 'member_create_user_conflict')
+    return project_member.main, dict(project='fixtures-member', user='fixtures-member-user', role='developer')
+
+
 CONFLICTS = [
     (conflict_registry, 'registry_create_conflict'),
     (conflict_replication, 'registry_replication_create_conflict'),
     (conflict_robot, 'robot_create_conflict'),
     (conflict_webhook, 'webhook_create_conflict'),
+    (conflict_member, 'member_create_user_conflict'),
 ]
 
 
-@pytest.mark.parametrize('routes, fixture', CONFLICTS, ids=['registry', 'replication', 'robot_account', 'webhook'])
+@pytest.mark.parametrize('routes, fixture', CONFLICTS,
+                         ids=['registry', 'replication', 'robot_account', 'webhook', 'project_member'])
 def test_create_that_another_client_got_in_first_is_reported(server, run_module, routes, fixture):
     main, args = routes(server)
     result = run_module(main, args)
