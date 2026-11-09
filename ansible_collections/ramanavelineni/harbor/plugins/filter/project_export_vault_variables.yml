@@ -1,0 +1,48 @@
+---
+DOCUMENTATION:
+  name: project_export_vault_variables
+  version_added: 0.8.0
+  short_description: The names of the vault variables an exported Harbor project needs
+  author:
+    - ramanavelineni (@ramanavelineni)
+  description:
+    - Lists the variables the exported project refers to, in the order they appear, each with what it is the
+      secret of.
+  positional: _input
+  options:
+    _input:
+      description:
+        - The project as the C(_info) modules return it. A mapping with the project under C(project) (one entry of
+          RV(ramanavelineni.harbor.project_info#module:projects)), and under the name of each section the result of
+          its C(_info) module, C(robot_account) (RV(ramanavelineni.harbor.robot_account_info#module:robot_accounts)),
+          C(project_member) (RV(ramanavelineni.harbor.project_member_info#module:members)), C(tag_retention)
+          (RV(ramanavelineni.harbor.tag_retention_info#module:tag_retention)), C(tag_immutability)
+          (RV(ramanavelineni.harbor.tag_immutability_info#module:tag_immutability)) and C(webhook)
+          (RV(ramanavelineni.harbor.webhook_info#module:webhooks)).
+        - A section that is missing counts as empty.
+      type: dict
+      required: true
+    vault_prefix:
+      description:
+        - What the name of every variable that stands for a secret starts with, in lower case. The name goes on with the
+          project, the section, the object and the field, as in C(vault_apps_robot_ci_secret).
+      type: str
+      default: vault
+
+EXAMPLES: |
+  - name: Name the variables to define
+    ansible.builtin.debug:
+      msg: "{{ exported | ramanavelineni.harbor.project_export_vault_variables | map(attribute='name') | join(', ') }}"
+
+RETURN:
+  _value:
+    description: One entry per variable.
+    type: list
+    elements: dict
+    contains:
+      name:
+        description: The variable's name.
+        type: str
+      description:
+        description: What it is the secret of.
+        type: str

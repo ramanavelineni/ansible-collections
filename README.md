@@ -13,7 +13,7 @@ make the server match, and change nothing when it already does.
 | Collection | Configures | Modules | Tested with |
 |---|---|---|---|
 | [**`ramanavelineni.semaphoreui`**](ansible_collections/ramanavelineni/semaphoreui/) | [Semaphore UI](https://semaphoreui.com): projects and everything in them, users, runners | 35, plus 3 roles | Semaphore UI 2.18, 2.19 |
-| [**`ramanavelineni.harbor`**](ansible_collections/ramanavelineni/harbor/) | [Harbor](https://goharbor.io): projects, members, robot accounts, registries, replication, policies, system settings | 25, plus 2 roles | Harbor 2.14, 2.15 |
+| [**`ramanavelineni.harbor`**](ansible_collections/ramanavelineni/harbor/) | [Harbor](https://goharbor.io): projects, members, robot accounts, registries, replication, policies, system settings | 25, plus 3 roles | Harbor 2.14, 2.15 |
 
 ---
 
@@ -286,8 +286,11 @@ Details: [collection README](ansible_collections/ramanavelineni/semaphoreui/)
 | Vulnerability scan-all schedule | `scan_all`, `scan_all_info` |
 | Audit log rotation | `log_rotation`, `log_rotation_info` |
 
-It also has two roles: `server_apply` applies the server-wide objects, and
-`project_apply` a directory of project descriptions.
+It also has three roles: `server_apply` and `project_apply` apply server and
+project descriptions, and `project_export` writes a project out as such a
+description. The four filters behind the export (`project_export_config`,
+`project_export_vault`, `project_export_vault_variables` and
+`project_export_yaml`) can be used on their own.
 
 Details: [collection README](ansible_collections/ramanavelineni/harbor/)
 

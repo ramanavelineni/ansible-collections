@@ -125,13 +125,16 @@ Full documentation for each: `ansible-doc ramanavelineni.harbor.<module>`.
 |---|---|
 | `server_apply` | Applies the server-wide objects: system settings, the garbage collection, Scan All and audit log rotation schedules, registries, replication rules and system robot accounts |
 | `project_apply` | Applies a directory of project descriptions: each project a YAML file, or a directory of them, with its robot accounts, members, tag retention, tag immutability rules and webhooks |
+| `project_export` | Writes a project on the server out as a description that `project_apply` can apply, with its secrets in a separate vault file |
 
-Both check what they are given before they change anything, leave alone what
-is not mentioned, delete only what is marked `state: absent`, and can run as a
-drift check that fails when Harbor differs. Run `server_apply` first when a
-project is a proxy cache: the project names a registry. Each role's README has
-the details: [server_apply](roles/server_apply/README.md),
-[project_apply](roles/project_apply/README.md), or
+The two apply roles check what they are given before they change anything,
+leave alone what is not mentioned, delete only what is marked `state: absent`,
+and can run as a drift check that fails when Harbor differs. Run
+`server_apply` first when a project is a proxy cache: the project names a
+registry. Each role's README has the details:
+[server_apply](roles/server_apply/README.md),
+[project_apply](roles/project_apply/README.md),
+[project_export](roles/project_export/README.md), or
 `ansible-doc -t role ramanavelineni.harbor.project_apply`.
 
 ## Connecting

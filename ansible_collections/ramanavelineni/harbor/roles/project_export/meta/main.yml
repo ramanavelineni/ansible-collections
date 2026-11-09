@@ -1,0 +1,10 @@
+---
+galaxy_info:
+  author: ramanavelineni
+  description: Write a Harbor project as the YAML file the project_apply role reads
+  license: Apache-2.0
+  min_ansible_version: "2.20"
+  galaxy_tags:
+    - harbor
+    - registry
+dependencies: []

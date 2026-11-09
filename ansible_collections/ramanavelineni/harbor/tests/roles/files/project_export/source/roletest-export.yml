@@ -1,0 +1,38 @@
+---
+# The project the export role tests start from, applied with project_apply.
+# The two secrets come from variables the test playbooks set.
+name: roletest-export
+public: false
+metadata:
+  auto_scan: true
+  severity: high
+
+robot_account:
+  ci:
+    duration: 30
+    permissions:
+      - access:
+          - {resource: repository, action: pull}
+    secret: "{{ export_robot_secret }}"
+
+project_member:
+  - user: roletest-export-user
+    role: developer
+  - group: roletest-export-group
+    group_type: oidc
+    role: guest
+
+tag_retention:
+  schedule: "0 0 3 * * *"
+  rules:
+    - template: latestPushedK
+      value: 10
+
+tag_immutability:
+  - tags: "v*"
+
+webhook:
+  ci-notify:
+    event_types: [PUSH_ARTIFACT]
+    address: http://127.0.0.1:9/hook
+    auth_header: "{{ export_webhook_header }}"
