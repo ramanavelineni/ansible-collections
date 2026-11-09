@@ -637,6 +637,84 @@ def record_system(srv, out):
         expect(srv.call('PUT', '/system/purgeaudit/schedule', NO_PURGE_SCHEDULE), 200, 'remove purge schedule')
 
 
+MEMBER_PREFIX = 'fixtures-member'
+MEMBER_PROJECT = 'fixtures-member'
+MEMBER_USER = 'fixtures-member-user'
+MEMBER_GROUP = 'fixtures-member-group'
+# Not a secret: the user exists only while the area is recorded, on a throwaway server.
+MEMBER_USER_PASSWORD = 'NotARealPassw0rd'
+
+
+def sweep_member(srv):
+    """Delete project fixtures-member (its members go with it), and the users and user groups named fixtures-member*."""
+    delete_projects(srv, MEMBER_PROJECT)
+    for user in expect(srv.call('GET', '/users?q=username%%3D~%s&page=1&page_size=100' % MEMBER_PREFIX),
+                       200, 'users')['body'] or []:
+        if user['username'].startswith(MEMBER_PREFIX):
+            expect(srv.call('DELETE', '/users/%d' % user['user_id']), 200, 'delete leftover user')
+    for group in expect(srv.call('GET', '/usergroups?group_name=%s&page=1&page_size=100' % MEMBER_PREFIX),
+                        200, 'user groups')['body'] or []:
+        if group['group_name'].startswith(MEMBER_PREFIX):
+            expect(srv.call('DELETE', '/usergroups/%d' % group['id']), 200, 'delete leftover user group')
+
+
+def record_member(srv, out):
+    """Members of project fixtures-member: a database user, and an OIDC group created through /usergroups.
+
+    POST /usergroups stores an OIDC or HTTP group without asking the login
+    backend (only an LDAP group is looked up), so a group member can be
+    recorded on a server that uses database logins. A group that doesn't
+    exist yet is recorded as Harbor refuses it there.
+    """
+    def own_groups(group):
+        return group['group_name'].startswith(MEMBER_PREFIX)
+
+    config = expect(srv.call('GET', '/configurations'), 200, 'configurations')
+    # Only the setting the modules read.
+    out['member_configurations'] = dict(config, body=dict(auth_mode=config['body']['auth_mode']))
+    pid = project_id_of(expect(srv.call('POST', '/projects', {'project_name': MEMBER_PROJECT,
+                                                              'metadata': {'public': 'false'}}), 201, 'create project'))
+    out['member_projects'] = keep(expect(srv.call('GET', '/projects?name=%s&page=1&page_size=100' % MEMBER_PROJECT),
+                                         200, 'projects'), named(MEMBER_PROJECT))
+    srv.secrets.append(MEMBER_USER_PASSWORD)
+    expect(srv.call('POST', '/users', {'username': MEMBER_USER, 'email': '%s@example.invalid' % MEMBER_USER,
+                                       'realname': MEMBER_USER, 'password': MEMBER_USER_PASSWORD}), 201, 'create user')
+
+    groups = '/usergroups?group_name=%s&page=1&page_size=100' % MEMBER_GROUP
+    out['member_usergroups_empty'] = keep(expect(srv.call('GET', groups), 200, 'user groups'), own_groups)
+    gid = project_id_of(expect(srv.call('POST', '/usergroups', {'group_name': MEMBER_GROUP, 'group_type': 3}),
+                               201, 'create user group'))
+    out['member_usergroups_one'] = keep(expect(srv.call('GET', groups), 200, 'user groups'), own_groups)
+    out['member_usergroups_anonymous'] = srv.call('GET', groups, password='wrong')
+    out['member_usergroups_all'] = keep(expect(srv.call('GET', '/usergroups?page=1&page_size=100'), 200, 'user groups'),
+                                        own_groups)
+
+    base = '/projects/%d/members' % pid
+    listing = base + '?page=1&page_size=100'
+    # The project's creator is its first member, as project admin.
+    out['member_list_creator'] = expect(srv.call('GET', listing), 200, 'members')
+    created = expect(srv.call('POST', base, {'role_id': 2, 'member_user': {'username': MEMBER_USER}}),
+                     201, 'add user member')
+    out['member_create_user'] = created
+    mid = project_id_of(created)
+    out['member_get_user'] = expect(srv.call('GET', '%s/%d' % (base, mid)), 200, 'user member')
+    out['member_create_user_conflict'] = srv.call('POST', base, {'role_id': 2, 'member_user': {'username': MEMBER_USER}})
+    out['member_create_unknown_user'] = srv.call('POST', base, {
+        'role_id': 2, 'member_user': {'username': MEMBER_PREFIX + '-nobody'}})
+    group = expect(srv.call('POST', base, {'role_id': 3, 'member_group': {'id': gid}}), 201, 'add group member')
+    out['member_create_group'] = group
+    out['member_get_group'] = expect(srv.call('GET', '%s/%d' % (base, project_id_of(group))), 200, 'group member')
+    out['member_create_unknown_group'] = srv.call('POST', base, {
+        'role_id': 3, 'member_group': {'group_name': MEMBER_PREFIX + '-nogroup', 'group_type': 3}})
+    out['member_list_all'] = expect(srv.call('GET', listing), 200, 'members')
+    out['member_update'] = expect(srv.call('PUT', '%s/%d' % (base, mid), {'role_id': 4}), 200, 'update member')
+    out['member_get_updated'] = expect(srv.call('GET', '%s/%d' % (base, mid)), 200, 'updated member')
+    out['member_update_bad_role'] = srv.call('PUT', '%s/%d' % (base, mid), {'role_id': 9})
+    out['member_delete'] = expect(srv.call('DELETE', '%s/%d' % (base, mid)), 200, 'delete member')
+    out['member_delete_missing'] = srv.call('DELETE', '%s/%d' % (base, mid))
+    out['member_list_after_delete'] = expect(srv.call('GET', listing), 200, 'members')
+
+
 # Area name -> recorder. Each writes fixtures/<major.minor>/<area>.json.
 AREAS = {
     'core': record_core,
@@ -645,6 +723,7 @@ AREAS = {
     'webhook': record_webhook,
     'tag_policy': record_tag_policy,
     'system': record_system,
+    'member': record_member,
 }
 # Area name -> what takes the area's own objects off the server (see run_area).
 SWEEPS = {
@@ -654,6 +733,7 @@ SWEEPS = {
     'webhook': sweep_webhook,
     'tag_policy': sweep_tag_policy,
     'system': sweep_system,
+    'member': sweep_member,
 }
 
 

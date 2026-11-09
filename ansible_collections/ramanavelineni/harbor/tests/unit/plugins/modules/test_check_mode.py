@@ -22,6 +22,7 @@ from ansible_collections.ramanavelineni.harbor.plugins.modules import (
     garbage_collection,
     log_rotation,
     project,
+    project_member,
     registry,
     replication,
     robot_account,
@@ -337,12 +338,42 @@ def webhook_delete(server, real):
         server.route('DELETE', '%s/%d' % (base, server.fixtures['webhook_get']['body']['id']), 'webhook_delete')
 
 
+def member_base(server):
+    server.route('GET', '/projects', 'member_projects')
+    return '/projects/%d/members' % server.fixtures['member_projects']['body'][0]['project_id']
+
+
+def member_create(server, real):
+    base = member_base(server)
+    server.route('GET', base, 'member_list_creator')
+    if real:
+        server.route('POST', base, 'member_create_user')
+        server.route('GET', '%s/%d' % (base, server.fixtures['member_get_user']['body']['id']), 'member_get_user')
+
+
+def member_update(server, real):
+    base = member_base(server)
+    server.route('GET', base, 'member_list_all')
+    if real:
+        path = '%s/%d' % (base, server.fixtures['member_get_user']['body']['id'])
+        server.route('PUT', path, 'member_update')
+        server.route('GET', path, 'member_get_updated')
+
+
+def member_delete(server, real):
+    base = member_base(server)
+    server.route('GET', base, 'member_list_all')
+    if real:
+        server.route('DELETE', '%s/%d' % (base, server.fixtures['member_get_user']['body']['id']), 'member_delete')
+
+
 # -- the cases -----------------------------------------------------------------
 
 PULL_ALL = [dict(namespace='*', access=[dict(resource='repository', action='pull')])]
 SECRET = 'DeclaredSecret9'
 LR = dict(schedule='custom', cron='0 0 6 * * *', audit_retention_hour=720,
           include_event_types=['delete_artifact', 'create_artifact'])
+MEMBER = dict(project='fixtures-member', user='fixtures-member-user')
 HOOK = dict(project='fixtures-webhook', name='ci-notify', description='recorded',
             event_types=['PUSH_ARTIFACT', 'DELETE_ARTIFACT'], address='http://127.0.0.1:9/hook',
             auth_header='Bearer not-a-real-token')
@@ -442,6 +473,11 @@ CASES = [
     ('tag_retention-delete', tag_retention, 'tag_retention', retention_delete,
      dict(project='fixtures-tag-policy', state='absent'), ['DELETE'], ()),
 
+    ('project_member-create', project_member, 'member', member_create, dict(MEMBER, role='developer'), ['POST'],
+     ('id',)),
+    ('project_member-update', project_member, 'member', member_update, dict(MEMBER, role='maintainer'), ['PUT'], ()),
+    ('project_member-delete', project_member, 'member', member_delete, dict(MEMBER, state='absent'), ['DELETE'], ()),
+
     ('webhook-create', webhook, 'webhook', webhook_create, HOOK, ['POST'], ('id',)),
     ('webhook-update', webhook, 'webhook', webhook_update,
      dict(project='fixtures-webhook', name='ci-notify', enabled=False), ['PUT'], ()),
@@ -450,7 +486,8 @@ CASES = [
 ]
 
 # Every module that writes has to be in the table.
-MANAGE_MODULES = (configuration, garbage_collection, log_rotation, project, registry, replication, robot_account,
+MANAGE_MODULES = (configuration, garbage_collection, log_rotation, project, project_member, registry, replication,
+                  robot_account,
                   scan_all, tag_immutability, tag_retention, webhook)
 
 

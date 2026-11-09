@@ -481,6 +481,65 @@ def webhook_view(policy, project):
     )
 
 
+# -- project members -----------------------------------------------------------
+
+# Harbor's role ids (src/common/const.go, 2.14 and 2.15). The swagger lists
+# 1 to 4; the member code accepts 5 as well.
+MEMBER_ROLES = dict(project_admin=1, developer=2, guest=3, maintainer=4, limited_guest=5)
+# Group types, and the auth mode in which Harbor can create a missing group of that type.
+GROUP_TYPES = dict(ldap=1, http=2, oidc=3)
+GROUP_AUTH_MODES = dict(ldap='ldap_auth', http='http_auth', oidc='oidc_auth')
+
+
+def _name_of(table, value):
+    for name, number in table.items():
+        if number == value:
+            return name
+    return None
+
+
+def member_view(member, project, group_type=None):
+    """A project member as the project member modules return it.
+
+    `group_type` is the module's name for a group's type (oidc, ldap, http);
+    a member list doesn't carry it, and None says it isn't known.
+    """
+    is_group = member.get('entity_type') == 'g'
+    name = member.get('entity_name')
+    return dict(
+        id=member.get('id'), project=project, project_id=member.get('project_id'),
+        user=None if is_group else name, group=name if is_group else None,
+        group_type=group_type if is_group else None,
+        role=_name_of(MEMBER_ROLES, member.get('role_id')), role_id=member.get('role_id'),
+    )
+
+
+def group_type_name(number):
+    """The module's name for a Harbor group type number, or None."""
+    return _name_of(GROUP_TYPES, number)
+
+
+def user_groups(client, params=None):
+    """Harbor's user groups, or None when this user may not list them (only a system administrator may)."""
+    try:
+        return client.list('/usergroups', params)
+    except HarborError as e:
+        if e.status not in (401, 403):
+            raise
+        return None
+
+
+def auth_mode(client):
+    """Harbor's auth_mode setting, or None when this user may not read the configuration."""
+    try:
+        config = client.get('/configurations') or {}
+    except HarborError as e:
+        if e.status not in (401, 403):
+            raise
+        return None
+    return (config.get('auth_mode') or {}).get('value')
+
+
 def find_project(client, name):
     """The project named `name` as the project list shows it, or None.
 

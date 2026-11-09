@@ -39,8 +39,8 @@ def documented_keys(module):
 
 
 def test_every_module_is_covered():
-    # 23 modules: 11 that write, 12 that read.
-    assert len(RUNS) == 23
+    # 25 modules: 12 that write, 13 that read.
+    assert len(RUNS) == 25
 
 
 @pytest.mark.parametrize('module, runs', RUNS, ids=[m.__name__.rsplit('.', 1)[-1] for m, dummy in RUNS])

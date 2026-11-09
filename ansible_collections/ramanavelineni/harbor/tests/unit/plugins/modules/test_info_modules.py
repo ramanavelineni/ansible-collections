@@ -23,6 +23,7 @@ from ansible_collections.ramanavelineni.harbor.plugins.modules import (
     scan_all_info,
     tag_immutability_info,
     tag_retention_info,
+    project_member_info,
     webhook_info,
 )
 
@@ -100,6 +101,13 @@ def webhook_routes(server):
                  'webhook_list_one')
 
 
+def member_routes(server):
+    server.route('GET', '/projects', 'member_projects')
+    server.route('GET', '/projects/%d/members' % server.fixtures['member_projects']['body'][0]['project_id'],
+                 'member_list_all')
+    server.route('GET', '/usergroups', 'member_usergroups_all')
+
+
 # (module, the key of what it returns, routes, arguments)
 INFO_CASES = [
     (info, 'info', no_routes, {}),
@@ -113,6 +121,7 @@ INFO_CASES = [
     (scan_all_info, 'scan_all', scan_all_routes, {}),
     (tag_immutability_info, 'tag_immutability', immutability_routes, dict(project='fixtures-tag-policy')),
     (tag_retention_info, 'tag_retention', retention_routes, dict(project='fixtures-tag-policy')),
+    (project_member_info, 'members', member_routes, dict(project='fixtures-member')),
     (webhook_info, 'webhooks', webhook_routes, dict(project='fixtures-webhook')),
 ]
 INFO_IDS = [case[0].__name__.rsplit('.', 1)[-1] for case in INFO_CASES]
