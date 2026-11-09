@@ -1,0 +1,12 @@
+---
+name: roletest-project-repeated
+
+webhook:
+  roletest-hook:
+    event_types:
+      - PUSH_ARTIFACT
+    address: http://roletest.invalid/a
+
+project_member:
+  - user: roletest-project-user
+    role: guest

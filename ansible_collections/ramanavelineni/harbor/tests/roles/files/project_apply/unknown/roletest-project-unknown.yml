@@ -1,0 +1,11 @@
+---
+name: roletest-project-unknown
+colour: blue
+
+robot_account:
+  roletest-ci:
+    levle: project
+
+project_member:
+  - user: roletest-project-user
+    rol: guest

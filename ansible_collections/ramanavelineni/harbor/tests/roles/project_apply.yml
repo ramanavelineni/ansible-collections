@@ -1,0 +1,443 @@
+---
+# Role test of project_apply, run by CI against the throwaway Harbor the job
+# installs (.github/scripts/harbor-ci-up.sh), and by hand with `make role-test
+# COLLECTION=harbor`. The server comes from the environment: HARBOR_URL,
+# HARBOR_USERNAME and HARBOR_PASSWORD. The modules read them themselves; the
+# tasks that make the test user and group read them here.
+#
+# The role applies the sample projects in files/project_apply/, applies them
+# again and expects no change, runs in check mode and as a drift check, is fed
+# what it must refuse, and deletes what is marked absent. Everything it makes
+# is named roletest-project… and is removed before it starts and when it ends,
+# also when a check fails. Throwaway servers only.
+- name: Test the role project_apply
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    project_files: "{{ playbook_dir }}/files/project_apply"
+    project_api: "{{ lookup('ansible.builtin.env', 'HARBOR_URL') | regex_replace('/+$', '') }}/api/v2.0"
+    project_admin: "{{ lookup('ansible.builtin.env', 'HARBOR_USERNAME') | default('admin', true) }}"
+    project_password: "{{ lookup('ansible.builtin.env', 'HARBOR_PASSWORD') }}"
+    project_user: roletest-project-user
+    project_group: roletest-project-group
+    project_endpoint: roletest-project-endpoint
+    # The endpoint of the proxy-cache project is this Harbor itself, as its
+    # core service reaches it inside Harbor's network (the live suite's default).
+    project_self_url: "{{ lookup('ansible.builtin.env', 'HARBOR_LIVE_SELF_URL') | default('http://proxy:8080', true) }}"
+    project_all:
+      - roletest-project
+      - roletest-project-proxy
+      - roletest-project-split
+  tasks:
+    - name: Check that a server is named
+      ansible.builtin.assert:
+        that:
+          - lookup('ansible.builtin.env', 'HARBOR_URL') | length > 0
+          - lookup('ansible.builtin.env', 'HARBOR_PASSWORD') | length > 0
+        fail_msg: Set HARBOR_URL, HARBOR_USERNAME and HARBOR_PASSWORD to a throwaway Harbor.
+        quiet: true
+
+    - name: Run the test and clean up after it
+      block:
+        - name: Remove what an earlier run left behind
+          ansible.builtin.include_tasks: tasks/project-cleanup.yml
+
+        # ---- what the projects refer to ------------------------------------
+
+        - name: Make the test user
+          ansible.builtin.uri:
+            url: "{{ project_api }}/users"
+            method: POST
+            url_username: "{{ project_admin }}"
+            url_password: "{{ project_password }}"
+            force_basic_auth: true
+            body_format: json
+            body:
+              username: "{{ project_user }}"
+              email: "{{ project_user }}@example.com"
+              realname: Role Test
+              password: Roletest-user-1
+            status_code: 201
+
+        # Harbor stores an OIDC group in any auth mode; only an LDAP group is
+        # looked up. With database logins this is the way to have one.
+        - name: Make the test OIDC group
+          ansible.builtin.uri:
+            url: "{{ project_api }}/usergroups"
+            method: POST
+            url_username: "{{ project_admin }}"
+            url_password: "{{ project_password }}"
+            force_basic_auth: true
+            body_format: json
+            body:
+              group_name: "{{ project_group }}"
+              group_type: 3
+            status_code: 201
+
+        - name: Make the registry endpoint of the proxy-cache project
+          ramanavelineni.harbor.registry:
+            name: "{{ project_endpoint }}"
+            type: harbor
+            endpoint_url: "{{ project_self_url }}"
+            insecure: true
+
+        # ---- check mode ----------------------------------------------------
+
+        - name: A check run
+          check_mode: true
+          block:
+            - name: Apply the projects in check mode
+              ansible.builtin.include_role:
+                name: ramanavelineni.harbor.project_apply
+              vars:
+                project_apply_path: "{{ project_files }}/full"
+
+        - name: Read the projects after the check run
+          ramanavelineni.harbor.project_info:
+          register: project_read
+
+        - name: The check run reports a change and creates nothing
+          ansible.builtin.assert:
+            that:
+              - project_apply_changed
+              - project_apply_projects | sort == project_all
+              - project_read.projects | map(attribute='name') | select('match', 'roletest-project') | list | length == 0
+            fail_msg: >-
+              changed={{ project_apply_changed }}, applied: {{ project_apply_projects }},
+              on the server: {{ project_read.projects | map(attribute='name') | list }}
+            quiet: true
+
+        # ---- first and second apply ----------------------------------------
+
+        - name: Apply the projects
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.project_apply
+          vars:
+            project_apply_path: "{{ project_files }}/full"
+
+        - name: Read the robot accounts
+          ramanavelineni.harbor.robot_account_info:
+            project: roletest-project
+          register: project_read_robots
+
+        - name: Read the members
+          ramanavelineni.harbor.project_member_info:
+            project: roletest-project
+          register: project_read_members
+
+        - name: Read the tag retention policy
+          ramanavelineni.harbor.tag_retention_info:
+            project: roletest-project
+          register: project_read_retention
+
+        - name: Read the tag immutability rules
+          ramanavelineni.harbor.tag_immutability_info:
+            project: "{{ item }}"
+          loop:
+            - roletest-project
+            - roletest-project-split
+          register: project_read_immutability
+
+        - name: Read the webhooks
+          ramanavelineni.harbor.webhook_info:
+            project: "{{ item }}"
+          loop:
+            - roletest-project
+            - roletest-project-split
+          register: project_read_webhooks
+
+        - name: Read the proxy-cache project
+          ramanavelineni.harbor.project_info:
+            name: roletest-project-proxy
+          register: project_read_proxy
+
+        - name: The first run creates what the files describe
+          ansible.builtin.assert:
+            that:
+              - project_apply_changed
+              - project_apply_projects | sort == project_all
+              - project_read_robots.robot_accounts | map(attribute='name') | list == ['roletest-ci']
+              - project_users == ['developer']
+              - project_groups == ['oidc']
+              - project_group_roles == ['guest']
+              - project_read_retention.tag_retention.schedule == '0 0 3 * * *'
+              - project_read_retention.tag_retention.rules | length == 1
+              - project_read_immutability.results[0].tag_immutability | map(attribute='tags') | sort == ['release-*', 'v*']
+              # The directory's two files each hold one rule.
+              - project_read_immutability.results[1].tag_immutability | map(attribute='tags') | sort == ['latest', 'v*']
+              - project_read_webhooks.results[0].webhooks | map(attribute='name') | list == ['roletest-hook']
+              - project_read_webhooks.results[1].webhooks | map(attribute='enabled') | list == [false]
+              - project_read_proxy.projects | map(attribute='proxy_registry') | list == [project_endpoint]
+            fail_msg: >-
+              changed={{ project_apply_changed }}, applied: {{ project_apply_projects }},
+              robots: {{ project_read_robots.robot_accounts | map(attribute='name') | list }},
+              users: {{ project_users }}, groups: {{ project_groups }} {{ project_group_roles }},
+              retention: {{ project_read_retention.tag_retention }},
+              immutability: {{ project_read_immutability.results | map(attribute='tag_immutability') | list }},
+              webhooks: {{ project_read_webhooks.results | map(attribute='webhooks') | list }},
+              proxy: {{ project_read_proxy.projects }}
+            quiet: true
+          vars:
+            # By name: the admin, who created the project, is a member too.
+            project_users: >-
+              {{ project_read_members.members | selectattr('user', 'equalto', project_user)
+                 | map(attribute='role') | list }}
+            project_groups: >-
+              {{ project_read_members.members | selectattr('group', 'equalto', project_group)
+                 | map(attribute='group_type') | list }}
+            project_group_roles: >-
+              {{ project_read_members.members | selectattr('group', 'equalto', project_group)
+                 | map(attribute='role') | list }}
+
+        - name: Apply the projects again
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.project_apply
+          vars:
+            project_apply_path: "{{ project_files }}/full"
+
+        - name: The second run changes nothing
+          ansible.builtin.assert:
+            that: not project_apply_changed
+            fail_msg: project_apply reported a change on its second run
+            quiet: true
+
+        # ---- drift check ---------------------------------------------------
+
+        - name: A drift check passes when nothing differs
+          check_mode: true
+          block:
+            - name: Check the projects for drift
+              ansible.builtin.include_role:
+                name: ramanavelineni.harbor.project_apply
+              vars:
+                project_apply_path: "{{ project_files }}/full"
+                project_apply_drift_check: true
+
+        - name: A drift check fails when something differs
+          check_mode: true
+          block:
+            - name: Check for drift with another role for the user
+              ansible.builtin.include_role:
+                name: ramanavelineni.harbor.project_apply
+              vars:
+                project_apply_path: "{{ project_files }}/changed"
+                project_apply_drift_check: true
+
+            - name: The drift check should have failed
+              ansible.builtin.fail:
+                msg: project_apply did not fail although a member's role differs
+          rescue:
+            - name: The drift check failed for the right reason
+              ansible.builtin.assert:
+                that: "'Harbor differs from' in ansible_failed_result.msg"
+                fail_msg: "{{ ansible_failed_result.msg }}"
+                quiet: true
+
+        - name: Read the members after the drift check
+          ramanavelineni.harbor.project_member_info:
+            project: roletest-project
+            name: "{{ project_user }}"
+          register: project_read_members
+
+        - name: The drift check in check mode changed nothing
+          ansible.builtin.assert:
+            that: project_read_members.members | map(attribute='role') | list == ['developer']
+            fail_msg: "{{ project_user }} is now {{ project_read_members.members | map(attribute='role') | list }}"
+            quiet: true
+
+        # ---- refusals ------------------------------------------------------
+
+        - name: An unknown option fails
+          block:
+            - name: Apply a project with options the modules don't have
+              ansible.builtin.include_role:
+                name: ramanavelineni.harbor.project_apply
+              vars:
+                project_apply_path: "{{ project_files }}/unknown"
+
+            - name: The role should have failed
+              ansible.builtin.fail:
+                msg: project_apply accepted options the modules don't have
+          rescue:
+            - name: The role failed for the right reason
+              ansible.builtin.assert:
+                that:
+                  - "'roletest-project-unknown.yml: unknown option colour' in ansible_failed_result.msg"
+                  - "'unknown option robot_account.roletest-ci.levle' in ansible_failed_result.msg"
+                  - "'unknown option project_member[roletest-project-user].rol' in ansible_failed_result.msg"
+                fail_msg: "{{ ansible_failed_result.msg }}"
+                quiet: true
+
+        - name: Read the projects after the refusal
+          ramanavelineni.harbor.project_info:
+            name: "{{ item }}"
+          loop:
+            - roletest-project-fine
+            - roletest-project-unknown
+          register: project_read
+
+        - name: Nothing was created, not even the project that is fine
+          ansible.builtin.assert:
+            that: project_read.results | map(attribute='projects') | flatten | length == 0
+            fail_msg: >-
+              Found {{ project_read.results | map(attribute='projects') | flatten | map(attribute='name') | join(', ') }}
+              although the role refused the directory
+            quiet: true
+
+        - name: Deleting a project without confirm_delete fails
+          block:
+            - name: Apply a project to delete without confirm_delete, and with a section
+              ansible.builtin.include_role:
+                name: ramanavelineni.harbor.project_apply
+              vars:
+                project_apply_path: "{{ project_files }}/delete"
+
+            - name: The role should have failed
+              ansible.builtin.fail:
+                msg: project_apply accepted a project to delete without confirm_delete
+          rescue:
+            - name: The role failed for the right reasons
+              ansible.builtin.assert:
+                that:
+                  - "'needs confirm_delete: true' in ansible_failed_result.msg"
+                  - "'describe nothing else in it (found webhook)' in ansible_failed_result.msg"
+                fail_msg: "{{ ansible_failed_result.msg }}"
+                quiet: true
+
+        - name: A project described twice fails
+          block:
+            - name: Apply a project that is a file and a directory
+              ansible.builtin.include_role:
+                name: ramanavelineni.harbor.project_apply
+              vars:
+                project_apply_path: "{{ project_files }}/twice"
+
+            - name: The role should have failed
+              ansible.builtin.fail:
+                msg: project_apply accepted a project described twice
+          rescue:
+            - name: The role failed for the right reason
+              ansible.builtin.assert:
+                that: "'describes roletest-project-twice more than once' in ansible_failed_result.msg"
+                fail_msg: "{{ ansible_failed_result.msg }}"
+                quiet: true
+
+        - name: An entry declared in two files fails
+          block:
+            - name: Apply a project with a webhook and a member in two files
+              ansible.builtin.include_role:
+                name: ramanavelineni.harbor.project_apply
+              vars:
+                project_apply_path: "{{ project_files }}/repeated"
+
+            - name: The role should have failed
+              ansible.builtin.fail:
+                msg: project_apply accepted an entry declared in two files
+          rescue:
+            - name: The role failed for the right reason
+              ansible.builtin.assert:
+                that:
+                  - "'webhook.roletest-hook (a.yml, b.yml)' in ansible_failed_result.msg"
+                  - "'project_member[user=roletest-project-user] (a.yml, b.yml)' in ansible_failed_result.msg"
+                fail_msg: "{{ ansible_failed_result.msg }}"
+                quiet: true
+
+        - name: A protected project fails
+          block:
+            - name: Apply the projects with one of them protected
+              ansible.builtin.include_role:
+                name: ramanavelineni.harbor.project_apply
+              vars:
+                project_apply_path: "{{ project_files }}/full"
+                project_apply_protected_projects:
+                  - roletest-project-proxy
+
+            - name: The role should have failed
+              ansible.builtin.fail:
+                msg: project_apply managed a protected project
+          rescue:
+            - name: The role failed for the right reason
+              ansible.builtin.assert:
+                that: "'must not describe one of the projects in project_apply_protected_projects' in ansible_failed_result.msg"
+                fail_msg: "{{ ansible_failed_result.msg }}"
+                quiet: true
+
+        # ---- state: absent -------------------------------------------------
+
+        - name: Delete what is marked absent
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.project_apply
+          vars:
+            project_apply_path: "{{ project_files }}/absent"
+
+        - name: Read the robot accounts after the deletion
+          ramanavelineni.harbor.robot_account_info:
+            project: roletest-project
+          register: project_read_robots
+
+        - name: Read the members after the deletion
+          ramanavelineni.harbor.project_member_info:
+            project: roletest-project
+          register: project_read_members
+
+        - name: Read the tag retention policy after the deletion
+          ramanavelineni.harbor.tag_retention_info:
+            project: roletest-project
+          register: project_read_retention
+
+        - name: Read the tag immutability rules after the deletion
+          ramanavelineni.harbor.tag_immutability_info:
+            project: roletest-project
+          register: project_read_immutability
+
+        - name: Read the webhooks after the deletion
+          ramanavelineni.harbor.webhook_info:
+            project: "{{ item }}"
+          loop:
+            - roletest-project
+            - roletest-project-split
+          register: project_read_webhooks
+
+        - name: Read the proxy-cache project after the deletion
+          ramanavelineni.harbor.project_info:
+            name: roletest-project-proxy
+          register: project_read_proxy
+
+        - name: What was marked absent is gone, and the rest is still there
+          ansible.builtin.assert:
+            that:
+              - project_apply_changed
+              - project_read_robots.robot_accounts | length == 0
+              - project_read_members.members | selectattr('user', 'equalto', project_user) | list | length == 0
+              - project_read_members.members | selectattr('group', 'equalto', project_group) | list | length == 1
+              - project_read_retention.tag_retention == {}
+              - project_read_immutability.tag_immutability | map(attribute='tags') | list == ['v*']
+              - project_read_webhooks.results[0].webhooks | length == 0
+              - project_read_webhooks.results[1].webhooks | map(attribute='name') | list == ['roletest-split-hook']
+              - project_read_proxy.projects | length == 0
+            fail_msg: >-
+              changed={{ project_apply_changed }},
+              robots: {{ project_read_robots.robot_accounts | map(attribute='name') | list }},
+              members: {{ project_read_members.members }},
+              retention: {{ project_read_retention.tag_retention }},
+              immutability: {{ project_read_immutability.tag_immutability }},
+              webhooks: {{ project_read_webhooks.results | map(attribute='webhooks') | list }},
+              proxy: {{ project_read_proxy.projects }}
+            quiet: true
+
+        - name: Delete what is marked absent again
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.project_apply
+          vars:
+            project_apply_path: "{{ project_files }}/absent"
+
+        - name: The second deletion changes nothing
+          ansible.builtin.assert:
+            that: not project_apply_changed
+            fail_msg: project_apply reported a change when it deleted what was already gone
+            quiet: true
+
+      always:
+        - name: Remove what the test made
+          ansible.builtin.include_tasks: tasks/project-cleanup.yml

@@ -1,0 +1,25 @@
+---
+# Entries of full/ marked for deletion. They are deleted in reverse order of
+# creation. Everything not mentioned stays: the OIDC group member and the
+# immutability rule for v*.
+name: roletest-project
+
+robot_account:
+  roletest-ci:
+    state: absent
+
+project_member:
+  - user: roletest-project-user
+    state: absent
+
+tag_retention:
+  state: absent
+
+tag_immutability:
+  - tags: "release-*"
+    repositories: "apps/**"
+    state: absent
+
+webhook:
+  roletest-hook:
+    state: absent

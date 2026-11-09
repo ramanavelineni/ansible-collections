@@ -1,0 +1,6 @@
+---
+# A proxy-cache project. project_apply.yml makes its registry endpoint first,
+# as server_apply or another play would.
+name: roletest-project-proxy
+public: true
+proxy_registry: roletest-project-endpoint

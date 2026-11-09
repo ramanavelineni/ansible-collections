@@ -1,0 +1,59 @@
+---
+argument_specs:
+  main:
+    short_description: Apply a directory of project descriptions to Harbor
+    description:
+      - Finds the projects in a directory, checks them, and brings Harbor in line with them through the
+        modules of this collection.
+      - A project is one file C(<name>.yml) (or C(.yaml)) or one directory C(<name>/) of such files, whose
+        contents are put together. Every key is an option of the M(ramanavelineni.harbor.project) module
+        (C(name) is required), except the sections named after modules. C(robot_account) and C(webhook) map
+        entry names to the options of that module; the robot accounts are project robot accounts.
+        C(project_member) and C(tag_immutability) are lists of module options. C(tag_retention) holds the
+        options of the project's one retention policy. A key that starts with an underscore is ignored, for
+        YAML anchors.
+      - Everything declared is created or updated in this order, project, robot accounts, members, tag
+        retention, tag immutability, webhooks. Then the entries marked C(state=absent) are deleted in the
+        reverse order. What a project does not mention is left alone.
+      - A project with C(state=absent) needs C(confirm_delete=true) and nothing else described in it.
+      - All projects are read and checked before the first one is applied. An option a module does not
+        have, a project described twice (a file and a directory, C(.yml) and C(.yaml), or two files with
+        the same C(name)), an entry declared twice, and a protected project all fail before anything is
+        changed.
+      - A proxy-cache project names a registry endpoint in C(proxy_registry). The role does not create it;
+        it must exist first.
+      - The connection options are not variables of this role. Set them once with C(module_defaults) for the
+        action group C(ramanavelineni.harbor.harbor), or in the environment (E(HARBOR_URL),
+        E(HARBOR_USERNAME) and E(HARBOR_PASSWORD)).
+      - Afterwards C(project_apply_changed) says whether anything changed (or would have, with C(--check)), and
+        C(project_apply_projects) lists the names of the projects that were applied.
+    author:
+      - ramanavelineni
+    options:
+      project_apply_path:
+        description:
+          - The directory that holds the projects.
+          - Give an absolute path, for example C({{ playbook_dir }}/config/projects). A relative one is taken
+            from the directory C(ansible-playbook) was started in.
+        type: path
+        required: true
+      project_apply_drift_check:
+        description:
+          - Fail at the end of the role when something changed, or would have changed with C(--check).
+          - Robot secrets are then only sent for robot accounts that do not exist yet, because Harbor never
+            shows a stored secret and it would count as a difference on every run.
+        type: bool
+        default: false
+      project_apply_protected_projects:
+        description:
+          - Names of projects this role refuses to manage.
+        type: list
+        elements: str
+        default: []
+      project_apply_no_log:
+        description:
+          - Hide the output of the tasks that carry secrets (robot accounts and webhooks, and the loaded
+            projects).
+          - Set it to V(false) only to find a mistake in a project description.
+        type: bool
+        default: true

@@ -1,0 +1,196 @@
+---
+# One project, already read and checked by main.yml: create or update
+# everything declared, in dependency order, then delete the entries marked
+# `state: absent` in the reverse order. What the project does not mention is
+# left alone.
+#
+# Every option of each module is passed through. The lists of those options
+# are in vars/main.yml.
+#
+# In check mode a project that doesn't exist yet makes each task below report a
+# change with a warning, because the project it names was not created.
+
+- name: "Take up {{ __project_apply_loaded_project.source }}"
+  ansible.builtin.set_fact:
+    __project_apply_project: "{{ __project_apply_loaded_project.project }}"
+  no_log: "{{ project_apply_no_log | bool }}"
+
+# With state: absent this deletes the project, and the sections below are
+# empty (main.yml refused anything else). Harbor deletes only a project
+# without repositories, and removes its robot accounts, members, retention
+# policy and immutability rules with it.
+- name: "Project {{ __project_apply_project.name }}"
+  ramanavelineni.harbor.project:
+    name: "{{ __project_apply_project.name }}"
+    state: "{{ __project_apply_project.state | default(omit) }}"
+    public: "{{ __project_apply_project.public | default(omit) }}"
+    metadata: "{{ __project_apply_project.metadata | default(omit) }}"
+    proxy_registry: "{{ __project_apply_project.proxy_registry | default(omit) }}"
+    quota_gb: "{{ __project_apply_project.quota_gb | default(omit) }}"
+    confirm_delete: "{{ __project_apply_project.confirm_delete | default(omit) }}"
+  register: __project_apply_done_project
+
+# ---- create and update --------------------------------------------------
+
+- name: "Robot accounts ({{ __project_apply_project.name }})"
+  ramanavelineni.harbor.robot_account:
+    project: "{{ __project_apply_project.name }}"
+    level: project
+    name: "{{ item.key }}"
+    state: "{{ (item.value | default({}, true)).state | default(omit) }}"
+    description: "{{ (item.value | default({}, true)).description | default(omit) }}"
+    duration: "{{ (item.value | default({}, true)).duration | default(omit) }}"
+    disable: "{{ (item.value | default({}, true)).disable | default(omit) }}"
+    permissions: "{{ (item.value | default({}, true)).permissions | default(omit) }}"
+    secret: "{{ (item.value | default({}, true)).secret | default(omit) }}"
+    update_secret: "{{ 'on_create' if project_apply_drift_check | bool else ((item.value | default({}, true)).update_secret | default(omit)) }}"
+  loop: "{{ __project_apply_project.robot_account | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') != 'absent'
+  register: __project_apply_done_robot_account
+  # The result holds the secret Harbor generates for a new robot account.
+  no_log: "{{ project_apply_no_log | bool }}"
+
+- name: "Members ({{ __project_apply_project.name }})"
+  ramanavelineni.harbor.project_member:
+    project: "{{ __project_apply_project.name }}"
+    user: "{{ item.user | default(omit) }}"
+    group: "{{ item.group | default(omit) }}"
+    group_type: "{{ item.group_type | default(omit) }}"
+    role: "{{ item.role | default(omit) }}"
+    state: "{{ item.state | default(omit) }}"
+  loop: "{{ __project_apply_project.project_member | default([], true) }}"
+  loop_control:
+    label: "{{ item.user | default(item.group) }}"
+  when: item.state | default('present') != 'absent'
+  register: __project_apply_done_project_member
+
+- name: "Tag retention ({{ __project_apply_project.name }})"
+  ramanavelineni.harbor.tag_retention:
+    project: "{{ __project_apply_project.name }}"
+    state: "{{ (__project_apply_project.tag_retention | default({}, true)).state | default(omit) }}"
+    schedule: "{{ (__project_apply_project.tag_retention | default({}, true)).schedule | default(omit) }}"
+    rules: "{{ (__project_apply_project.tag_retention | default({}, true)).rules | default(omit) }}"
+  when:
+    - __project_apply_project.tag_retention is defined
+    - (__project_apply_project.tag_retention | default({}, true)).state | default('present') != 'absent'
+  register: __project_apply_done_tag_retention
+
+- name: "Tag immutability ({{ __project_apply_project.name }})"
+  ramanavelineni.harbor.tag_immutability:
+    project: "{{ __project_apply_project.name }}"
+    state: "{{ item.state | default(omit) }}"
+    repositories: "{{ item.repositories | default(omit) }}"
+    repositories_decoration: "{{ item.repositories_decoration | default(omit) }}"
+    tags: "{{ item.tags | default(omit) }}"
+    tags_decoration: "{{ item.tags_decoration | default(omit) }}"
+    disabled: "{{ item.disabled | default(omit) }}"
+  loop: "{{ __project_apply_project.tag_immutability | default([], true) }}"
+  loop_control:
+    label: "{{ item.tags }}"
+  when: item.state | default('present') != 'absent'
+  register: __project_apply_done_tag_immutability
+
+- name: "Webhooks ({{ __project_apply_project.name }})"
+  ramanavelineni.harbor.webhook:
+    project: "{{ __project_apply_project.name }}"
+    name: "{{ item.key }}"
+    state: "{{ (item.value | default({}, true)).state | default(omit) }}"
+    description: "{{ (item.value | default({}, true)).description | default(omit) }}"
+    enabled: "{{ (item.value | default({}, true)).enabled | default(omit) }}"
+    event_types: "{{ (item.value | default({}, true)).event_types | default(omit) }}"
+    notify_type: "{{ (item.value | default({}, true)).notify_type | default(omit) }}"
+    address: "{{ (item.value | default({}, true)).address | default(omit) }}"
+    auth_header: "{{ (item.value | default({}, true)).auth_header | default(omit) }}"
+    skip_cert_verify: "{{ (item.value | default({}, true)).skip_cert_verify | default(omit) }}"
+    payload_format: "{{ (item.value | default({}, true)).payload_format | default(omit) }}"
+  loop: "{{ __project_apply_project.webhook | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') != 'absent'
+  register: __project_apply_done_webhook
+  # The task's arguments hold the auth header.
+  no_log: "{{ project_apply_no_log | bool }}"
+
+# ---- delete (state: absent), reverse order ------------------------------
+
+- name: "Delete webhooks ({{ __project_apply_project.name }})"
+  ramanavelineni.harbor.webhook:
+    project: "{{ __project_apply_project.name }}"
+    name: "{{ item }}"
+    state: absent
+  # The loop holds names only. An item is printed in full with -v, and a
+  # webhook can hold an auth header. no_log would also hide why a delete
+  # failed. The same goes for "Delete robot accounts".
+  loop: >-
+    {{ __project_apply_project.webhook | default({}, true) | dict2items
+       | selectattr('value', 'mapping') | selectattr('value.state', 'defined')
+       | selectattr('value.state', 'equalto', 'absent') | map(attribute='key') | list }}
+  register: __project_apply_gone_webhook
+
+- name: "Delete tag immutability rules ({{ __project_apply_project.name }})"
+  ramanavelineni.harbor.tag_immutability:
+    project: "{{ __project_apply_project.name }}"
+    repositories: "{{ item.repositories | default(omit) }}"
+    repositories_decoration: "{{ item.repositories_decoration | default(omit) }}"
+    tags: "{{ item.tags }}"
+    tags_decoration: "{{ item.tags_decoration | default(omit) }}"
+    state: absent
+  loop: "{{ __project_apply_project.tag_immutability | default([], true) }}"
+  loop_control:
+    label: "{{ item.tags }}"
+  when: item.state | default('present') == 'absent'
+  register: __project_apply_gone_tag_immutability
+
+- name: "Delete the tag retention policy ({{ __project_apply_project.name }})"
+  ramanavelineni.harbor.tag_retention:
+    project: "{{ __project_apply_project.name }}"
+    state: absent
+  when: (__project_apply_project.tag_retention | default({}, true)).state | default('present') == 'absent'
+  register: __project_apply_gone_tag_retention
+
+- name: "Delete members ({{ __project_apply_project.name }})"
+  ramanavelineni.harbor.project_member:
+    project: "{{ __project_apply_project.name }}"
+    user: "{{ item.user | default(omit) }}"
+    group: "{{ item.group | default(omit) }}"
+    group_type: "{{ item.group_type | default(omit) }}"
+    state: absent
+  loop: "{{ __project_apply_project.project_member | default([], true) }}"
+  loop_control:
+    label: "{{ item.user | default(item.group) }}"
+  when: item.state | default('present') == 'absent'
+  register: __project_apply_gone_project_member
+
+- name: "Delete robot accounts ({{ __project_apply_project.name }})"
+  ramanavelineni.harbor.robot_account:
+    project: "{{ __project_apply_project.name }}"
+    level: project
+    name: "{{ item }}"
+    state: absent
+  loop: >-
+    {{ __project_apply_project.robot_account | default({}, true) | dict2items
+       | selectattr('value', 'mapping') | selectattr('value.state', 'defined')
+       | selectattr('value.state', 'equalto', 'absent') | map(attribute='key') | list }}
+  register: __project_apply_gone_robot_account
+
+- name: "Note what was done ({{ __project_apply_project.name }})"
+  ansible.builtin.set_fact:
+    project_apply_changed: >-
+      {{ project_apply_changed | bool
+         or (__project_apply_results | map(attribute='changed', default=false) | select | list | length > 0) }}
+    project_apply_projects: "{{ project_apply_projects + [__project_apply_project.name] }}"
+  vars:
+    __project_apply_results:
+      - "{{ __project_apply_done_project }}"
+      - "{{ __project_apply_done_robot_account }}"
+      - "{{ __project_apply_done_project_member }}"
+      - "{{ __project_apply_done_tag_retention }}"
+      - "{{ __project_apply_done_tag_immutability }}"
+      - "{{ __project_apply_done_webhook }}"
+      - "{{ __project_apply_gone_webhook }}"
+      - "{{ __project_apply_gone_tag_immutability }}"
+      - "{{ __project_apply_gone_tag_retention }}"
+      - "{{ __project_apply_gone_project_member }}"
+      - "{{ __project_apply_gone_robot_account }}"
