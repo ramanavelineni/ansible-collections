@@ -134,13 +134,19 @@
               ansible.builtin.fail:
                 msg: project_export replaced a file that differs without project_export_overwrite.
           rescue:
+            # The refusal is a looped assert: its own msg is "One or more items
+            # failed", and each item's message is in results.
             - name: It stopped for the file that differs
               ansible.builtin.assert:
                 that:
-                  - "'exists and differs' in ansible_failed_result.msg"
+                  - "'exists and differs' in export_refusal"
                   - lookup('ansible.builtin.file', export_file) == 'name: changed by hand'
-                fail_msg: "{{ ansible_failed_result.msg | default(ansible_failed_result | to_json) }}"
+                fail_msg: "{{ export_refusal }}"
                 quiet: true
+              vars:
+                export_refusal: >-
+                  {{ (ansible_failed_result.results | default([]) | selectattr('failed', 'defined') | selectattr('failed')
+                      | map(attribute='msg') | list + [ansible_failed_result.msg | default('')]) | join(' ') }}
 
         - name: Export with overwrite
           ansible.builtin.include_role:
