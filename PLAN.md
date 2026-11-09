@@ -27,6 +27,9 @@ along the way. Each quirk is handled inside a module and covered by a test.
       `user_token` and `event_info` (semaphoreui 0.4.0)
 - [x] Harbor modules `project_member` and `project_member_info` (see
       [project_member](#project_member)), released in harbor 0.6.0
+- [x] Harbor roles `server_apply` and `project_apply`, tested in CI against
+      a Harbor installed from its offline installer; next: harbor 0.7.0,
+      then a `project_export` role
 - [x] Switch the homelab `harbor_config` role to the collection (homelab
       ansible repo). Project members, for the role's OIDC groups, can be
       added once a release carries `project_member`
@@ -92,7 +95,8 @@ ansible-collections/
     │   ├── tests/roles/                # role tests, run in CI against a container
     │   └── tests/live/                 # live suite, local only
     └── harbor/
-        └── same shape; module_utils: transport.py (HTTP transport), harbor.py (client), schedule.py, replication.py
+        └── same shape; module_utils: transport.py (HTTP transport), harbor.py (client), schedule.py, replication.py;
+            roles: server_apply, project_apply
 ```
 
 The two collections don't depend on each other. The HTTP transport is

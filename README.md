@@ -13,7 +13,7 @@ make the server match, and change nothing when it already does.
 | Collection | Configures | Modules | Tested with |
 |---|---|---|---|
 | [**`ramanavelineni.semaphoreui`**](ansible_collections/ramanavelineni/semaphoreui/) | [Semaphore UI](https://semaphoreui.com): projects and everything in them, users, runners | 35, plus 3 roles | Semaphore UI 2.18, 2.19 |
-| [**`ramanavelineni.harbor`**](ansible_collections/ramanavelineni/harbor/) | [Harbor](https://goharbor.io): projects, members, robot accounts, registries, replication, policies, system settings | 25 | Harbor 2.14, 2.15 |
+| [**`ramanavelineni.harbor`**](ansible_collections/ramanavelineni/harbor/) | [Harbor](https://goharbor.io): projects, members, robot accounts, registries, replication, policies, system settings | 25, plus 2 roles | Harbor 2.14, 2.15 |
 
 ---
 
@@ -285,6 +285,9 @@ Details: [collection README](ansible_collections/ramanavelineni/semaphoreui/)
 | Garbage collection schedule | `garbage_collection`, `garbage_collection_info` |
 | Vulnerability scan-all schedule | `scan_all`, `scan_all_info` |
 | Audit log rotation | `log_rotation`, `log_rotation_info` |
+
+It also has two roles: `server_apply` applies the server-wide objects, and
+`project_apply` a directory of project descriptions.
 
 Details: [collection README](ansible_collections/ramanavelineni/harbor/)
 

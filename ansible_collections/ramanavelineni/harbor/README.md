@@ -119,6 +119,21 @@ Run it with `--check --diff` first to see what would change.
 
 Full documentation for each: `ansible-doc ramanavelineni.harbor.<module>`.
 
+## Roles
+
+| Role | |
+|---|---|
+| `server_apply` | Applies the server-wide objects: system settings, the garbage collection, Scan All and audit log rotation schedules, registries, replication rules and system robot accounts |
+| `project_apply` | Applies a directory of project descriptions: each project a YAML file, or a directory of them, with its robot accounts, members, tag retention, tag immutability rules and webhooks |
+
+Both check what they are given before they change anything, leave alone what
+is not mentioned, delete only what is marked `state: absent`, and can run as a
+drift check that fails when Harbor differs. Run `server_apply` first when a
+project is a proxy cache: the project names a registry. Each role's README has
+the details: [server_apply](roles/server_apply/README.md),
+[project_apply](roles/project_apply/README.md), or
+`ansible-doc -t role ramanavelineni.harbor.project_apply`.
+
 ## Connecting
 
 Harbor's API only takes HTTP basic authentication, so each module takes `url`
