@@ -356,3 +356,21 @@ releases:
     - ansible-core-2.20-minimum.yml
     - release-summary.yml
     release_date: '2026-11-08'
+  0.5.1:
+    changes:
+      bugfixes:
+      - all modules - ``url``, ``username`` and ``password`` are no longer marked
+        as required in the argument spec. A task that takes them from ``module_defaults``,
+        as the collection's README recommends, left them out, and ansible-lint's ``args[module]``
+        rule reported them as missing for every such task. The modules still fail
+        before any request when one of them is set neither as an option nor in its
+        ``HARBOR_*`` environment variable, and the message now names the environment
+        variable too.
+      release_summary: The connection options ``url``, ``username`` and ``password``
+        are no longer marked as required, so tasks that set them through ``module_defaults``
+        pass ansible-lint. A module still fails before any request when one of them
+        is missing.
+    fragments:
+    - connection-options-not-required.yml
+    - release-summary.yml
+    release_date: '2026-11-08'
