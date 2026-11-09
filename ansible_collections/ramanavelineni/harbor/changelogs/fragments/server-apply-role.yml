@@ -1,0 +1,4 @@
+---
+add object.role:
+  - name: server_apply
+    description: Apply the server-wide settings, schedules, registries, replications and robot accounts to Harbor.

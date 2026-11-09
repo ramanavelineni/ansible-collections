@@ -1,0 +1,72 @@
+---
+# Removes what server_apply.yml makes, and puts back the setting and the
+# schedules it changes. Runs before the test (nothing is remembered yet, so
+# nothing is put back) and after it, also when it failed.
+
+# The rule before the registry: Harbor refuses to delete a registry a rule
+# uses.
+- name: Remove the robot accounts
+  ramanavelineni.harbor.robot_account:
+    name: "{{ item }}"
+    level: system
+    state: absent
+  loop:
+    - "{{ roletest_robot }}"
+    - "{{ roletest_secret_robot }}"
+
+- name: Remove the replication rule
+  ramanavelineni.harbor.replication:
+    name: "{{ roletest_rule }}"
+    state: absent
+
+- name: Remove the registry
+  ramanavelineni.harbor.registry:
+    name: "{{ roletest_registry }}"
+    state: absent
+
+- name: Put the session timeout back
+  ramanavelineni.harbor.configuration:
+    settings:
+      session_timeout: "{{ roletest_before_configuration.configuration.session_timeout }}"
+  when: roletest_before_configuration.configuration is defined
+
+# A schedule's settings only exist while there is a schedule, so a schedule
+# that was not there is removed, and one that was is written back whole.
+- name: Remove the garbage collection schedule, which was not there
+  ramanavelineni.harbor.garbage_collection:
+    schedule: none
+  when:
+    - roletest_before_gc.garbage_collection is defined
+    - roletest_before_gc.garbage_collection.schedule == 'none'
+
+- name: Put the garbage collection schedule back
+  vars:
+    roletest_was: "{{ roletest_before_gc.garbage_collection }}"
+  ramanavelineni.harbor.garbage_collection:
+    schedule: "{{ roletest_was.schedule }}"
+    cron: "{{ roletest_was.cron if roletest_was.schedule == 'custom' else omit }}"
+    delete_untagged: "{{ roletest_was.delete_untagged if roletest_was.delete_untagged is not none else omit }}"
+    workers: "{{ roletest_was.workers if roletest_was.workers is not none else omit }}"
+  when:
+    - roletest_before_gc.garbage_collection is defined
+    - roletest_before_gc.garbage_collection.schedule != 'none'
+
+- name: Remove the log rotation schedule, which was not there
+  ramanavelineni.harbor.log_rotation:
+    schedule: none
+  when:
+    - roletest_before_purge.log_rotation is defined
+    - roletest_before_purge.log_rotation.schedule == 'none'
+
+- name: Put the log rotation schedule back
+  vars:
+    roletest_was: "{{ roletest_before_purge.log_rotation }}"
+  ramanavelineni.harbor.log_rotation:
+    schedule: "{{ roletest_was.schedule }}"
+    cron: "{{ roletest_was.cron if roletest_was.schedule == 'custom' else omit }}"
+    audit_retention_hour: "{{ roletest_was.audit_retention_hour if roletest_was.audit_retention_hour is not none else omit }}"
+    include_event_types: "{{ roletest_was.include_event_types if roletest_was.include_event_types is not none else omit }}"
+    dry_run: "{{ roletest_was.dry_run if roletest_was.dry_run is not none else omit }}"
+  when:
+    - roletest_before_purge.log_rotation is defined
+    - roletest_before_purge.log_rotation.schedule != 'none'

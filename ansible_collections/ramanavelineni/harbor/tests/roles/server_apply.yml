@@ -1,0 +1,458 @@
+---
+# Runs the role server_apply against a real Harbor and checks what it reports
+# and what it leaves on the server. CI runs it against the throwaway Harbor
+# the job installs (.github/scripts/harbor-ci-up.sh); `make role-test
+# COLLECTION=harbor` runs it against the server in the environment:
+# HARBOR_URL, HARBOR_USERNAME and HARBOR_PASSWORD, which the modules read
+# themselves.
+#
+# The registry, the replication rule and the robot accounts it makes are named
+# roletest-server…, and are removed before it starts and when it ends, also
+# when a check fails. The session timeout and the garbage collection and log
+# rotation schedules are the server's own: they are read first and put back
+# at the end. Scan All is left out, because Harbor refuses it without a
+# vulnerability scanner. Throwaway servers only.
+- name: Test the role server_apply
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    roletest_registry: roletest-server-registry
+    roletest_rule: roletest-server-rule
+    roletest_robot: roletest-server-robot
+    roletest_secret_robot: roletest-server-secret
+    # Harbor pings a registry when it is stored, so the registry is the Harbor
+    # itself, by the name its proxy has inside Harbor's compose network. The
+    # live suite's HARBOR_LIVE_SELF_URL overrides it for a server not built
+    # from Harbor's own compose file.
+    roletest_self: "{{ lookup('ansible.builtin.env', 'HARBOR_LIVE_SELF_URL') | default('http://proxy:8080', true) }}"
+    # 29 February at 03:00 and 04:00: valid, and rarely due.
+    roletest_gc:
+      schedule: custom
+      cron: "0 0 3 29 2 *"
+      workers: 2
+      delete_untagged: false
+    roletest_purge:
+      schedule: custom
+      cron: "0 0 4 29 2 *"
+      audit_retention_hour: 720
+      include_event_types:
+        - create_artifact
+      dry_run: true
+    roletest_registries:
+      roletest-server-registry:
+        type: harbor
+        endpoint_url: "{{ roletest_self }}"
+        insecure: true
+        description: made by the server_apply role test
+    # A pull rule that is disabled and manual: it never runs.
+    roletest_replications:
+      roletest-server-rule:
+        src_registry: roletest-server-registry
+        dest_namespace: library
+        enabled: false
+        override: true
+        trigger:
+          type: manual
+        filters:
+          - type: name
+            value: library/**
+    roletest_robots:
+      roletest-server-robot:
+        description: made by the server_apply role test
+        permissions:
+          - namespace: "*"
+            access:
+              - resource: repository
+                action: pull
+  tasks:
+    - name: Check that a server is named
+      ansible.builtin.assert:
+        that: lookup('ansible.builtin.env', 'HARBOR_URL') | length > 0
+        fail_msg: Set HARBOR_URL, HARBOR_USERNAME and HARBOR_PASSWORD to a throwaway Harbor.
+        quiet: true
+
+    - name: Run the test and clean up after it
+      block:
+        - name: Remove what an earlier run left behind
+          ansible.builtin.include_tasks: tasks/server_apply-cleanup.yml
+
+        - name: Read the system settings
+          ramanavelineni.harbor.configuration_info:
+          register: roletest_before_configuration
+
+        - name: Read the garbage collection schedule
+          ramanavelineni.harbor.garbage_collection_info:
+            runs: 0
+          register: roletest_before_gc
+
+        - name: Read the log rotation schedule
+          ramanavelineni.harbor.log_rotation_info:
+            runs: 0
+          register: roletest_before_purge
+
+        - name: Pick a session timeout the server doesn't have
+          ansible.builtin.set_fact:
+            roletest_configuration:
+              settings:
+                session_timeout: "{{ 61 if roletest_before_configuration.configuration.session_timeout != 61 else 62 }}"
+
+        # ---- check mode ------------------------------------------------------
+
+        - name: A check run
+          check_mode: true
+          block:
+            - name: Apply everything in check mode
+              ansible.builtin.include_role:
+                name: ramanavelineni.harbor.server_apply
+              vars:
+                server_apply_configuration: "{{ roletest_configuration }}"
+                server_apply_garbage_collection: "{{ roletest_gc }}"
+                server_apply_log_rotation: "{{ roletest_purge }}"
+                server_apply_registries: "{{ roletest_registries }}"
+                server_apply_replications: "{{ roletest_replications }}"
+                server_apply_robot_accounts: "{{ roletest_robots }}"
+
+        - name: Read the registry after the check run
+          ramanavelineni.harbor.registry_info:
+            name: "{{ roletest_registry }}"
+          register: roletest_read_registry
+
+        - name: Read the robot account after the check run
+          ramanavelineni.harbor.robot_account_info:
+            name: "{{ roletest_robot }}"
+          register: roletest_read_robot
+
+        - name: Read the system settings after the check run
+          ramanavelineni.harbor.configuration_info:
+          register: roletest_read_configuration
+
+        - name: Read the garbage collection schedule after the check run
+          ramanavelineni.harbor.garbage_collection_info:
+            runs: 0
+          register: roletest_read_gc
+
+        - name: The check run reports a change and changes nothing
+          ansible.builtin.assert:
+            that:
+              - server_apply_changed
+              - roletest_read_registry.registries | length == 0
+              - roletest_read_robot.robot_accounts | length == 0
+              - roletest_read_configuration.configuration.session_timeout == roletest_before_configuration.configuration.session_timeout
+              - roletest_read_gc.garbage_collection.schedule == roletest_before_gc.garbage_collection.schedule
+              - roletest_read_gc.garbage_collection.cron == roletest_before_gc.garbage_collection.cron
+            fail_msg: >-
+              changed={{ server_apply_changed }}, registries: {{ roletest_read_registry.registries | length }},
+              robots: {{ roletest_read_robot.robot_accounts | length }},
+              session timeout: {{ roletest_read_configuration.configuration.session_timeout }},
+              GC: {{ roletest_read_gc.garbage_collection.schedule }} {{ roletest_read_gc.garbage_collection.cron }}
+            quiet: true
+
+        # ---- apply, and apply again ------------------------------------------
+
+        - name: Apply everything
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.server_apply
+          vars:
+            server_apply_configuration: "{{ roletest_configuration }}"
+            server_apply_garbage_collection: "{{ roletest_gc }}"
+            server_apply_log_rotation: "{{ roletest_purge }}"
+            server_apply_registries: "{{ roletest_registries }}"
+            server_apply_replications: "{{ roletest_replications }}"
+            server_apply_robot_accounts: "{{ roletest_robots }}"
+
+        - name: Read the registry
+          ramanavelineni.harbor.registry_info:
+            name: "{{ roletest_registry }}"
+          register: roletest_read_registry
+
+        - name: Read the replication rule
+          ramanavelineni.harbor.replication_info:
+            name: "{{ roletest_rule }}"
+          register: roletest_read_rule
+
+        - name: Read the robot account
+          ramanavelineni.harbor.robot_account_info:
+            name: "{{ roletest_robot }}"
+          register: roletest_read_robot
+
+        - name: Read the system settings
+          ramanavelineni.harbor.configuration_info:
+          register: roletest_read_configuration
+
+        - name: Read the garbage collection schedule
+          ramanavelineni.harbor.garbage_collection_info:
+            runs: 0
+          register: roletest_read_gc
+
+        - name: Read the log rotation schedule
+          ramanavelineni.harbor.log_rotation_info:
+            runs: 0
+          register: roletest_read_purge
+
+        - name: The first run creates and sets what the variables describe
+          ansible.builtin.assert:
+            that:
+              - server_apply_changed
+              - roletest_read_registry.registries | length == 1
+              - roletest_read_registry.registries[0].description == 'made by the server_apply role test'
+              - roletest_read_rule.replications | length == 1
+              - roletest_read_rule.replications[0].src_registry == roletest_registry
+              - not roletest_read_rule.replications[0].enabled
+              - roletest_read_robot.robot_accounts | length == 1
+              - roletest_read_robot.robot_accounts[0].level == 'system'
+              - roletest_read_configuration.configuration.session_timeout | int == roletest_configuration.settings.session_timeout | int
+              - roletest_read_gc.garbage_collection.schedule == 'custom'
+              - roletest_read_gc.garbage_collection.cron == '0 0 3 29 2 *'
+              - roletest_read_gc.garbage_collection.workers == 2
+              - roletest_read_purge.log_rotation.schedule == 'custom'
+              - roletest_read_purge.log_rotation.cron == '0 0 4 29 2 *'
+              - roletest_read_purge.log_rotation.audit_retention_hour == 720
+            fail_msg: >-
+              changed={{ server_apply_changed }}, registries: {{ roletest_read_registry.registries }},
+              rules: {{ roletest_read_rule.replications }}, robots: {{ roletest_read_robot.robot_accounts }},
+              session timeout: {{ roletest_read_configuration.configuration.session_timeout }},
+              GC: {{ roletest_read_gc.garbage_collection }}, log rotation: {{ roletest_read_purge.log_rotation }}
+            quiet: true
+
+        - name: Apply everything again
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.server_apply
+          vars:
+            server_apply_configuration: "{{ roletest_configuration }}"
+            server_apply_garbage_collection: "{{ roletest_gc }}"
+            server_apply_log_rotation: "{{ roletest_purge }}"
+            server_apply_registries: "{{ roletest_registries }}"
+            server_apply_replications: "{{ roletest_replications }}"
+            server_apply_robot_accounts: "{{ roletest_robots }}"
+
+        - name: The second run changes nothing
+          ansible.builtin.assert:
+            that: not server_apply_changed
+            fail_msg: server_apply reported a change on its second run
+            quiet: true
+
+        # ---- drift check -----------------------------------------------------
+
+        - name: A drift check passes when nothing differs
+          check_mode: true
+          block:
+            - name: Check everything for drift
+              ansible.builtin.include_role:
+                name: ramanavelineni.harbor.server_apply
+              vars:
+                server_apply_configuration: "{{ roletest_configuration }}"
+                server_apply_garbage_collection: "{{ roletest_gc }}"
+                server_apply_log_rotation: "{{ roletest_purge }}"
+                server_apply_registries: "{{ roletest_registries }}"
+                server_apply_replications: "{{ roletest_replications }}"
+                server_apply_robot_accounts: "{{ roletest_robots }}"
+                server_apply_drift_check: true
+
+        - name: A drift check fails when something differs
+          check_mode: true
+          block:
+            - name: Check for drift with another description of the registry
+              ansible.builtin.include_role:
+                name: ramanavelineni.harbor.server_apply
+              vars:
+                server_apply_registries:
+                  roletest-server-registry:
+                    description: changed by the server_apply role test
+                server_apply_drift_check: true
+
+            - name: The drift check should have failed
+              ansible.builtin.fail:
+                msg: server_apply did not fail although the registry differs
+          rescue:
+            - name: The drift check failed for the right reason
+              ansible.builtin.assert:
+                that: "'Harbor differs from the server_apply variables' in ansible_failed_result.msg"
+                fail_msg: "{{ ansible_failed_result.msg }}"
+                quiet: true
+
+        # ---- what the role refuses -------------------------------------------
+
+        - name: Unknown options fail before anything is changed
+          block:
+            - name: Apply a new session timeout with misspelled options
+              ansible.builtin.include_role:
+                name: ramanavelineni.harbor.server_apply
+              vars:
+                server_apply_configuration:
+                  settings:
+                    session_timeout: "{{ roletest_configuration.settings.session_timeout | int + 1 }}"
+                server_apply_garbage_collection:
+                  shedule: daily
+                server_apply_registries:
+                  roletest-server-registry:
+                    endpoint: "{{ roletest_self }}"
+
+            - name: The role should have failed
+              ansible.builtin.fail:
+                msg: server_apply accepted options the modules don't have
+          rescue:
+            - name: The role failed for the right reason
+              ansible.builtin.assert:
+                that: >-
+                  'unknown option(s) garbage_collection.shedule, registry.roletest-server-registry.endpoint'
+                  in ansible_failed_result.msg
+                fail_msg: "{{ ansible_failed_result.msg }}"
+                quiet: true
+
+        - name: Read the system settings after the refused run
+          ramanavelineni.harbor.configuration_info:
+          register: roletest_read_configuration
+
+        - name: The refused run did not change the session timeout
+          ansible.builtin.assert:
+            that: roletest_read_configuration.configuration.session_timeout | int == roletest_configuration.settings.session_timeout | int
+            fail_msg: >-
+              The session timeout is {{ roletest_read_configuration.configuration.session_timeout }},
+              although the run that would change it was refused
+            quiet: true
+
+        - name: An entry that is not a dictionary fails
+          block:
+            - name: Apply a robot account given as a string
+              ansible.builtin.include_role:
+                name: ramanavelineni.harbor.server_apply
+              vars:
+                server_apply_robot_accounts:
+                  roletest-server-robot: pull
+
+            - name: The role should have failed
+              ansible.builtin.fail:
+                msg: server_apply accepted a robot account that is not a dictionary
+          rescue:
+            - name: The role failed for the right reason
+              ansible.builtin.assert:
+                that: "'not a dictionary: robot_account.roletest-server-robot' in ansible_failed_result.msg"
+                fail_msg: "{{ ansible_failed_result.msg }}"
+                quiet: true
+
+        # ---- a drift check sends secrets only on create ----------------------
+        # The robot's secret is sent on every run (no update_secret), so without
+        # a drift check another secret is a change. With one, it is not sent.
+
+        - name: Create a robot account whose secret is sent on every run
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.server_apply
+          vars:
+            server_apply_robot_accounts:
+              roletest-server-secret:
+                permissions: "{{ roletest_robots['roletest-server-robot'].permissions }}"
+                secret: Roletest-Secret-1
+
+        - name: The first run creates the robot account
+          ansible.builtin.assert:
+            that: server_apply_changed
+            fail_msg: server_apply reported no change when it created roletest-server-secret
+            quiet: true
+
+        - name: Without a drift check, another secret is a change
+          check_mode: true
+          block:
+            - name: Apply another secret in check mode
+              ansible.builtin.include_role:
+                name: ramanavelineni.harbor.server_apply
+              vars:
+                server_apply_robot_accounts:
+                  roletest-server-secret:
+                    permissions: "{{ roletest_robots['roletest-server-robot'].permissions }}"
+                    secret: Roletest-Secret-2
+
+            - name: The run without a drift check would send the secret
+              ansible.builtin.assert:
+                that: server_apply_changed
+                fail_msg: server_apply reported no change for a secret sent on every run, so the drift check below proves nothing
+                quiet: true
+
+        - name: Apply another secret with a drift check
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.server_apply
+          vars:
+            server_apply_robot_accounts:
+              roletest-server-secret:
+                permissions: "{{ roletest_robots['roletest-server-robot'].permissions }}"
+                secret: Roletest-Secret-2
+            server_apply_drift_check: true
+
+        - name: The drift check sends no secret of an existing robot account
+          ansible.builtin.assert:
+            that: not server_apply_changed
+            fail_msg: server_apply reported a change in a drift check, so it sent the secret of an existing robot account
+            quiet: true
+
+        # ---- state: absent ---------------------------------------------------
+        # The rule still uses the registry, and Harbor refuses to delete a
+        # registry a rule uses: this passes only when the rule goes first.
+
+        - name: Delete the entries marked absent
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.server_apply
+          vars:
+            server_apply_registries:
+              roletest-server-registry:
+                state: absent
+            server_apply_replications:
+              roletest-server-rule:
+                state: absent
+            server_apply_robot_accounts:
+              roletest-server-robot:
+                state: absent
+              roletest-server-secret:
+                state: absent
+
+        - name: Read the registry after the deletion
+          ramanavelineni.harbor.registry_info:
+            name: "{{ roletest_registry }}"
+          register: roletest_read_registry
+
+        - name: Read the replication rule after the deletion
+          ramanavelineni.harbor.replication_info:
+            name: "{{ roletest_rule }}"
+          register: roletest_read_rule
+
+        - name: Read the robot accounts after the deletion
+          ramanavelineni.harbor.robot_account_info:
+          register: roletest_read_robot
+
+        - name: What was marked absent is gone
+          ansible.builtin.assert:
+            that:
+              - server_apply_changed
+              - roletest_read_registry.registries | length == 0
+              - roletest_read_rule.replications | length == 0
+              - roletest_read_robot.robot_accounts | map(attribute='name') | select('match', 'roletest-server') | list | length == 0
+            fail_msg: >-
+              changed={{ server_apply_changed }}, registries: {{ roletest_read_registry.registries | length }},
+              rules: {{ roletest_read_rule.replications | length }},
+              robots: {{ roletest_read_robot.robot_accounts | map(attribute='name') | list }}
+            quiet: true
+
+        - name: Delete the entries marked absent again
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.server_apply
+          vars:
+            server_apply_registries:
+              roletest-server-registry:
+                state: absent
+            server_apply_replications:
+              roletest-server-rule:
+                state: absent
+            server_apply_robot_accounts:
+              roletest-server-robot:
+                state: absent
+              roletest-server-secret:
+                state: absent
+
+        - name: The second deletion changes nothing
+          ansible.builtin.assert:
+            that: not server_apply_changed
+            fail_msg: server_apply reported a change when it deleted what was already gone
+            quiet: true
+
+      always:
+        - name: Remove what the test made and put back what it changed
+          ansible.builtin.include_tasks: tasks/server_apply-cleanup.yml
