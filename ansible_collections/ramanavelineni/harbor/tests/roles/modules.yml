@@ -34,10 +34,10 @@
           ramanavelineni.harbor.info:
           register: modules_info
 
-        - name: Check that the server answered as the login user
+        - name: Check that the server is a tested Harbor version
           ansible.builtin.assert:
-            that: modules_info.harbor_version is match('v2\.1[45]\.')
-            fail_msg: "Unexpected Harbor version: {{ modules_info.harbor_version | default('none') }}"
+            that: modules_info.tested
+            fail_msg: "Harbor reports {{ modules_info.version }}, which this collection is not tested with."
             quiet: true
 
         - name: Create the project
