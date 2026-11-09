@@ -36,6 +36,53 @@ along the way. Each quirk is handled inside a module and covered by a test.
 
 ---
 
+## Road to 1.0
+
+Under semantic versioning, 0.y.z is initial development and anything may
+change; 1.0.0 defines the public API, and from then on every
+backward-incompatible change needs a new major version. For these
+collections the public API is every module option and return key, every role
+variable, the project file format, and the supported ansible-core range
+(raising `requires_ansible` was released as a breaking change in semaphoreui
+0.7.0 and harbor 0.5.0).
+
+Each collection gets 1.0.0 on its own tag when its list below is done. The
+lists are conditions, not dates.
+
+### Both collections
+
+- [ ] Decide how dropping an ansible-core version counts after 1.0.0.
+      ansible-core versions reach end of life about twice a year. Either each
+      drop is a new major version, or the README says that dropping a version
+      past its end of life is not a breaking change.
+- [ ] One release in a row with no breaking change, after the last item of
+      the collection's list below.
+
+### ramanavelineni.harbor
+
+- [ ] `project_export` released (harbor 0.8.0).
+- [ ] The homelab `harbor_config` role runs through `server_apply` and
+      `project_apply`, and a few weeks of real use pass without a change to
+      an option, a role variable or the project file format.
+- [ ] Harbor 2.16 tested: fixtures recorded, live suite and CI role tests
+      run against it. Harbor 2.16.0 was released on 2026-11-09.
+- [ ] The Harbor versions 1.0.0 supports decided, and any version to drop
+      (2.14) dropped before 1.0.0, not after.
+
+### ramanavelineni.semaphoreui
+
+- [ ] Semaphore 2.20.0 released, and the workflow modules handle its API.
+      2.20 starts a run with `POST .../runs` and the survey answers, and
+      answers a stop and a second approval differently (see
+      [workflow, workflow_info, workflow_run, workflow_approval](#workflow-workflow_info-workflow_run-workflow_approval)).
+      2.20 was at release candidates on 2026-11-08 (`v2.20.20-rc2`).
+- [ ] The Semaphore versions 1.0.0 supports decided (2.19 and 2.20, and
+      whether 2.18 stays), with any version to drop dropped before 1.0.0.
+- [ ] The roles keep working in the homelab `semaphore-config` repository
+      without changes to a role variable or the project file format.
+
+---
+
 ## Decisions
 
 | Topic | Decision |
