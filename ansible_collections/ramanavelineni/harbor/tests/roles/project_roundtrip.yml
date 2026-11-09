@@ -1,0 +1,87 @@
+---
+# Role test of project_export and project_apply together, run by CI against
+# the throwaway Harbor the job installs (.github/scripts/harbor-ci-up.sh), and
+# by hand with `make role-test COLLECTION=harbor`. The server comes from the
+# environment: HARBOR_URL, HARBOR_USERNAME and HARBOR_PASSWORD.
+#
+# A project made with project_apply is exported, the vault variables the
+# export names are given the values the project was made with, and the export
+# is applied as a drift check: nothing may differ. That is the promise of the
+# export, that it describes the project as it is. Everything it makes is named
+# roletest-export… and is removed before it starts and when it ends, also when
+# a check fails. Throwaway servers only.
+- name: Test that an exported project applies without a change
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    export_api: "{{ lookup('ansible.builtin.env', 'HARBOR_URL') | regex_replace('/+$', '') }}/api/v2.0"
+    export_admin: "{{ lookup('ansible.builtin.env', 'HARBOR_USERNAME') | default('admin', true) }}"
+    export_password: "{{ lookup('ansible.builtin.env', 'HARBOR_PASSWORD') }}"
+    export_robot_secret: Roletest-robot-1
+    export_webhook_header: Bearer roletest-not-a-token
+  tasks:
+    - name: Check that a server is named
+      ansible.builtin.assert:
+        that:
+          - lookup('ansible.builtin.env', 'HARBOR_URL') | length > 0
+          - lookup('ansible.builtin.env', 'HARBOR_PASSWORD') | length > 0
+        fail_msg: Set HARBOR_URL, HARBOR_USERNAME and HARBOR_PASSWORD to a throwaway Harbor.
+        quiet: true
+
+    - name: Run the test and clean up after it
+      block:
+        - name: Remove what an earlier run left behind
+          ansible.builtin.include_tasks: tasks/export-cleanup.yml
+
+        - name: Make the project to export
+          ansible.builtin.include_tasks: tasks/export-setup.yml
+
+        - name: Make a directory to export into
+          ansible.builtin.tempfile:
+            state: directory
+            prefix: roletest-export-
+          register: export_dir
+
+        # The vault file goes beside the directory project_apply reads, so
+        # that only the project file is in it.
+        - name: Export the project
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.project_export
+          vars:
+            project_export_project: roletest-export
+            project_export_dest: "{{ export_dir.path }}/projects"
+            project_export_vault_file: "{{ export_dir.path }}/roletest-export.vault.example"
+
+        - name: Read the variables the export needs
+          ansible.builtin.set_fact:
+            export_needed: "{{ lookup('ansible.builtin.file', export_dir.path ~ '/roletest-export.vault.example') | from_yaml }}"
+
+        - name: The export names the two secrets
+          ansible.builtin.assert:
+            that:
+              - export_needed | dict2items | map(attribute='key') | sort
+                == ['vault_roletest_export_robot_ci_secret', 'vault_roletest_export_webhook_ci_notify_auth_header']
+            fail_msg: "{{ export_needed }}"
+            quiet: true
+
+        # What a vault file would hold: the values the project was made with.
+        - name: Apply the export as a drift check
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.project_apply
+          vars:
+            project_apply_path: "{{ export_dir.path }}/projects"
+            project_apply_drift_check: true
+            vault_roletest_export_robot_ci_secret: "{{ export_robot_secret }}"
+            vault_roletest_export_webhook_ci_notify_auth_header: "{{ export_webhook_header }}"
+
+        - name: Nothing differed
+          ansible.builtin.assert:
+            that:
+              - not project_apply_changed
+              - project_apply_projects == ['roletest-export']
+            quiet: true
+
+      always:
+        - name: Remove what the test made
+          ansible.builtin.include_tasks: tasks/export-cleanup.yml

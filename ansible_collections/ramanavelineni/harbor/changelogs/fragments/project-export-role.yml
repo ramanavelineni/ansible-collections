@@ -1,0 +1,4 @@
+---
+add object.role:
+  - name: project_export
+    description: Write a Harbor project as the YAML file the project_apply role reads.

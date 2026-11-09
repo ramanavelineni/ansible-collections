@@ -1,0 +1,47 @@
+---
+DOCUMENTATION:
+  name: project_export_config
+  version_added: 0.8.0
+  short_description: A Harbor project as the mapping the project_apply role reads
+  author:
+    - ramanavelineni (@ramanavelineni)
+  description:
+    - Turns what the C(_info) modules of this collection return about one project into the mapping that
+      R(ramanavelineni.harbor.project_apply,ansible_collections.ramanavelineni.harbor.project_apply_role) reads,
+      with the project's own options and one section per kind of object, named after the module that manages it.
+    - Ids, fields Harbor fills in, and options at what a new object gets without them are left out.
+    - A robot account's secret, which Harbor never returns, a webhook's auth header, which the C(_info) module
+      does not return, and a Slack webhook's URL, which is enough to post to the channel, become references to
+      variables (C({{ vault_... }})). Each robot account gets C(update_secret=on_create).
+    - Fails with the reason when the project can't be written as a file project_apply would apply, for example a
+      group member whose type only a system administrator may read.
+  positional: _input
+  options:
+    _input:
+      description:
+        - The project as the C(_info) modules return it. A mapping with the project under C(project) (one entry of
+          RV(ramanavelineni.harbor.project_info#module:projects)), and under the name of each section the result of
+          its C(_info) module, C(robot_account) (RV(ramanavelineni.harbor.robot_account_info#module:robot_accounts)),
+          C(project_member) (RV(ramanavelineni.harbor.project_member_info#module:members)), C(tag_retention)
+          (RV(ramanavelineni.harbor.tag_retention_info#module:tag_retention)), C(tag_immutability)
+          (RV(ramanavelineni.harbor.tag_immutability_info#module:tag_immutability)) and C(webhook)
+          (RV(ramanavelineni.harbor.webhook_info#module:webhooks)).
+        - A section that is missing counts as empty.
+      type: dict
+      required: true
+    vault_prefix:
+      description:
+        - What the name of every variable that stands for a secret starts with, in lower case. The name goes on with the
+          project, the section, the object and the field, as in C(vault_apps_robot_ci_secret).
+      type: str
+      default: vault
+
+EXAMPLES: |
+  - name: The project as project_apply reads it
+    ansible.builtin.debug:
+      msg: "{{ exported | ramanavelineni.harbor.project_export_config }}"
+
+RETURN:
+  _value:
+    description: The project's options and its sections.
+    type: dict

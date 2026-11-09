@@ -1,0 +1,39 @@
+---
+# Makes the project both export role tests start from: the user and the OIDC
+# group its members name, then the project itself with project_apply.
+
+- name: Make the test user
+  ansible.builtin.uri:
+    url: "{{ export_api }}/users"
+    method: POST
+    url_username: "{{ export_admin }}"
+    url_password: "{{ export_password }}"
+    force_basic_auth: true
+    body_format: json
+    body:
+      username: roletest-export-user
+      email: roletest-export-user@example.com
+      realname: Role Test
+      password: Roletest-user-1
+    status_code: 201
+
+# Harbor stores an OIDC group in any auth mode; only an LDAP group is looked
+# up. With database logins this is the way to have one.
+- name: Make the test OIDC group
+  ansible.builtin.uri:
+    url: "{{ export_api }}/usergroups"
+    method: POST
+    url_username: "{{ export_admin }}"
+    url_password: "{{ export_password }}"
+    force_basic_auth: true
+    body_format: json
+    body:
+      group_name: roletest-export-group
+      group_type: 3
+    status_code: 201
+
+- name: Make the project to export
+  ansible.builtin.include_role:
+    name: ramanavelineni.harbor.project_apply
+  vars:
+    project_apply_path: "{{ playbook_dir }}/files/project_export/source"

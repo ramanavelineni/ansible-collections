@@ -1,0 +1,44 @@
+---
+DOCUMENTATION:
+  name: project_export_vault
+  version_added: 0.8.0
+  short_description: The vault variables an exported Harbor project needs, as a file to fill in
+  author:
+    - ramanavelineni (@ramanavelineni)
+  description:
+    - Gives the text of a YAML file with one empty variable per secret the exported project refers to, each with a
+      comment that says what it is the secret of.
+    - Give each its value and keep the result in an Ansible Vault file that the play applying the project loads.
+  positional: _input
+  options:
+    _input:
+      description:
+        - The project as the C(_info) modules return it. A mapping with the project under C(project) (one entry of
+          RV(ramanavelineni.harbor.project_info#module:projects)), and under the name of each section the result of
+          its C(_info) module, C(robot_account) (RV(ramanavelineni.harbor.robot_account_info#module:robot_accounts)),
+          C(project_member) (RV(ramanavelineni.harbor.project_member_info#module:members)), C(tag_retention)
+          (RV(ramanavelineni.harbor.tag_retention_info#module:tag_retention)), C(tag_immutability)
+          (RV(ramanavelineni.harbor.tag_immutability_info#module:tag_immutability)) and C(webhook)
+          (RV(ramanavelineni.harbor.webhook_info#module:webhooks)).
+        - A section that is missing counts as empty.
+      type: dict
+      required: true
+    vault_prefix:
+      description:
+        - What the name of every variable that stands for a secret starts with, in lower case. The name goes on with the
+          project, the section, the object and the field, as in C(vault_apps_robot_ci_secret).
+      type: str
+      default: vault
+
+EXAMPLES: |
+  - name: Write the list of secrets to fill in
+    ansible.builtin.copy:
+      dest: config/projects/apps.vault.example
+      mode: "0644"
+      content: "{{ exported | ramanavelineni.harbor.project_export_vault }}"
+      force: false
+
+RETURN:
+  _value:
+    description: The YAML text.
+    type: str

@@ -1,0 +1,188 @@
+---
+# Role test of project_export, run by CI against the throwaway Harbor the job
+# installs (.github/scripts/harbor-ci-up.sh), and by hand with `make role-test
+# COLLECTION=harbor`. The server comes from the environment: HARBOR_URL,
+# HARBOR_USERNAME and HARBOR_PASSWORD.
+#
+# A project made with project_apply (files/project_export/source/) is exported
+# as one file and as a directory. The test checks what is written, that a
+# second export changes nothing, that a file that differs is only replaced
+# with project_export_overwrite, and that the vault file is never replaced.
+# Everything it makes is named roletest-export… and is removed before it
+# starts and when it ends, also when a check fails. Throwaway servers only.
+- name: Test the role project_export
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    export_api: "{{ lookup('ansible.builtin.env', 'HARBOR_URL') | regex_replace('/+$', '') }}/api/v2.0"
+    export_admin: "{{ lookup('ansible.builtin.env', 'HARBOR_USERNAME') | default('admin', true) }}"
+    export_password: "{{ lookup('ansible.builtin.env', 'HARBOR_PASSWORD') }}"
+    export_robot_secret: Roletest-robot-1
+    export_webhook_header: Bearer roletest-not-a-token
+    export_file: "{{ export_dir.path }}/roletest-export.yml"
+    export_vault: "{{ export_dir.path }}/roletest-export.vault.example"
+  tasks:
+    - name: Check that a server is named
+      ansible.builtin.assert:
+        that:
+          - lookup('ansible.builtin.env', 'HARBOR_URL') | length > 0
+          - lookup('ansible.builtin.env', 'HARBOR_PASSWORD') | length > 0
+        fail_msg: Set HARBOR_URL, HARBOR_USERNAME and HARBOR_PASSWORD to a throwaway Harbor.
+        quiet: true
+
+    - name: Run the test and clean up after it
+      block:
+        - name: Remove what an earlier run left behind
+          ansible.builtin.include_tasks: tasks/export-cleanup.yml
+
+        - name: Make the project to export
+          ansible.builtin.include_tasks: tasks/export-setup.yml
+
+        - name: Make a directory to export into
+          ansible.builtin.tempfile:
+            state: directory
+            prefix: roletest-export-
+          register: export_dir
+
+        # ---- one file ------------------------------------------------------
+
+        - name: Export the project as one file
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.project_export
+          vars:
+            project_export_project: roletest-export
+            project_export_dest: "{{ export_dir.path }}"
+
+        - name: Read what was written
+          ansible.builtin.set_fact:
+            export_written: "{{ lookup('ansible.builtin.file', export_file) | from_yaml }}"
+            export_vault_text: "{{ lookup('ansible.builtin.file', export_vault) }}"
+
+        - name: The file holds the project, with the secrets as variables
+          ansible.builtin.assert:
+            that:
+              - export_written.name == 'roletest-export'
+              - export_written.public == false
+              - export_written.metadata == dict(auto_scan=true, severity='high')
+              - export_written.robot_account.ci.duration == 30
+              - export_written.robot_account.ci.secret is search('^[{][{] vault_roletest_export_robot_ci_secret [}][}]$')
+              - export_written.robot_account.ci.update_secret == 'on_create'
+              - export_written.project_member | selectattr('user', 'defined') | map(attribute='user') | sort
+                == ['admin', 'roletest-export-user']
+              - export_written.project_member | selectattr('group', 'defined') | list
+                == [dict(group='roletest-export-group', group_type='oidc', role='guest')]
+              - export_written.tag_retention.rules == [dict(template='latestPushedK', value=10)]
+              - export_written.tag_immutability == [dict(tags='v*')]
+              - export_written.webhook['ci-notify'].address == 'http://127.0.0.1:9/hook'
+              - export_written.webhook['ci-notify'].auth_header
+                is search('^[{][{] vault_roletest_export_webhook_ci_notify_auth_header [}][}]$')
+              - export_robot_secret not in (lookup('ansible.builtin.file', export_file))
+              - export_webhook_header not in (lookup('ansible.builtin.file', export_file))
+              - "'vault_roletest_export_robot_ci_secret: \"\"' in export_vault_text"
+              - "'vault_roletest_export_webhook_ci_notify_auth_header: \"\"' in export_vault_text"
+            fail_msg: "{{ export_written }}"
+            quiet: true
+
+        - name: Look at the file before a second export
+          ansible.builtin.stat:
+            path: "{{ export_file }}"
+          register: export_first
+
+        - name: Export it again
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.project_export
+          vars:
+            project_export_project: roletest-export
+            project_export_dest: "{{ export_dir.path }}"
+
+        - name: Look at the file after the second export
+          ansible.builtin.stat:
+            path: "{{ export_file }}"
+          register: export_second
+
+        - name: The second export did not write the file again
+          ansible.builtin.assert:
+            that:
+              - export_second.stat.checksum == export_first.stat.checksum
+              - export_second.stat.mtime == export_first.stat.mtime
+            quiet: true
+
+        # ---- a file that differs, and the vault file ----------------------
+
+        - name: Change the exported file and fill in the vault file by hand
+          ansible.builtin.copy:
+            dest: "{{ item.path }}"
+            content: "{{ item.content }}"
+            mode: "0644"
+          loop:
+            - {path: "{{ export_file }}", content: "name: changed by hand\n"}
+            - {path: "{{ export_vault }}", content: "vault_roletest_export_robot_ci_secret: filled in\n"}
+          loop_control:
+            label: "{{ item.path }}"
+
+        - name: Export without overwrite
+          block:
+            - name: Export over the changed file
+              ansible.builtin.include_role:
+                name: ramanavelineni.harbor.project_export
+              vars:
+                project_export_project: roletest-export
+                project_export_dest: "{{ export_dir.path }}"
+
+            - name: The export should have stopped
+              ansible.builtin.fail:
+                msg: project_export replaced a file that differs without project_export_overwrite.
+          rescue:
+            - name: It stopped for the file that differs
+              ansible.builtin.assert:
+                that:
+                  - "'exists and differs' in ansible_failed_result.msg"
+                  - lookup('ansible.builtin.file', export_file) == 'name: changed by hand'
+                fail_msg: "{{ ansible_failed_result.msg | default(ansible_failed_result) }}"
+                quiet: true
+
+        - name: Export with overwrite
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.project_export
+          vars:
+            project_export_project: roletest-export
+            project_export_dest: "{{ export_dir.path }}"
+            project_export_overwrite: true
+
+        - name: The project file is back and the vault file kept what was filled in
+          ansible.builtin.assert:
+            that:
+              - (lookup('ansible.builtin.file', export_file) | from_yaml).name == 'roletest-export'
+              - lookup('ansible.builtin.file', export_vault) == 'vault_roletest_export_robot_ci_secret: filled in'
+            quiet: true
+
+        # ---- a directory --------------------------------------------------
+
+        - name: Export the project as a directory
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.project_export
+          vars:
+            project_export_project: roletest-export
+            project_export_dest: "{{ export_dir.path }}"
+            project_export_layout: directory
+            project_export_file_name: as-directory
+            project_export_vault_file: "{{ export_dir.path }}/as-directory.vault.example"
+
+        - name: Find the files of the directory
+          ansible.builtin.find:
+            paths: "{{ export_dir.path }}/as-directory"
+          register: export_parts
+
+        - name: The directory has the project and one file per section
+          ansible.builtin.assert:
+            that:
+              - export_parts.files | map(attribute='path') | map('basename') | sort
+                == ['project.yml', 'project_member.yml', 'robot_account.yml', 'tag_immutability.yml',
+                    'tag_retention.yml', 'webhook.yml']
+            fail_msg: "{{ export_parts.files | map(attribute='path') | list }}"
+            quiet: true
+
+      always:
+        - name: Remove what the test made
+          ansible.builtin.include_tasks: tasks/export-cleanup.yml

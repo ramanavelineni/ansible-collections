@@ -25,8 +25,8 @@ the way. Each quirk is handled inside a module and covered by a test.
 - [x] Harbor modules `project_member` and `project_member_info` (see
       [project_member](#project_member)), released in harbor 0.6.0
 - [x] Harbor roles `server_apply` and `project_apply`, tested in CI against
-      a Harbor installed from its offline installer (harbor 0.7.0); next: a
-      `project_export` role
+      a Harbor installed from its offline installer (harbor 0.7.0)
+- [x] Harbor role `project_export` and its filters; next: harbor 0.8.0
 
 ---
 
@@ -137,7 +137,7 @@ ansible-collections/
     │   └── tests/live/                 # live suite, local only
     └── harbor/
         └── same shape; module_utils: transport.py (HTTP transport), harbor.py (client), schedule.py, replication.py;
-            roles: server_apply, project_apply
+            roles: server_apply, project_apply, project_export; plugins/filter/: project_export
 ```
 
 The two collections don't depend on each other. The HTTP transport is
