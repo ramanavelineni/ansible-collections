@@ -389,3 +389,25 @@ releases:
       name: project_member_info
       namespace: ''
     release_date: '2026-11-08'
+  0.7.0:
+    changes:
+      release_summary: Two roles. ``server_apply`` applies Harbor's server-wide objects
+        (system settings, schedules, registries, replication rules and system robot
+        accounts), and ``project_apply`` applies a directory of project descriptions
+        with their robot accounts, members, tag retention, tag immutability rules
+        and webhooks. Both are tested in CI against a Harbor installed from its offline
+        installer.
+    fragments:
+    - project-apply-role.yml
+    - release-summary.yml
+    - server-apply-role.yml
+    objects:
+      role:
+      - description: Apply a directory of project descriptions to Harbor.
+        name: project_apply
+        namespace: null
+      - description: Apply the server-wide settings, schedules, registries, replications
+          and robot accounts to Harbor.
+        name: server_apply
+        namespace: null
+    release_date: '2026-11-08'

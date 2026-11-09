@@ -1,4 +1,0 @@
----
-add object.role:
-  - name: project_apply
-    description: Apply a directory of project descriptions to Harbor.
