@@ -13,23 +13,23 @@ options:
       - A trailing C(/api/v2.0) is accepted and ignored, so an API URL works too.
       - A redirect is not followed, so that the credentials are not sent to wherever it points. The failure
         names the target; set O(url) to the address the Harbor server itself answers on.
-      - If not set, the value of the E(HARBOR_URL) environment variable is used.
+      - If not set, the value of the E(HARBOR_URL) environment variable is used. One of the two is
+        required; the module fails before any request without it.
     type: str
-    required: true
   username:
     description:
       - User to authenticate as, with HTTP basic authentication, which is all Harbor's API accepts.
       - An administrator, an ordinary user, a robot account (its full name, for example
         C(robot$ci)) or an OIDC user with their CLI secret as O(password).
-      - If not set, the value of the E(HARBOR_USERNAME) environment variable is used.
+      - If not set, the value of the E(HARBOR_USERNAME) environment variable is used. One of the two is
+        required.
     type: str
-    required: true
   password:
     description:
       - Password (or robot secret, or OIDC CLI secret) for O(username).
-      - If not set, the value of the E(HARBOR_PASSWORD) environment variable is used.
+      - If not set, the value of the E(HARBOR_PASSWORD) environment variable is used. One of the two is
+        required.
     type: str
-    required: true
   validate_certs:
     description:
       - Whether to verify the server's TLS certificate.

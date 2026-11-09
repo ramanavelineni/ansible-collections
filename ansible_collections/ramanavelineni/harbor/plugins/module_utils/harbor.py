@@ -70,12 +70,19 @@ GIB = 1024 ** 3
 SECRET_KEYS = re.compile(r'secret|password|token|auth_header', re.IGNORECASE)
 
 
+# Every module needs these, but they are not marked required in the
+# argument spec: a task that takes them from module_defaults leaves them
+# out, and tools that check a task against the spec (ansible-lint) would
+# report them missing. HarborClient checks them before anything is sent.
+CONNECTION_OPTIONS = ('url', 'username', 'password')
+
+
 def harbor_argument_spec():
     """Connection options shared by every module (see doc fragment auth)."""
     return dict(
-        url=dict(type='str', required=True, fallback=(env_fallback, ['HARBOR_URL'])),
-        username=dict(type='str', required=True, fallback=(env_fallback, ['HARBOR_USERNAME'])),
-        password=dict(type='str', required=True, no_log=True, fallback=(env_fallback, ['HARBOR_PASSWORD'])),
+        url=dict(type='str', fallback=(env_fallback, ['HARBOR_URL'])),
+        username=dict(type='str', fallback=(env_fallback, ['HARBOR_USERNAME'])),
+        password=dict(type='str', no_log=True, fallback=(env_fallback, ['HARBOR_PASSWORD'])),
         validate_certs=dict(type='bool', default=True, fallback=(env_fallback, ['HARBOR_VALIDATE_CERTS'])),
         ca_path=dict(type='path', fallback=(env_fallback, ['HARBOR_CA_PATH'])),
         # client_key is the path of the key file, not the key: nothing to hide.
@@ -138,6 +145,14 @@ class HarborClient(transport.ApiClient):
     secret_keys = SECRET_KEYS
 
     def __init__(self, module):
+        missing = [name for name in CONNECTION_OPTIONS if module.params.get(name) is None]
+        if missing:
+            env = ', '.join('HARBOR_' + name.upper() for name in missing)
+            if len(missing) == 1:
+                msg = '%s is required: set the option or the environment variable %s.' % (missing[0], env)
+            else:
+                msg = '%s are required: set the options or the environment variables %s.' % (', '.join(missing), env)
+            module.fail_json(msg=msg)
         super(HarborClient, self).__init__(module)
         params = module.params
         self.url = base_url(params['url'])
