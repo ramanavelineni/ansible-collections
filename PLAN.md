@@ -28,8 +28,8 @@ along the way. Each quirk is handled inside a module and covered by a test.
 - [x] Harbor modules `project_member` and `project_member_info` (see
       [project_member](#project_member)), released in harbor 0.6.0
 - [x] Harbor roles `server_apply` and `project_apply`, tested in CI against
-      a Harbor installed from its offline installer; next: harbor 0.7.0,
-      then a `project_export` role
+      a Harbor installed from its offline installer (harbor 0.7.0); next: a
+      `project_export` role
 - [x] Switch the homelab `harbor_config` role to the collection (homelab
       ansible repo). Project members, for the role's OIDC groups, can be
       added once a release carries `project_member`

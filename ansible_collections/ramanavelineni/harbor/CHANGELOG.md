@@ -2,46 +2,63 @@
 
 **Topics**
 
-- <a href="#v0-6-0">v0\.6\.0</a>
+- <a href="#v0-7-0">v0\.7\.0</a>
     - <a href="#release-summary">Release Summary</a>
+    - <a href="#new-roles">New Roles</a>
+- <a href="#v0-6-0">v0\.6\.0</a>
+    - <a href="#release-summary-1">Release Summary</a>
     - <a href="#new-modules">New Modules</a>
 - <a href="#v0-5-1">v0\.5\.1</a>
-    - <a href="#release-summary-1">Release Summary</a>
+    - <a href="#release-summary-2">Release Summary</a>
     - <a href="#bugfixes">Bugfixes</a>
 - <a href="#v0-5-0">v0\.5\.0</a>
-    - <a href="#release-summary-2">Release Summary</a>
+    - <a href="#release-summary-3">Release Summary</a>
     - <a href="#minor-changes">Minor Changes</a>
     - <a href="#breaking-changes--porting-guide">Breaking Changes / Porting Guide</a>
 - <a href="#v0-4-1">v0\.4\.1</a>
-    - <a href="#release-summary-3">Release Summary</a>
+    - <a href="#release-summary-4">Release Summary</a>
     - <a href="#bugfixes-1">Bugfixes</a>
 - <a href="#v0-4-0">v0\.4\.0</a>
-    - <a href="#release-summary-4">Release Summary</a>
+    - <a href="#release-summary-5">Release Summary</a>
     - <a href="#bugfixes-2">Bugfixes</a>
 - <a href="#v0-3-2">v0\.3\.2</a>
-    - <a href="#release-summary-5">Release Summary</a>
+    - <a href="#release-summary-6">Release Summary</a>
     - <a href="#security-fixes">Security Fixes</a>
 - <a href="#v0-3-1">v0\.3\.1</a>
-    - <a href="#release-summary-6">Release Summary</a>
+    - <a href="#release-summary-7">Release Summary</a>
     - <a href="#bugfixes-3">Bugfixes</a>
 - <a href="#v0-3-0">v0\.3\.0</a>
-    - <a href="#release-summary-7">Release Summary</a>
+    - <a href="#release-summary-8">Release Summary</a>
     - <a href="#minor-changes-1">Minor Changes</a>
     - <a href="#security-fixes-1">Security Fixes</a>
     - <a href="#bugfixes-4">Bugfixes</a>
 - <a href="#v0-2-0">v0\.2\.0</a>
-    - <a href="#release-summary-8">Release Summary</a>
+    - <a href="#release-summary-9">Release Summary</a>
     - <a href="#breaking-changes--porting-guide-1">Breaking Changes / Porting Guide</a>
     - <a href="#security-fixes-2">Security Fixes</a>
     - <a href="#bugfixes-5">Bugfixes</a>
 - <a href="#v0-1-0">v0\.1\.0</a>
-    - <a href="#release-summary-9">Release Summary</a>
+    - <a href="#release-summary-10">Release Summary</a>
     - <a href="#new-modules-1">New Modules</a>
+
+<a id="v0-7-0"></a>
+## v0\.7\.0
+
+<a id="release-summary"></a>
+### Release Summary
+
+Two roles\. <code>server\_apply</code> applies Harbor\'s server\-wide objects \(system settings\, schedules\, registries\, replication rules and system robot accounts\)\, and <code>project\_apply</code> applies a directory of project descriptions with their robot accounts\, members\, tag retention\, tag immutability rules and webhooks\. Both are tested in CI against a Harbor installed from its offline installer\.
+
+<a id="new-roles"></a>
+### New Roles
+
+* ramanavelineni\.harbor\.project\_apply \- Apply a directory of project descriptions to Harbor\.
+* ramanavelineni\.harbor\.server\_apply \- Apply the server\-wide settings\, schedules\, registries\, replications and robot accounts to Harbor\.
 
 <a id="v0-6-0"></a>
 ## v0\.6\.0
 
-<a id="release-summary"></a>
+<a id="release-summary-1"></a>
 ### Release Summary
 
 New modules <code>project\_member</code> and <code>project\_member\_info</code> manage and list the members of a project\, users and OIDC\, LDAP or HTTP groups with a role\. The fixtures are now recorded from Harbor 2\.14\.6 and 2\.15\.4\.
@@ -55,7 +72,7 @@ New modules <code>project\_member</code> and <code>project\_member\_info</code> 
 <a id="v0-5-1"></a>
 ## v0\.5\.1
 
-<a id="release-summary-1"></a>
+<a id="release-summary-2"></a>
 ### Release Summary
 
 The connection options <code>url</code>\, <code>username</code> and <code>password</code> are no longer marked as required\, so tasks that set them through <code>module\_defaults</code> pass ansible\-lint\. A module still fails before any request when one of them is missing\.
@@ -68,7 +85,7 @@ The connection options <code>url</code>\, <code>username</code> and <code>passwo
 <a id="v0-5-0"></a>
 ## v0\.5\.0
 
-<a id="release-summary-2"></a>
+<a id="release-summary-3"></a>
 ### Release Summary
 
 The collection now needs ansible\-core 2\.20 or newer and is tested with 2\.20\, 2\.21 and 2\.22\. ansible\-core 2\.18 and 2\.19 are no longer supported\; stay on harbor 0\.4\.1 for them\. The modules are unchanged\.
@@ -86,7 +103,7 @@ The collection now needs ansible\-core 2\.20 or newer and is tested with 2\.20\,
 <a id="v0-4-1"></a>
 ## v0\.4\.1
 
-<a id="release-summary-3"></a>
+<a id="release-summary-4"></a>
 ### Release Summary
 
 The scan\_all and scan\_all\_info docs now say what Harbor returns for <code>next\_scheduled\_time</code>\.
@@ -99,7 +116,7 @@ The scan\_all and scan\_all\_info docs now say what Harbor returns for <code>nex
 <a id="v0-4-0"></a>
 ## v0\.4\.0
 
-<a id="release-summary-4"></a>
+<a id="release-summary-5"></a>
 ### Release Summary
 
 Deleting an object whose project is already gone\, and check mode for objects whose project or registry an earlier task creates\, no longer fail\. quota\_gb 0 is refused\, a project create reports the quota Harbor stored\, and long error bodies are cut in the message\.
@@ -116,7 +133,7 @@ Deleting an object whose project is already gone\, and check mode for objects wh
 <a id="v0-3-2"></a>
 ## v0\.3\.2
 
-<a id="release-summary-5"></a>
+<a id="release-summary-6"></a>
 ### Release Summary
 
 A security fix\: a failed request no longer shows a no\_log value that Harbor repeats in its answer\.
@@ -129,7 +146,7 @@ A security fix\: a failed request no longer shows a no\_log value that Harbor re
 <a id="v0-3-1"></a>
 ## v0\.3\.1
 
-<a id="release-summary-6"></a>
+<a id="release-summary-7"></a>
 ### Release Summary
 
 <code>registry</code> accepts a registry type the server offers\, not only the twelve the module knows\. No other change\.
@@ -142,7 +159,7 @@ A security fix\: a failed request no longer shows a no\_log value that Harbor re
 <a id="v0-3-0"></a>
 ## v0\.3\.0
 
-<a id="release-summary-7"></a>
+<a id="release-summary-8"></a>
 ### Release Summary
 
 New connection options \(<code>client\_cert</code>\, <code>client\_key</code>\, <code>use\_proxy</code>\, <code>warn\_untested\_version</code>\)\, modules that work for users who are not administrators\, and a round of bug fixes\. Some checks are stricter than in 0\.2\.0 and can make a task fail that ran before\: <code>configuration</code> refuses to change a setting Harbor reports as not editable\, <code>registry</code> takes only <code>basic</code> or <code>oauth</code> as <code>credential\_type</code>\, and negative <code>retries</code> or <code>retry\_delay</code> are refused\. Run with <code>\-\-check</code> once after upgrading\.
@@ -195,7 +212,7 @@ New connection options \(<code>client\_cert</code>\, <code>client\_key</code>\, 
 <a id="v0-2-0"></a>
 ## v0\.2\.0
 
-<a id="release-summary-8"></a>
+<a id="release-summary-9"></a>
 ### Release Summary
 
 A security release\. A failed request no longer shows secrets\, and the collection now includes its <code>LICENSE</code>\. Also fixes to <code>project</code> quotas and robot account lookups\. One result changed form\, see the breaking changes\.
@@ -221,7 +238,7 @@ A security release\. A failed request no longer shows secrets\, and the collecti
 <a id="v0-1-0"></a>
 ## v0\.1\.0
 
-<a id="release-summary-9"></a>
+<a id="release-summary-10"></a>
 ### Release Summary
 
 First release\. 23 modules that manage Harbor 2\.14 and 2\.15 declaratively\: projects\, robot accounts\, registries\, replication rules\, webhooks\, tag retention and immutability\, system configuration\, and the garbage collection\, scan\-all and audit\-log rotation schedules\, each with an <code>\_info</code> module\. Objects are found and referenced by name\, only the options you set are compared\, and every module supports check mode and diff\.
