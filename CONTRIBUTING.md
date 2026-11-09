@@ -191,8 +191,8 @@ it writes adjusted for rootless podman (the script says what is adjusted and
 why).
 
 ```sh
-tools/harbor_up.sh up v2.15.2 8015      # then: user admin, password in ~/harbor-lab/v2.15.2/admin_password
-tools/harbor_up.sh down v2.15.2         # stops it and removes ~/harbor-lab/v2.15.2
+tools/harbor_up.sh up v2.15.4 8015      # then: user admin, password in ~/harbor-lab/v2.15.4/admin_password
+tools/harbor_up.sh down v2.15.4         # stops it and removes ~/harbor-lab/v2.15.4
 ```
 
 Run it where the containers run. With a podman machine (macOS) that is inside
@@ -200,10 +200,10 @@ the machine; the published port is reachable on the host, so the recorder
 still runs on the host:
 
 ```sh
-podman machine ssh 'bash -s -- up v2.15.2 8015' < tools/harbor_up.sh
-HARBOR_PASSWORD="$(podman machine ssh cat harbor-lab/v2.15.2/admin_password)" \
+podman machine ssh 'bash -s -- up v2.15.4 8015' < tools/harbor_up.sh
+HARBOR_PASSWORD="$(podman machine ssh cat harbor-lab/v2.15.4/admin_password)" \
     tools/record_harbor_fixtures.py http://127.0.0.1:8015
-podman machine ssh 'bash -s -- down v2.15.2' < tools/harbor_up.sh
+podman machine ssh 'bash -s -- down v2.15.4' < tools/harbor_up.sh
 ```
 
 It needs podman or docker and a compose command (`podman compose` with a
@@ -215,11 +215,11 @@ The compose project is named after the version, so one Harbor per version:
 `up` refuses when containers of that project exist already.
 
 **What it was checked with.** The two edits the script makes itself are tested
-by `make tools-test`: its `harbor.yml`, and its compose file, which for 2.14.4
-and 2.15.2 equals the compose file of the servers the fixtures were recorded
+by `make tools-test`: its `harbor.yml`, and its compose file, which for 2.14.6
+and 2.15.4 equals the compose file of the servers the fixtures were recorded
 from. `up` and `down` were run in a podman machine on macOS with Harbor
-v2.15.1, and the harbor live suite passed against that server, including the
-registry endpoint at `http://proxy:8080`. Not run so far: docker as the
+v2.14.6 and v2.15.4, and the harbor live suite passed against both servers,
+including the registry endpoint at `http://proxy:8080`. Not run so far: docker as the
 engine, a compose command installed on the machine, and Linux without a
 podman machine.
 

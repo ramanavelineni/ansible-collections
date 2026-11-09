@@ -430,6 +430,14 @@ or an OIDC user's CLI secret.
   anything that needs a login). The failed request itself waits out the lock,
   so only *other* clients using the same account at that moment are hit. The
   client asks `/systeminfo` once more, and retries a 401 once, after 2 s.
+- Harbor 2.15 hashes new and changed passwords with PBKDF2-SHA256 at 600,000
+  iterations (`pbkdf2Iterations` in `src/common/utils/encrypt.go`; 2.14 has
+  only the 4,096-iteration hashes). Measured on 2026-11-08 with the amd64
+  images emulated on an arm64 podman machine: an admin request with basic
+  authentication took 0.93 s on average on 2.15.4 and 0.02 s on 2.14.6;
+  anonymous requests took 0.01 s on both. The live suite took 16 minutes on
+  2.15.4 against one on 2.14.6, and its login-lock test skips itself there,
+  because a login is too slow to keep a user locked without gaps.
 - A lock that starts mid-run makes `/projects` answer 200 without the private
   projects, and nothing in that answer says so. So a project that is not in
   the answer is only taken as missing after `/systeminfo` was asked again
@@ -588,7 +596,7 @@ not checked yet.
   container, once per tested version (`tests/roles`): a role can't be tested
   without a server.
 - Unit tests replay API responses recorded from throwaway local servers:
-  Semaphore UI 2.18.31 and 2.19.17, Harbor 2.14.4 and 2.15.2. Each quirk above
+  Semaphore UI 2.18.31 and 2.19.17, Harbor 2.14.6 and 2.15.4. Each quirk above
   has at least one test. The recorders live in `tools/`, one area at a time.
   They refuse a server that isn't on a loopback address unless
   `--allow-remote` is passed, keep only their own objects from listings, and

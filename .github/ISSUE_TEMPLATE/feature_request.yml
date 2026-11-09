@@ -28,4 +28,4 @@ body:
     id: versions
     attributes:
       label: Server version
-      placeholder: Harbor 2.15.2
+      placeholder: Harbor 2.15.4
