@@ -66,15 +66,15 @@ EXAMPLES = r'''
 # with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
 # collection's README shows both under "Connecting".
 
-- name: Keep a backup of the homelab project
+- name: Keep a backup of the webshop project
   ramanavelineni.semaphoreui.project_backup:
-    project: homelab
-    dest: /var/backups/semaphore/homelab.json
+    project: webshop
+    dest: /var/backups/semaphore/webshop.json
 
 - name: Read the backup without writing a file
   ramanavelineni.semaphoreui.project_backup:
-    project: homelab
-  register: homelab_backup
+    project: webshop
+  register: webshop_backup
 '''
 
 RETURN = r'''
@@ -91,7 +91,7 @@ backup:
   type: dict
   sample:
     meta:
-      name: homelab
+      name: webshop
       alert: false
       max_parallel_tasks: 0
       type: ""
@@ -104,7 +104,7 @@ file:
   description: The file the backup is in, which is O(dest). Empty without O(dest).
   returned: always
   type: str
-  sample: /var/backups/semaphore/homelab.json
+  sample: /var/backups/semaphore/webshop.json
 '''
 
 import json

@@ -107,12 +107,12 @@ def delete_projects(srv, *names):
 
 # The core area's project, and what the area puts into it: (list path, name
 # field, the area's names), in an order in which they can be deleted.
-CORE_PROJECT = 'homelab'
+CORE_PROJECT = 'webshop'
 CORE_CONTENTS = (
     ('integrations', 'name', ('gh',)),
     ('schedules', 'name', ('nightly', 'on-push')),
     ('templates', 'name', ('site', 'infra', 'surveyed')),
-    ('inventory', 'name', ('homelab', 'abs')),
+    ('inventory', 'name', ('webshop', 'abs')),
     ('environment', 'name', ('empty', 'harbor')),
     ('repositories', 'name', ('ansible',)),
     ('keys', 'name', ('deploy',)),
@@ -120,9 +120,9 @@ CORE_CONTENTS = (
 
 
 def sweep_core(srv):
-    """Delete a project homelab that an earlier recording left behind.
+    """Delete a project webshop that an earlier recording left behind.
 
-    "homelab" is also what a real project may be called, so the name alone is
+    "webshop" is also what a real project may be called, so the name alone is
     not enough: the project is only deleted when everything in it carries a
     name the core area uses. Anything else in it stops the run.
     """
@@ -160,7 +160,7 @@ def record_core(srv, out):
                  % ', '.join(p['name'] for p in existing))
     out['projects_empty'] = expect(srv.call('GET', '/projects'), 200, 'projects')
 
-    created = expect(srv.call('POST', '/projects', {'name': 'homelab', 'alert': False, 'max_parallel_tasks': 0}),
+    created = expect(srv.call('POST', '/projects', {'name': 'webshop', 'alert': False, 'max_parallel_tasks': 0}),
                      201, 'create project')
     out['project_create'] = created
     pid = created['body']['id']
@@ -169,10 +169,10 @@ def record_core(srv, out):
     out['project_get'] = expect(srv.call('GET', '/project/%d' % pid), 200, 'project')
 
     out['project_update_id_mismatch'] = srv.call(
-        'PUT', '/project/%d' % pid, {'id': pid + 1000, 'name': 'homelab'})
+        'PUT', '/project/%d' % pid, {'id': pid + 1000, 'name': 'webshop'})
     out['project_update'] = expect(srv.call(
         'PUT', '/project/%d' % pid,
-        {'id': pid, 'name': 'homelab', 'alert': True, 'alert_chat': 'ops', 'max_parallel_tasks': 3}),
+        {'id': pid, 'name': 'webshop', 'alert': True, 'alert_chat': 'ops', 'max_parallel_tasks': 3}),
         204, 'update project')
     out['projects_one_updated'] = expect(srv.call('GET', '/projects'), 200, 'projects')
 
@@ -212,7 +212,7 @@ def record_core(srv, out):
     # Inventories, using the key and repository above.
     out['inventories_empty'] = expect(srv.call('GET', base + '/inventory'), 200, 'inventories')
     out['inventory_create'] = expect(srv.call('POST', base + '/inventory', {
-        'project_id': pid, 'name': 'homelab', 'type': 'file', 'inventory': 'inventories/homelab/hosts',
+        'project_id': pid, 'name': 'webshop', 'type': 'file', 'inventory': 'inventories/webshop/hosts',
         'repository_id': rid, 'ssh_key_id': kid, 'become_key_id': None}), 201, 'create inventory')
     iid = out['inventory_create']['body']['id']
     out['inventories_one'] = expect(srv.call('GET', base + '/inventory'), 200, 'inventories')

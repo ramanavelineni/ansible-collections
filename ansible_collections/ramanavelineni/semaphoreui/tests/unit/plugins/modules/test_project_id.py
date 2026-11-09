@@ -131,7 +131,7 @@ def test_info_by_id_reads_that_project_only(server, project, run_module, module,
 
 def test_by_name_reads_the_list_not_the_project(server, project, run_module):
     server.route('GET', '/projects', 'projects_one')
-    result = run_module(view.main, dict(project='homelab', name='anything', state='absent'))
+    result = run_module(view.main, dict(project='webshop', name='anything', state='absent'))
     assert result['changed'] is False
     assert len(server.calls('GET', '/projects')) == 1
     assert server.calls('GET', project) == []
@@ -139,7 +139,7 @@ def test_by_name_reads_the_list_not_the_project(server, project, run_module):
 
 @pytest.mark.parametrize('module, key, args', MANAGE + [(m, key, {}) for m, key in INFO], ids=MANAGE_IDS + INFO_IDS)
 def test_project_and_project_id_exclude_each_other(server, run_module, module, key, args):
-    result = run_module(module.main, dict(args, project='homelab', project_id=pid(server)))
+    result = run_module(module.main, dict(args, project='webshop', project_id=pid(server)))
     assert result['failed'] is True
     assert result['msg'] == 'parameters are mutually exclusive: project|project_id'
     assert server.requests == []
@@ -210,7 +210,7 @@ def test_another_failure_reading_the_project_is_reported_as_it_is(server, run_mo
 
 def test_the_cap_blocks_the_name_but_not_the_id(server, project, run_module):
     server.route('GET', '/projects', capped(server))
-    by_name = run_module(view.main, dict(project='homelab', name='anything', state='absent'))
+    by_name = run_module(view.main, dict(project='webshop', name='anything', state='absent'))
     assert by_name['failed'] is True
     assert 'returned 200 rows' in by_name['msg'] and 'Refusing to continue' in by_name['msg']
     by_id = run_module(view.main, dict(project_id=pid(server), name='anything', state='absent'))
@@ -230,7 +230,7 @@ def test_create_by_id_writes_into_that_project(server, project, run_module):
 def test_by_id_and_by_name_give_the_same_result(server, project, run_module):
     server.route('GET', '/projects', 'projects_one')
     server.route('GET', project + '/views', 'views_two')
-    by_name = run_module(view_info.main, dict(project='homelab'))
+    by_name = run_module(view_info.main, dict(project='webshop'))
     by_id = run_module(view_info.main, dict(project_id=pid(server)))
     assert by_name['views'] == by_id['views'] and len(by_id['views']) == 2
 
@@ -244,9 +244,9 @@ def test_runner_by_id_returns_the_project_name(server, project, run_module):
     name = listing['body'][0]['name']
     managed = run_module(runner.main, dict(project_id=pid(server), name=name))
     assert managed['changed'] is False
-    assert managed['runner']['project'] == 'homelab'
+    assert managed['runner']['project'] == 'webshop'
     listed = run_module(runner_info.main, dict(project_id=pid(server)))
-    assert [r['project'] for r in listed['runners']] == ['homelab']
+    assert [r['project'] for r in listed['runners']] == ['webshop']
     assert server.calls('GET', '/runners') == []
 
 
@@ -263,4 +263,4 @@ def test_a_message_names_the_project_by_name(server, project, run_module):
                 git_branch='main', ssh_key='deploy')
     result = run_module(repository.main, args)
     assert result['failed'] is True
-    assert result['msg'] == "Key 'deploy' does not exist in project 'homelab'."
+    assert result['msg'] == "Key 'deploy' does not exist in project 'webshop'."

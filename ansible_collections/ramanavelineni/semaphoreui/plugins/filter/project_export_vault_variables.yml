@@ -24,7 +24,7 @@ DOCUMENTATION:
       description:
         - What the name of every variable that stands for a secret starts with, in lower case. The name goes on with the
           project, the section, the object and the field, as in
-          C(vault_homelab_key_deploy_ssh_private_key).
+          C(vault_webshop_key_deploy_ssh_private_key).
       type: str
       default: vault
 

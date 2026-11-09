@@ -216,7 +216,7 @@ def test_example_secrets_are_templated(name):
 
 def test_the_check_itself_refuses_what_ansible_refuses():
     """The helpers above, on arguments that are wrong in each way they look for."""
-    good = dict(project='homelab', name='infra')
+    good = dict(project='webshop', name='infra')
     assert problems('view', dict(good)) == []
     assert 'no_such_option' in problems('view', dict(good, no_such_option=1))[0]
     assert 'name' in problems('view', dict((k, v) for k, v in good.items() if k != 'name'))[0]

@@ -234,7 +234,7 @@ EXAMPLES = r'''
 
 - name: Build, approve, then deploy; roll back when the deploy fails
   ramanavelineni.semaphoreui.workflow:
-    project: homelab
+    project: webshop
     name: release
     description: Build and deploy with a sign-off
     survey_vars:
@@ -268,7 +268,7 @@ EXAMPLES = r'''
 
 - name: Delete a workflow
   ramanavelineni.semaphoreui.workflow:
-    project: homelab
+    project: webshop
     name: release
     state: absent
 '''
@@ -317,7 +317,7 @@ workflow:
   sample:
     id: 4
     name: release
-    project: homelab
+    project: webshop
     project_id: 1
     description: Build and deploy with a sign-off
     revision: 2

@@ -89,16 +89,16 @@ EXAMPLES = r'''
 
 - name: Inventory file from a repository
   ramanavelineni.semaphoreui.inventory:
-    project: homelab
-    name: homelab
+    project: webshop
+    name: webshop
     type: file
-    inventory: inventories/homelab/hosts
+    inventory: inventories/webshop/hosts
     repository: ansible
     ssh_key: hosts
 
 - name: Static inventory with a sudo password
   ramanavelineni.semaphoreui.inventory:
-    project: homelab
+    project: webshop
     name: lab
     type: static
     inventory: |
@@ -152,9 +152,9 @@ inventory:
       type: int
   sample:
     id: 1
-    name: homelab
+    name: webshop
     type: file
-    inventory: inventories/homelab/hosts
+    inventory: inventories/webshop/hosts
     repository: ansible
     repository_id: 1
     ssh_key: hosts

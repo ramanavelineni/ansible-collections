@@ -49,12 +49,12 @@ EXAMPLES = r'''
     api_token: "{{ semaphore_api_token }}"
   register: result
 
-- name: Find the homelab project's id
+- name: Find the webshop project's id
   ramanavelineni.semaphoreui.project_info:
     url: https://semaphore.example.com
     api_token: "{{ semaphore_api_token }}"
-    name: homelab
-  register: homelab
+    name: webshop
+  register: webshop
 
 - name: Read project 7, on a server with any number of projects
   ramanavelineni.semaphoreui.project_info:
@@ -91,7 +91,7 @@ projects:
       type: str
   sample:
     - id: 1
-      name: homelab
+      name: webshop
       alert: false
       alert_chat: ""
       max_parallel_tasks: 0

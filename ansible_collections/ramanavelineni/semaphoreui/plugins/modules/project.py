@@ -77,12 +77,12 @@ seealso:
 '''
 
 EXAMPLES = r'''
-- name: Create the homelab project
+- name: Create the webshop project
   ramanavelineni.semaphoreui.project:
     url: https://semaphore.example.com
     username: admin
     password: "{{ semaphore_admin_password }}"
-    name: homelab
+    name: webshop
     max_parallel_tasks: 0
 
 - name: Delete a project and everything in it
@@ -93,12 +93,12 @@ EXAMPLES = r'''
     state: absent
     confirm_delete: true
 
-- name: Rename project 7 to homelab, on a server with any number of projects
+- name: Rename project 7 to webshop, on a server with any number of projects
   ramanavelineni.semaphoreui.project:
     url: https://semaphore.example.com
     api_token: "{{ semaphore_api_token }}"
     id: 7
-    name: homelab
+    name: webshop
 '''
 
 RETURN = r'''
@@ -130,7 +130,7 @@ project:
       type: str
   sample:
     id: 1
-    name: homelab
+    name: webshop
     alert: false
     alert_chat: ""
     max_parallel_tasks: 0

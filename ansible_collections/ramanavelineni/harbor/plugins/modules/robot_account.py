@@ -122,8 +122,8 @@ notes:
   - Harbor answers every read with the robot's full name, prefix included (C(robot$name), or
     C(robot$project+name) for a project robot account). The module matches on O(name) and
     O(project), whatever the prefix is.
-  - The C(harbor_config) role's C(projects=all) is written here as a system robot account with a
-    project permission on namespace C(*), which also covers projects created later.
+  - A robot account for every project is written here as a system robot account with a project
+    permission on namespace C(*), which also covers projects created later.
 seealso:
   - module: ramanavelineni.harbor.robot_account_info
     description: List robot accounts.

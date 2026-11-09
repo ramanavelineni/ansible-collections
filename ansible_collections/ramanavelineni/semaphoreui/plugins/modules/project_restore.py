@@ -74,14 +74,14 @@ EXAMPLES = r'''
 # with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
 # collection's README shows both under "Connecting".
 
-- name: Restore the homelab project if it is not there
+- name: Restore the webshop project if it is not there
   ramanavelineni.semaphoreui.project_restore:
-    src: /var/backups/semaphore/homelab.json
+    src: /var/backups/semaphore/webshop.json
 
 - name: Copy a project under another name
   ramanavelineni.semaphoreui.project_restore:
-    src: /var/backups/semaphore/homelab.json
-    name: homelab-copy
+    src: /var/backups/semaphore/webshop.json
+    name: webshop-copy
 '''
 
 RETURN = r'''
@@ -113,7 +113,7 @@ project:
       type: str
   sample:
     id: 2
-    name: homelab
+    name: webshop
     alert: false
     alert_chat: ""
     max_parallel_tasks: 0

@@ -7,7 +7,7 @@ import pytest
 
 from ansible_collections.ramanavelineni.semaphoreui.plugins.modules import variable_group, variable_group_info
 
-VG = dict(project='homelab', name='harbor', json=dict(harbor_url='https://harbor.example.com'), env=dict(TZ='UTC'),
+VG = dict(project='webshop', name='harbor', json=dict(harbor_url='https://harbor.example.com'), env=dict(TZ='UTC'),
           secrets=[dict(name='TOKEN', type='env', value='tok-1'), dict(name='db_pw', type='var', value='pw-1')])
 
 
@@ -50,19 +50,19 @@ def test_create(server, project, run_module):
 
 def test_create_secret_needs_value(server, project, run_module):
     server.route('GET', project + '/environment', 'variable_groups_empty')
-    result = run_module(variable_group.main, dict(project='homelab', name='harbor', secrets=[dict(name='TOKEN')]))
+    result = run_module(variable_group.main, dict(project='webshop', name='harbor', secrets=[dict(name='TOKEN')]))
     assert result['failed'] is True
     assert 'needs its value' in result['msg']
 
 
 def test_env_values_must_be_scalar(server, project, run_module):
-    result = run_module(variable_group.main, dict(project='homelab', name='harbor', env=dict(X=[1])))
+    result = run_module(variable_group.main, dict(project='webshop', name='harbor', env=dict(X=[1])))
     assert result['failed'] is True
     assert 'scalar' in result['msg']
 
 
 def test_duplicate_secret_names(server, project, run_module):
-    result = run_module(variable_group.main, dict(project='homelab', name='harbor',
+    result = run_module(variable_group.main, dict(project='webshop', name='harbor',
                                                   secrets=[dict(name='A', value='1'), dict(name='A', value='2')]))
     assert result['failed'] is True
     assert 'more than once' in result['msg']
@@ -87,13 +87,13 @@ def test_on_create_is_idempotent(server, project, run_module):
 
 def test_json_compared_as_data(server, project, run_module):
     existing(server, project)
-    result = run_module(variable_group.main, dict(project='homelab', name='harbor', json=VG['json'], env=VG['env']))
+    result = run_module(variable_group.main, dict(project='webshop', name='harbor', json=VG['json'], env=VG['env']))
     assert result['changed'] is False
 
 
 def test_env_change_keeps_json_and_passthrough(server, project, run_module):
     existing(server, project)
-    result = run_module(variable_group.main, dict(project='homelab', name='harbor', env=dict(TZ='Europe/Oslo')))
+    result = run_module(variable_group.main, dict(project='webshop', name='harbor', env=dict(TZ='Europe/Oslo')))
     assert result['changed'] is True
     body = server.calls('PUT')[0]['body']
     current = server.fixtures['variable_group_get']['body']
@@ -107,7 +107,7 @@ def test_env_change_keeps_json_and_passthrough(server, project, run_module):
 
 def test_type_change_recreates(server, project, run_module):
     existing(server, project)
-    result = run_module(variable_group.main, dict(project='homelab', name='harbor', update_secret='on_create',
+    result = run_module(variable_group.main, dict(project='webshop', name='harbor', update_secret='on_create',
                                                   secrets=[dict(name='TOKEN', type='var', value='tok-2')]))
     assert result['changed'] is True
     assert result['secrets_deleted'] == ['TOKEN']
@@ -119,14 +119,14 @@ def test_type_change_recreates(server, project, run_module):
 
 def test_type_change_needs_value(server, project, run_module):
     existing(server, project)
-    result = run_module(variable_group.main, dict(project='homelab', name='harbor', secrets=[dict(name='TOKEN', type='var')]))
+    result = run_module(variable_group.main, dict(project='webshop', name='harbor', secrets=[dict(name='TOKEN', type='var')]))
     assert result['failed'] is True
     assert 'cannot change that in place' in result['msg']
 
 
 def test_purge(server, project, run_module):
     existing(server, project)
-    result = run_module(variable_group.main, dict(project='homelab', name='harbor', purge_secrets=True,
+    result = run_module(variable_group.main, dict(project='webshop', name='harbor', purge_secrets=True,
                                                   secrets=[dict(name='TOKEN', type='env')]))
     assert result['changed'] is True
     assert result['secrets_deleted'] == ['db_pw']
@@ -135,7 +135,7 @@ def test_purge(server, project, run_module):
 
 def test_undeclared_secrets_left_alone(server, project, run_module):
     existing(server, project)
-    result = run_module(variable_group.main, dict(project='homelab', name='harbor', secrets=[dict(name='TOKEN', type='env')]))
+    result = run_module(variable_group.main, dict(project='webshop', name='harbor', secrets=[dict(name='TOKEN', type='env')]))
     assert result['changed'] is False
 
 
@@ -152,8 +152,8 @@ def test_delete(server, project, run_module):
     existing(server, project)
     server.route('GET', '%s/environment/%d/refs' % (project, group_id(server)), 'variable_group_refs_unused')
     server.route('DELETE', '%s/environment/%d' % (project, group_id(server)), 'variable_group_delete')
-    stored = run_module(variable_group.main, dict(project='homelab', name='harbor'))['variable_group']
-    result = run_module(variable_group.main, dict(project='homelab', name='harbor', state='absent'))
+    stored = run_module(variable_group.main, dict(project='webshop', name='harbor'))['variable_group']
+    result = run_module(variable_group.main, dict(project='webshop', name='harbor', state='absent'))
     assert result['changed'] is True
     assert len(server.calls('DELETE')) == 1
     # The diff shows what is deleted, in the shape an update shows it: secrets by name and type only.
@@ -175,7 +175,7 @@ def broken(server, project, field):
 
 def test_invalid_stored_json_is_replaced(server, project, run_module):
     stored = broken(server, project, 'json')
-    result = run_module(variable_group.main, dict(project='homelab', name='harbor', json=dict(a=1)))
+    result = run_module(variable_group.main, dict(project='webshop', name='harbor', json=dict(a=1)))
     assert result['changed'] is True
     body = server.calls('PUT')[0]['body']
     assert json.loads(body['json']) == dict(a=1)
@@ -188,7 +188,7 @@ def test_invalid_stored_json_is_replaced(server, project, run_module):
 
 def test_invalid_stored_env_is_replaced_in_check_mode(server, project, run_module):
     broken(server, project, 'env')
-    result = run_module(variable_group.main, dict(project='homelab', name='harbor', env=dict(TZ='UTC')), check_mode=True)
+    result = run_module(variable_group.main, dict(project='webshop', name='harbor', env=dict(TZ='UTC')), check_mode=True)
     assert result['changed'] is True
     assert result['diff']['before']['env'] == '{not json'
     assert server.calls('PUT') == []
@@ -199,7 +199,7 @@ def test_invalid_stored_env_is_replaced_in_check_mode(server, project, run_modul
 def test_invalid_stored_json_left_alone_still_fails(server, project, run_module, args):
     # An update sends the field back as it is, so the module won't write around it.
     broken(server, project, 'json')
-    result = run_module(variable_group.main, dict(project='homelab', name='harbor', **args))
+    result = run_module(variable_group.main, dict(project='webshop', name='harbor', **args))
     assert result['failed'] is True
     assert 'not valid JSON; fix them in Semaphore first' in result['msg']
     assert server.calls('PUT') == []
@@ -209,7 +209,7 @@ def test_invalid_stored_json_does_not_block_delete(server, project, run_module):
     broken(server, project, 'json')
     server.route('GET', '%s/environment/%d/refs' % (project, group_id(server)), 'variable_group_refs_unused')
     server.route('DELETE', '%s/environment/%d' % (project, group_id(server)), 'variable_group_delete')
-    result = run_module(variable_group.main, dict(project='homelab', name='harbor', state='absent'))
+    result = run_module(variable_group.main, dict(project='webshop', name='harbor', state='absent'))
     assert result['changed'] is True
     assert result['diff']['before']['json'] == '{not json'
     assert len(server.calls('DELETE')) == 1
@@ -218,7 +218,7 @@ def test_invalid_stored_json_does_not_block_delete(server, project, run_module):
 def test_variable_group_info(server, project, run_module):
     server.route('GET', project + '/environment', 'variable_groups_one')
     server.route('GET', '%s/environment/%d' % (project, group_id(server)), 'variable_group_get_updated')
-    result = run_module(variable_group_info.main, dict(project='homelab'))
+    result = run_module(variable_group_info.main, dict(project='webshop'))
     group = result['variable_groups'][0]
     assert group['env'] == dict(TZ='Europe/Oslo')
     assert group['json'] == dict(harbor_url='https://harbor.example.com')
@@ -243,6 +243,6 @@ def test_variable_group_info_returns_stored_fields_parsed_or_as_stored(server, p
     group['body'][field] = stored
     server.route('GET', project + '/environment', 'variable_groups_one')
     server.route('GET', '%s/environment/%d' % (project, group_id(server)), group)
-    result = run_module(variable_group_info.main, dict(project='homelab'))
+    result = run_module(variable_group_info.main, dict(project='webshop'))
     assert result.get('failed') is not True
     assert result['variable_groups'][0][field] == shown

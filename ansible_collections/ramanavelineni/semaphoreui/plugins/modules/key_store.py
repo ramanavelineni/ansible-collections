@@ -116,7 +116,7 @@ EXAMPLES = r'''
 
 - name: Deploy key for Git over SSH
   ramanavelineni.semaphoreui.key_store:
-    project: homelab
+    project: webshop
     name: github-deploy
     type: ssh
     ssh:
@@ -125,7 +125,7 @@ EXAMPLES = r'''
 
 - name: Vault password, set once and left alone afterwards
   ramanavelineni.semaphoreui.key_store:
-    project: homelab
+    project: webshop
     name: ansible-vault
     type: login_password
     login_password:
@@ -134,7 +134,7 @@ EXAMPLES = r'''
 
 - name: Rotate a key a repository uses (run from outside Semaphore)
   ramanavelineni.semaphoreui.key_store:
-    project: homelab
+    project: webshop
     name: github-deploy
     type: ssh
     ssh:

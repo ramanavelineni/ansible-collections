@@ -103,23 +103,23 @@ EXAMPLES = r'''
 
 - name: Nightly run
   ramanavelineni.semaphoreui.schedule:
-    project: homelab
+    project: webshop
     name: nightly-os-hardening
     template: os_hardening
     cron: "0 3 * * *"
 
 - name: Run whenever main moves (checked every 5 minutes)
   ramanavelineni.semaphoreui.schedule:
-    project: homelab
+    project: webshop
     name: reconcile-on-push
-    template: semaphore_config
+    template: release
     repository: ansible
     cron: "*/5 * * * *"
 
 # Once the time has passed and the schedule is deleted, running this task again reports no change.
 - name: Run once
   ramanavelineni.semaphoreui.schedule:
-    project: homelab
+    project: webshop
     name: one-off-upgrade
     template: upgrade
     run_at: "2026-10-01T03:00:00Z"
@@ -167,7 +167,7 @@ schedule:
   sample:
     id: 3
     name: reconcile-on-push
-    template: semaphore_config
+    template: release
     kind: poller
     cron: "*/5 * * * *"
     repository: ansible

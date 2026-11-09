@@ -34,11 +34,11 @@ EXAMPLES = r'''
 
 - name: Read the configuration
   ramanavelineni.harbor.configuration_info:
-  register: harbor_config
+  register: harbor_settings
 
 - name: Show the authentication mode
   ansible.builtin.debug:
-    msg: "{{ harbor_config.configuration.auth_mode }}"
+    msg: "{{ harbor_settings.configuration.auth_mode }}"
 '''
 
 RETURN = r'''

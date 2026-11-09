@@ -103,7 +103,7 @@ def test_the_argument_spec_is_the_shared_one(name):
 
 @pytest.mark.parametrize('name', NAMES)
 def test_project_and_project_id_exclude_each_other(name):
-    assert errors(name, dict(project='homelab', project_id=1)) == [
+    assert errors(name, dict(project='webshop', project_id=1)) == [
         'parameters are mutually exclusive: project|project_id']
 
 
@@ -113,5 +113,5 @@ def test_a_project_is_required_where_the_docs_say_so(name):
     fragment = TAKES_A_PROJECT[name][0]
     expected = ['one of the following is required: project, project_id'] if fragment == REQUIRED else []
     assert errors(name, {}) == expected
-    assert errors(name, dict(project='homelab')) == []
+    assert errors(name, dict(project='webshop')) == []
     assert errors(name, dict(project_id=1)) == []

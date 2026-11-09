@@ -68,7 +68,7 @@ def test_missing_key_is_a_change_in_check_mode(server, run_module):
     base = '/project/%d' % server.fixtures['projects_one']['body'][0]['id']
     server.route('GET', base + '/keys', 'keys_new_project')
     server.route('GET', base + '/repositories', 'repositories_empty')
-    args = dict(project='homelab', name='ansible', git_url='git@github.com:example/ansible.git',
+    args = dict(project='webshop', name='ansible', git_url='git@github.com:example/ansible.git',
                 git_branch='main', ssh_key='deploy')
     checked = run_module(repository.main, args, check_mode=True)
     assert checked['changed'] is True and checked['repository'] == {}

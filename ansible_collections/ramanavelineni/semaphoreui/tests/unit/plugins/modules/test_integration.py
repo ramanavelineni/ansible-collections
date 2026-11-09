@@ -5,7 +5,7 @@ import pytest
 
 from ansible_collections.ramanavelineni.semaphoreui.plugins.modules import integration, integration_info
 
-GH = dict(project='homelab', name='gh', template='site', auth_method='token', auth_key='deploy', auth_header='X-Token',
+GH = dict(project='webshop', name='gh', template='site', auth_method='token', auth_key='deploy', auth_header='X-Token',
           matchers=[dict(name='main', key='ref', value='refs/heads/main')],
           extract_values=[dict(name='sha', key='after', variable='COMMIT_SHA')])
 
@@ -81,7 +81,7 @@ def test_update_fields_keeps_task_params(server, project, run_module):
     single['body']['task_params'] = dict(limit='web', debug=True)
     server.route('GET', path, single)
     server.route('PUT', path, 'integration_update')
-    result = run_module(integration.main, dict(project='homelab', name='gh', searchable=True))
+    result = run_module(integration.main, dict(project='webshop', name='gh', searchable=True))
     assert result['changed'] is True
     body = server.calls('PUT', path)[0]['body']
     assert body['searchable'] is True
@@ -94,7 +94,7 @@ def test_matchers_exact(server, project, run_module):
     mid = server.fixtures['integration_matcher_create']['body']['id']
     server.route('PUT', '%s/matchers/%d' % (path, mid), 'integration_matcher_update')
     server.route('POST', path + '/matchers', 'integration_matcher_create')
-    result = run_module(integration.main, dict(project='homelab', name='gh', matchers=[
+    result = run_module(integration.main, dict(project='webshop', name='gh', matchers=[
         dict(name='main', key='ref', value='refs/heads/develop'),
         dict(name='event', match_type='header', key='X-GitHub-Event', value='push')]))
     assert result['changed'] is True
@@ -117,7 +117,7 @@ def removal_routes(server, path, matchers_after, values_after):
 def test_extra_items_deleted(server, project, run_module):
     path = existing(server, project)
     deletions = removal_routes(server, path, 'integration_matchers_empty', 'integration_values_empty')
-    result = run_module(integration.main, dict(project='homelab', name='gh', matchers=[], extract_values=[]))
+    result = run_module(integration.main, dict(project='webshop', name='gh', matchers=[], extract_values=[]))
     assert result['changed'] is True
     assert sorted(c['path'] for c in server.calls('DELETE')) == sorted(deletions)
     assert result['integration']['matchers'] == [] and result['integration']['extract_values'] == []
@@ -144,7 +144,7 @@ def test_a_removal_the_server_does_not_carry_out_fails(server, project, run_modu
     path = existing(server, project)
     removal_routes(server, path, matchers_after, values_after)
     server.route('PUT', path, 'integration_update')
-    result = run_module(integration.main, dict(project='homelab', name='gh', searchable=True, matchers=[], extract_values=[]))
+    result = run_module(integration.main, dict(project='webshop', name='gh', searchable=True, matchers=[], extract_values=[]))
     assert result['failed'] is True
     assert 'did not remove' in result['msg'] and "integration 'gh'" in result['msg']
     for text in named:
@@ -160,7 +160,7 @@ def test_removal_in_check_mode_warns_and_sends_nothing(server, project, run_modu
     warnings = []
     monkeypatch.setattr(integration.AnsibleModule, 'warn', lambda self, text: warnings.append(text))
     path = existing(server, project)
-    result = run_module(integration.main, dict(project='homelab', name='gh', matchers=[], extract_values=[]), check_mode=True)
+    result = run_module(integration.main, dict(project='webshop', name='gh', matchers=[], extract_values=[]), check_mode=True)
     assert result['changed'] is True
     assert server.calls('DELETE') == []
     assert len(server.calls('GET', path + '/matchers')) == 1
@@ -181,7 +181,7 @@ def test_removal_comes_before_the_other_changes(server, project, run_module):
     deletion = removal_routes(server, path, 'integration_matchers_empty', 'integration_values_one')[0]
     server.route('PUT', path, 'integration_update')
     server.route('POST', path + '/matchers', 'integration_matcher_create')
-    result = run_module(integration.main, dict(project='homelab', name='gh', searchable=True,
+    result = run_module(integration.main, dict(project='webshop', name='gh', searchable=True,
                                                matchers=[dict(name='event', match_type='header', key='X-GitHub-Event', value='push')]))
     assert result['changed'] is True
     writes = [(c['method'], c['path']) for c in server.requests
@@ -193,7 +193,7 @@ def test_alias_created_when_missing(server, project, run_module):
     path = existing(server, project)
     server.route('GET', path + '/aliases', 'integration_aliases_empty')
     server.route('POST', path + '/aliases', 'integration_alias_create')
-    result = run_module(integration.main, dict(project='homelab', name='gh'))
+    result = run_module(integration.main, dict(project='webshop', name='gh'))
     assert result['changed'] is True
     assert len(result['webhook_urls']) == 1
 
@@ -202,8 +202,8 @@ def test_delete(server, project, run_module):
     path = existing(server, project)
     server.route('GET', path + '/refs', 'integration_refs_unused')
     server.route('DELETE', path, 'integration_delete')
-    stored = run_module(integration.main, dict(project='homelab', name='gh'))['integration']
-    result = run_module(integration.main, dict(project='homelab', name='gh', state='absent'))
+    stored = run_module(integration.main, dict(project='webshop', name='gh'))['integration']
+    result = run_module(integration.main, dict(project='webshop', name='gh', state='absent'))
     assert result['changed'] is True
     assert [c['path'] for c in server.calls('DELETE')] == [path]
     # The diff shows what is deleted, in the shape an update shows it.
@@ -214,7 +214,7 @@ def test_delete(server, project, run_module):
 def test_integration_info(server, project, run_module):
     path = existing(server, project)
     server.route('GET', project + '/integrations', 'integrations_one')
-    result = run_module(integration_info.main, dict(project='homelab'))
+    result = run_module(integration_info.main, dict(project='webshop'))
     info = result['integrations'][0]
     assert info['auth_method'] == 'token' and info['auth_key'] == 'deploy'
     assert [m['name'] for m in info['matchers']] == ['main']

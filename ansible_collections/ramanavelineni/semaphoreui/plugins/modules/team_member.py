@@ -62,15 +62,15 @@ EXAMPLES = r'''
 # with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
 # collection's README shows both under "Connecting".
 
-- name: Give rc the owner role in homelab
+- name: Give rc the owner role in webshop
   ramanavelineni.semaphoreui.team_member:
-    project: homelab
+    project: webshop
     user: rc
     role: owner
 
 - name: Remove a user from the team
   ramanavelineni.semaphoreui.team_member:
-    project: homelab
+    project: webshop
     user: alice
     state: absent
 '''

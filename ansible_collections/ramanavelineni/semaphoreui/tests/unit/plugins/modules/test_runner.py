@@ -241,9 +241,9 @@ def test_project_runner_create(server, project, run_module):
     server.route('GET', project + '/runners', empty)
     server.route('POST', project + '/runners', created)
     server.route('POST', '%s/runners/%d/registration-token' % (project, rid(server)), 'runner_registration_token')
-    result = run_module(runner.main, dict(name='rn-fixture', project='homelab'))
+    result = run_module(runner.main, dict(name='rn-fixture', project='webshop'))
     assert result['changed'] is True
-    assert result['runner']['project'] == 'homelab'
+    assert result['runner']['project'] == 'webshop'
     assert result['registration_token'].startswith('smrs_')
     assert server.calls('POST', project + '/runners')[0]['body']['project_id'] == int(project.split('/')[-1])
 
@@ -253,7 +253,7 @@ def test_project_runner_update(server, project, run_module):
     listing['body'][0]['project_id'] = int(project.split('/')[-1])
     server.route('GET', project + '/runners', listing)
     server.route('PUT', '%s/runners/%d' % (project, rid(server)), 'runner_update')
-    result = run_module(runner.main, dict(name='rn-fixture', project='homelab', max_parallel_tasks=5))
+    result = run_module(runner.main, dict(name='rn-fixture', project='webshop', max_parallel_tasks=5))
     assert result['changed'] is True
     body = server.calls('PUT')[0]['body']
     assert body['max_parallel_tasks'] == 5 and body['project_id'] == int(project.split('/')[-1])
@@ -262,7 +262,7 @@ def test_project_runner_update(server, project, run_module):
 def test_project_runner_refused_on_community(server, project, run_module):
     server.route('GET', project + '/runners', 'runner_project_list_community')
     server.route('POST', project + '/runners', 'runner_project_create_community')
-    result = run_module(runner.main, dict(name='rn-fixture', project='homelab'))
+    result = run_module(runner.main, dict(name='rn-fixture', project='webshop'))
     assert result['failed'] is True
     assert 'plan does not allow' in result['msg']
 
@@ -279,5 +279,5 @@ def test_runner_info(server, run_module):
 
 def test_runner_info_project(server, project, run_module):
     server.route('GET', project + '/runners', 'runner_project_list_community')
-    result = run_module(runner_info.main, dict(project='homelab'))
+    result = run_module(runner_info.main, dict(project='webshop'))
     assert result['runners'] == []

@@ -22,7 +22,7 @@ def run(server, run_module, monkeypatch):
     def run(env, **options):
         for name, value in env.items():
             monkeypatch.setenv('SEMAPHORE_' + name, value)
-        return run_module(project.main, dict(NONE, name='homelab', **options))
+        return run_module(project.main, dict(NONE, name='webshop', **options))
     return run
 
 

@@ -156,11 +156,11 @@ EXAMPLES = r'''
 # with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
 # collection's README shows both under "Connecting".
 
-- name: Run harbor_config when GitHub reports a push to main
+- name: Run release when GitHub reports a push to main
   ramanavelineni.semaphoreui.integration:
-    project: homelab
+    project: webshop
     name: gh-push
-    template: harbor_config
+    template: release
     auth_method: github
     auth_key: github-webhook-secret
     matchers:
@@ -259,7 +259,7 @@ integration:
   sample:
     id: 1
     name: gh-push
-    template: harbor_config
+    template: release
     auth_method: github
     auth_key: github-webhook-secret
     auth_header: ""

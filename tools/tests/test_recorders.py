@@ -277,7 +277,7 @@ class SemaphoreSweeps(unittest.TestCase):
 
     def test_runner_sweep_takes_only_its_own(self):
         srv = self.server(runners=[dict(id=1, name='rn-fixture'), dict(id=2, name='build-01'), dict(id=3, name='rn-fixture-x')],
-                          projects=[dict(id=7, name='rn-fixtures'), dict(id=8, name='homelab'), dict(id=9, name='rn-fixtures-2')])
+                          projects=[dict(id=7, name='rn-fixtures'), dict(id=8, name='webshop'), dict(id=9, name='rn-fixtures-2')])
         semaphore.sweep_runner(srv)
         self.assertEqual(srv.writes(), [('DELETE', '/runners/1'), ('DELETE', '/runners/3'), ('DELETE', '/project/7')])
 
@@ -289,7 +289,7 @@ class SemaphoreSweeps(unittest.TestCase):
 
     def test_task_sweep_takes_only_its_own(self):
         srv = self.server(projects=[dict(id=7, name='fixtures-task'), dict(id=8, name='fixtures-task-old'),
-                                    dict(id=9, name='homelab')])
+                                    dict(id=9, name='webshop')])
         semaphore.sweep_task(srv)
         self.assertEqual(srv.writes(), [('DELETE', '/project/7')])
 
@@ -300,7 +300,7 @@ class SemaphoreSweeps(unittest.TestCase):
         self.assertEqual(srv.writes(), [('DELETE', '/project/7'), ('DELETE', '/users/1')])
 
     def test_core_sweep_removes_what_an_earlier_recording_left(self):
-        srv = self.server(projects=[dict(id=5, name='homelab')],
+        srv = self.server(projects=[dict(id=5, name='webshop')],
                           project__5__keys=[dict(id=1, name='deploy')],
                           project__5__repositories=[dict(id=2, name='ansible')],
                           project__5__templates=[dict(id=3, name='site'), dict(id=4, name='surveyed')])
@@ -309,8 +309,8 @@ class SemaphoreSweeps(unittest.TestCase):
                                         ('DELETE', '/project/5/repositories/2'), ('DELETE', '/project/5/keys/1'),
                                         ('DELETE', '/project/5')])
 
-    def test_core_sweep_refuses_a_homelab_that_is_someone_elses(self):
-        srv = self.server(projects=[dict(id=5, name='homelab')],
+    def test_core_sweep_refuses_a_webshop_that_is_someone_elses(self):
+        srv = self.server(projects=[dict(id=5, name='webshop')],
                           project__5__keys=[dict(id=1, name='deploy'), dict(id=2, name='github-deploy-key')])
         with self.assertRaises(SystemExit) as refused:
             semaphore.sweep_core(srv)
@@ -318,7 +318,7 @@ class SemaphoreSweeps(unittest.TestCase):
         self.assertEqual(srv.writes(), [])
 
     def test_core_sweep_leaves_other_projects_alone(self):
-        srv = self.server(projects=[dict(id=5, name='payroll'), dict(id=6, name='homelab-2')])
+        srv = self.server(projects=[dict(id=5, name='payroll'), dict(id=6, name='webshop-2')])
         semaphore.sweep_core(srv)
         self.assertEqual(srv.calls, [('GET', '/projects')])
 

@@ -35,14 +35,14 @@ def renamed(server, fixture, field, old, new):
 
 @pytest.mark.parametrize('name', NAMES, ids=IDS)
 def test_project_is_found_and_created_by_such_a_name(server, run_module, name):
-    server.route('GET', '/projects', renamed(server, 'projects_one', 'name', 'homelab', name))
+    server.route('GET', '/projects', renamed(server, 'projects_one', 'name', 'webshop', name))
     found = run_module(project.main, dict(name=name))
     assert found['changed'] is False
     assert found['project']['name'] == name
     assert [p['name'] for p in run_module(project_info.main, dict(name=name))['projects']] == [name]
 
     server.route('GET', '/projects', 'projects_empty')
-    server.route('POST', '/projects', renamed(server, 'project_create', 'name', 'homelab', name))
+    server.route('POST', '/projects', renamed(server, 'project_create', 'name', 'webshop', name))
     created = run_module(project.main, dict(name=name))
     assert created['changed'] is True
     assert created['project']['name'] == name
@@ -60,7 +60,7 @@ def test_missing_project_is_named_as_typed(server, run_module, name):
 
 @pytest.mark.parametrize('name', NAMES, ids=IDS)
 def test_objects_in_a_project_are_referenced_by_such_names(server, run_module, name):
-    server.route('GET', '/projects', renamed(server, 'projects_one', 'name', 'homelab', name))
+    server.route('GET', '/projects', renamed(server, 'projects_one', 'name', 'webshop', name))
     base = '/project/%d' % server.fixtures['projects_one']['body'][0]['id']
     repo_id = server.fixtures['repository_create']['body']['id']
     server.route('GET', base + '/keys', renamed(server, 'keys_with_deploy', 'name', 'deploy', name))
@@ -86,7 +86,7 @@ def test_view_title_is_such_a_name(server, run_module, name):
     view_id = [v for v in server.fixtures['views_two']['body'] if v['title'] == 'k8s'][0]['id']
     server.route('GET', base + '/views', renamed(server, 'views_two', 'title', 'k8s', name))
     server.route('PUT', '%s/views/%d' % (base, view_id), 'view_update')
-    result = run_module(view.main, dict(project='homelab', name=name, hidden=True))
+    result = run_module(view.main, dict(project='webshop', name=name, hidden=True))
     assert result['changed'] is True
     assert result['view']['name'] == name
     assert server.calls('PUT')[0]['body']['title'] == name

@@ -65,14 +65,14 @@ EXAMPLES = r'''
 
 - name: A token for the configuration playbook
   ramanavelineni.semaphoreui.user_token:
-    name: semaphore-config
+    name: ci
   register: config_token
   no_log: true
 
 - name: Store it where the playbook reads it (only the run that created it has it)
   ansible.builtin.copy:
     content: "{{ config_token.token }}"
-    dest: /etc/semaphore-config/api_token
+    dest: /etc/ci/semaphore_api_token
     mode: "0600"
   when: config_token.token | length > 0
   no_log: true
@@ -119,7 +119,7 @@ user_token:
       type: bool
   sample:
     id: ajs1r2wq
-    name: semaphore-config
+    name: ci
     created: "2026-10-04T15:52:58Z"
     expires_at: null
     expired: false

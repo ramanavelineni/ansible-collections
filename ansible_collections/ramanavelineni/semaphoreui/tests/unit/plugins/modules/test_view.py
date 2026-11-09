@@ -19,7 +19,7 @@ def view_id(server, title):
 def test_create_appends_after_last(server, project, run_module):
     server.route('GET', project + '/views', 'views_two')
     server.route('POST', project + '/views', 'view_create')
-    result = run_module(view.main, dict(project='homelab', name='infra'))
+    result = run_module(view.main, dict(project='webshop', name='infra'))
     assert result['changed'] is True
     last = max(v.get('position', 0) for v in server.fixtures['views_two']['body'])
     assert server.calls('POST', project + '/views')[0]['body']['position'] == last + 1
@@ -27,14 +27,14 @@ def test_create_appends_after_last(server, project, run_module):
 
 def test_no_change(server, project, run_module):
     server.route('GET', project + '/views', 'views_two')
-    result = run_module(view.main, dict(project='homelab', name='k8s', position=1))
+    result = run_module(view.main, dict(project='webshop', name='k8s', position=1))
     assert result['changed'] is False
 
 
 def test_update_sends_type_back(server, project, run_module):
     server.route('GET', project + '/views', 'views_two')
     server.route('PUT', '%s/views/%d' % (project, view_id(server, 'All')), 'view_update')
-    result = run_module(view.main, dict(project='homelab', name='All', hidden=True))
+    result = run_module(view.main, dict(project='webshop', name='All', hidden=True))
     assert result['changed'] is True
     body = server.calls('PUT')[0]['body']
     assert body['type'] == 'all'
@@ -44,7 +44,7 @@ def test_update_sends_type_back(server, project, run_module):
 
 def test_built_in_view_is_not_deleted(server, project, run_module):
     server.route('GET', project + '/views', 'views_two')
-    result = run_module(view.main, dict(project='homelab', name='All', state='absent'))
+    result = run_module(view.main, dict(project='webshop', name='All', state='absent'))
     assert result['failed'] is True
     assert 'built-in' in result['msg']
     assert server.calls('DELETE') == []
@@ -53,11 +53,11 @@ def test_built_in_view_is_not_deleted(server, project, run_module):
 def test_delete(server, project, run_module):
     server.route('GET', project + '/views', 'views_two')
     server.route('DELETE', '%s/views/%d' % (project, view_id(server, 'k8s')), 'view_delete')
-    result = run_module(view.main, dict(project='homelab', name='k8s', state='absent'))
+    result = run_module(view.main, dict(project='webshop', name='k8s', state='absent'))
     assert result['changed'] is True
 
 
 def test_view_info(server, project, run_module):
     server.route('GET', project + '/views', 'views_two')
-    result = run_module(view_info.main, dict(project='homelab'))
+    result = run_module(view_info.main, dict(project='webshop'))
     assert [(v['name'], v['type']) for v in result['views']] == [('All', 'all'), ('k8s', '')]

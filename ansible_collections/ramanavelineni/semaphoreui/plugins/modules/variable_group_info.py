@@ -40,9 +40,9 @@ EXAMPLES = r'''
 # with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
 # collection's README shows both under "Connecting".
 
-- name: List the homelab project's variable groups
+- name: List the webshop project's variable groups
   ramanavelineni.semaphoreui.variable_group_info:
-    project: homelab
+    project: webshop
   register: result
 '''
 

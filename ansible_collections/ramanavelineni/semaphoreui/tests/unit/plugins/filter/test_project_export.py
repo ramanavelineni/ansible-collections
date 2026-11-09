@@ -102,7 +102,7 @@ def spec_of(section):
 
 
 def info_of(**sections):
-    return dict(dict(project=dict(id=1, name='homelab', alert=False, alert_chat='', max_parallel_tasks=0, type='')),
+    return dict(dict(project=dict(id=1, name='webshop', alert=False, alert_chat='', max_parallel_tasks=0, type='')),
                 **sections)
 
 
@@ -171,10 +171,10 @@ def test_a_key_asks_for_every_field_of_its_secret():
 def test_no_info_module_returns_a_secret(server, run_module):
     """What is asked from a vault is really not to be had from the server."""
     recorded.key_list(server)
-    for key in run_module(key_store_info.main, dict(project='homelab'))['key_store']:
+    for key in run_module(key_store_info.main, dict(project='webshop'))['key_store']:
         assert not set(key) & set(('ssh', 'login_password', 'login', 'password', 'private_key', 'passphrase'))
     recorded.variable_group_list(server)
-    for group in run_module(variable_group_info.main, dict(project='homelab'))['variable_groups']:
+    for group in run_module(variable_group_info.main, dict(project='webshop'))['variable_groups']:
         for secret in group['secrets']:
             assert sorted(secret) == ['name', 'type']
 
@@ -194,13 +194,13 @@ def test_ids_and_server_fields_are_left_out_and_defaults_too():
     views = [dict(id=1, name='All', position=0, hidden=False, sort_column='', sort_reverse=False, type='all',
                   project_id=1)]
     config = plugin.project_export_config(info_of(schedule=schedules, view=views))
-    assert config == dict(name='homelab', view=dict(All=dict(position=0)),
+    assert config == dict(name='webshop', view=dict(All=dict(position=0)),
                           schedule=dict(nightly=dict(template='site', cron='0 3 * * *')))
 
 
 def test_project_options_that_are_set_are_written():
-    info = dict(project=dict(id=1, name='homelab', alert=True, alert_chat='-100', max_parallel_tasks=2, type=''))
-    assert plugin.project_export_config(info) == dict(name='homelab', alert=True, alert_chat='-100',
+    info = dict(project=dict(id=1, name='webshop', alert=True, alert_chat='-100', max_parallel_tasks=2, type=''))
+    assert plugin.project_export_config(info) == dict(name='webshop', alert=True, alert_chat='-100',
                                                       max_parallel_tasks=2)
 
 
@@ -208,13 +208,13 @@ def test_a_key_refers_to_vault_variables_for_all_of_its_secret():
     config = plugin.project_export_config(info_of(key_store=KEYS))
     assert config['key_store'] == {
         'None': dict(type='none'),
-        'deploy': dict(type='ssh', ssh=dict(login='{{ vault_homelab_key_deploy_ssh_login }}',
-                                            passphrase='{{ vault_homelab_key_deploy_ssh_passphrase }}',
-                                            private_key='{{ vault_homelab_key_deploy_ssh_private_key }}'),
+        'deploy': dict(type='ssh', ssh=dict(login='{{ vault_webshop_key_deploy_ssh_login }}',
+                                            passphrase='{{ vault_webshop_key_deploy_ssh_passphrase }}',
+                                            private_key='{{ vault_webshop_key_deploy_ssh_private_key }}'),
                        update_secret='on_create'),
         'vault pw': dict(type='login_password', login_password=dict(
-            login='{{ vault_homelab_key_vault_pw_login_password_login }}',
-            password='{{ vault_homelab_key_vault_pw_login_password_password }}'),
+            login='{{ vault_webshop_key_vault_pw_login_password_login }}',
+            password='{{ vault_webshop_key_vault_pw_login_password_password }}'),
             update_secret='on_create'),
     }
 
@@ -223,8 +223,8 @@ def test_a_variable_group_refers_to_one_vault_variable_per_secret():
     config = plugin.project_export_config(info_of(variable_group=GROUPS), vault_prefix='secret')
     assert config['variable_group']['harbor'] == dict(
         json=dict(harbor_url='https://harbor.example.com'),
-        secrets=[dict(name='HARBOR_TOKEN', value='{{ secret_homelab_var_harbor_harbor_token }}'),
-                 dict(name='db_pw', type='var', value='{{ secret_homelab_var_harbor_db_pw }}')],
+        secrets=[dict(name='HARBOR_TOKEN', value='{{ secret_webshop_var_harbor_harbor_token }}'),
+                 dict(name='db_pw', type='var', value='{{ secret_webshop_var_harbor_db_pw }}')],
         update_secret='on_create')
 
 
@@ -238,10 +238,10 @@ def test_a_variable_group_without_secrets_is_written_without_update_secret():
 def test_the_vault_variables_are_listed_in_the_order_of_the_file():
     listed = plugin.project_export_vault_variables(info_of(key_store=KEYS, variable_group=GROUPS))
     assert [entry['name'] for entry in listed] == [
-        'vault_homelab_key_deploy_ssh_login', 'vault_homelab_key_deploy_ssh_passphrase',
-        'vault_homelab_key_deploy_ssh_private_key', 'vault_homelab_key_vault_pw_login_password_login',
-        'vault_homelab_key_vault_pw_login_password_password', 'vault_homelab_var_harbor_harbor_token',
-        'vault_homelab_var_harbor_db_pw']
+        'vault_webshop_key_deploy_ssh_login', 'vault_webshop_key_deploy_ssh_passphrase',
+        'vault_webshop_key_deploy_ssh_private_key', 'vault_webshop_key_vault_pw_login_password_login',
+        'vault_webshop_key_vault_pw_login_password_password', 'vault_webshop_var_harbor_harbor_token',
+        'vault_webshop_var_harbor_db_pw']
     assert listed[2]['description'] == 'key deploy: ssh.private_key'
     assert listed[5]['description'] == 'variable group harbor: the value of secret HARBOR_TOKEN'
     text = plugin.project_export_yaml(info_of(key_store=KEYS, variable_group=GROUPS))
@@ -254,16 +254,16 @@ def test_names_that_differ_in_punctuation_or_case_get_variables_of_their_own():
             dict(id=3, name='A b', type='login_password')]
     names = [entry['name'] for entry in plugin.project_export_vault_variables(info_of(key_store=keys))]
     assert len(names) == len(set(names)) == 6
-    assert 'vault_homelab_key_a_b_login_password_password' in names
-    assert 'vault_homelab_key_a_b_login_password_password_2' in names
-    assert 'vault_homelab_key_a_b_login_password_password_3' in names
+    assert 'vault_webshop_key_a_b_login_password_password' in names
+    assert 'vault_webshop_key_a_b_login_password_password_2' in names
+    assert 'vault_webshop_key_a_b_login_password_password_3' in names
 
 
 def test_the_vault_file_is_a_mapping_of_empty_values():
     text = plugin.project_export_vault(info_of(key_store=KEYS, variable_group=GROUPS))
     listed = plugin.project_export_vault_variables(info_of(key_store=KEYS, variable_group=GROUPS))
     assert load(text) == dict((entry['name'], '') for entry in listed)
-    assert '# key deploy: ssh.private_key\nvault_homelab_key_deploy_ssh_private_key: ""\n' in text
+    assert '# key deploy: ssh.private_key\nvault_webshop_key_deploy_ssh_private_key: ""\n' in text
     assert load(plugin.project_export_vault(info_of())) == {}
     assert 'no secrets' in plugin.project_export_vault(info_of())
 
@@ -286,7 +286,7 @@ def test_a_poller_is_written_without_active_and_a_run_at_schedule_without_cron()
 
 
 def named_template(name, **more):
-    return dict(dict(id=1, name=name, app='ansible', playbook='site.yml', repository='ansible', inventory='homelab',
+    return dict(dict(id=1, name=name, app='ansible', playbook='site.yml', repository='ansible', inventory='webshop',
                      variable_groups=['empty'], view=None, type='task', build_template=None), **more)
 
 
@@ -339,7 +339,7 @@ def test_the_same_project_gives_the_same_text_whatever_the_order_of_the_listing(
 def test_the_text_is_the_mapping():
     info = info_of(key_store=KEYS, variable_group=GROUPS, template=[named_template('site')])
     text = plugin.project_export_yaml(info)
-    assert text.startswith('---\n# Semaphore project homelab\n')
+    assert text.startswith('---\n# Semaphore project webshop\n')
     assert load(text) == plugin.project_export_config(info)
     # The sections come in the order project_apply applies them.
     assert list(load(text)) == ['name', 'key_store', 'variable_group', 'template']
@@ -367,7 +367,7 @@ def test_two_objects_of_one_name_are_refused():
 
 
 @pytest.mark.parametrize('info', [None, [], {}, dict(project=None), dict(project=dict(id=1)),
-                                  dict(project=dict(name='homelab'), key_store=dict(deploy=1))])
+                                  dict(project=dict(name='webshop'), key_store=dict(deploy=1))])
 def test_something_that_is_not_what_the_info_modules_return_is_refused(info):
     with pytest.raises(ValueError, match='project_export'):
         plugin.project_export_config(info)
@@ -381,7 +381,7 @@ def test_what_looks_like_a_template_is_written_as_data():
     assert 'loop: !unsafe "{% for x in y %}"' in text
     assert 'plain: text' in text
     # The reference to the vault is the one thing that is meant to be rendered.
-    assert 'value: "{{ vault_homelab_var_tpl_token }}"' in text
+    assert 'value: "{{ vault_webshop_var_tpl_token }}"' in text
     assert load(text)['variable_group']['tpl']['json']['greeting'] == '{{ name }}'
 
 

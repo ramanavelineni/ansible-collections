@@ -7,7 +7,7 @@ import pytest
 
 from ansible_collections.ramanavelineni.semaphoreui.plugins.modules import template
 
-SITE = dict(project='homelab', name='site', playbook='site.yml', repository='ansible', inventory='homelab',
+SITE = dict(project='webshop', name='site', playbook='site.yml', repository='ansible', inventory='webshop',
             variable_groups=['empty'], view='k8s', arguments=['-v'], task_params=dict(limit=['web']),
             survey_vars=[dict(name='host', title='Host')], vaults=[dict(key='deploy')])
 
@@ -60,7 +60,7 @@ def test_create(server, project, run_module):
 
 def test_create_needs_references(server, project, run_module):
     server.route('GET', project + '/templates', 'templates_empty')
-    result = run_module(template.main, dict(project='homelab', name='site', playbook='site.yml'))
+    result = run_module(template.main, dict(project='webshop', name='site', playbook='site.yml'))
     assert result['failed'] is True
     assert 'repository, variable_groups, inventory' in result['msg']
 
@@ -88,7 +88,7 @@ def test_no_change(server, project, run_module):
 
 def test_update_keeps_everything_else(server, project, run_module):
     existing(server, project)
-    result = run_module(template.main, dict(project='homelab', name='site', description='updated'))
+    result = run_module(template.main, dict(project='webshop', name='site', description='updated'))
     assert result['changed'] is True
     body = server.calls('PUT')[0]['body']
     current = server.fixtures['template_get']['body']
@@ -101,14 +101,14 @@ def test_update_keeps_everything_else(server, project, run_module):
 
 def test_task_params_merge(server, project, run_module):
     existing(server, project)
-    result = run_module(template.main, dict(project='homelab', name='site', task_params=dict(tags=['x'])))
+    result = run_module(template.main, dict(project='webshop', name='site', task_params=dict(tags=['x'])))
     assert result['changed'] is True
     assert server.calls('PUT')[0]['body']['task_params'] == dict(limit=['web'], tags=['x'])
 
 
 def test_vaults_keep_their_ids(server, project, run_module):
     existing(server, project)
-    result = run_module(template.main, dict(project='homelab', name='site',
+    result = run_module(template.main, dict(project='webshop', name='site',
                                             vaults=[dict(key='deploy'), dict(name='extra', key='deploy')]))
     assert result['changed'] is True
     vaults = server.calls('PUT')[0]['body']['vaults']
@@ -118,7 +118,7 @@ def test_vaults_keep_their_ids(server, project, run_module):
 
 def test_clear_view(server, project, run_module):
     existing(server, project)
-    result = run_module(template.main, dict(project='homelab', name='site', view=''))
+    result = run_module(template.main, dict(project='webshop', name='site', view=''))
     assert result['changed'] is True
     assert server.calls('PUT')[0]['body']['view_id'] is None
 
@@ -132,7 +132,7 @@ def test_workspace_inventory_survives_update(server, project, run_module):
     server.route('GET', '%s/templates/%d' % (project, tofu_id), tofu)
     server.route('GET', '%s/inventory/%d' % (project, workspace_id), 'inventory_get_workspace')
     server.route('PUT', '%s/templates/%d' % (project, tofu_id), 'template_update')
-    result = run_module(template.main, dict(project='homelab', name='infra', description='d'))
+    result = run_module(template.main, dict(project='webshop', name='infra', description='d'))
     assert result['changed'] is True
     assert result['template']['inventory'] == 'default'
     assert server.calls('PUT')[0]['body']['inventory_id'] == workspace_id
@@ -140,7 +140,7 @@ def test_workspace_inventory_survives_update(server, project, run_module):
 
 def test_text_survey_needs_2_19(server, project, run_module):
     existing(server, project)
-    result = run_module(template.main, dict(project='homelab', name='site',
+    result = run_module(template.main, dict(project='webshop', name='site',
                                             survey_vars=[dict(name='notes', title='Notes', type='text')]))
     if server.version == '2.18':
         assert result['failed'] is True
@@ -154,7 +154,7 @@ def test_a_secret_survey_var_is_sent_as_secret_on_every_version(server, project,
     # Breaks when type secret is refused, or sent as another type: the task's secret_variables then have
     # no variable to fill. Semaphore 2.18 and 2.19 both offer it (web/src/components/SurveyVars.vue).
     existing(server, project)
-    result = run_module(template.main, dict(project='homelab', name='site',
+    result = run_module(template.main, dict(project='webshop', name='site',
                                             survey_vars=[dict(name='token', title='Token', type='secret')]))
     assert result['changed'] is True
     assert result['template']['survey_vars'][0]['type'] == 'secret'
@@ -165,7 +165,7 @@ def test_a_secret_survey_var_is_sent_as_secret_on_every_version(server, project,
 def test_a_stored_secret_survey_var_declared_again_is_no_change(server, project, run_module):
     with_stored(server, survey_vars=[dict(name='token', title='Token', type='secret', required=True)])
     existing(server, project)
-    result = run_module(template.main, dict(project='homelab', name='site', survey_vars=[
+    result = run_module(template.main, dict(project='webshop', name='site', survey_vars=[
         dict(name='token', title='Token', type='secret', required=True)]))
     assert result['changed'] is False
     assert server.calls('PUT') == []
@@ -174,7 +174,7 @@ def test_a_stored_secret_survey_var_declared_again_is_no_change(server, project,
 def test_a_secret_survey_var_takes_no_default_value(server, project, run_module):
     # A default would sit in the template as plain text, which is what a secret variable avoids.
     existing(server, project)
-    result = run_module(template.main, dict(project='homelab', name='site', survey_vars=[
+    result = run_module(template.main, dict(project='webshop', name='site', survey_vars=[
         dict(name='token', title='Token', type='secret', default_value='hunter2')]))
     assert result['failed'] is True
     assert "'token'" in result['msg'] and 'default_value' in result['msg']
@@ -191,7 +191,7 @@ def test_deploy_needs_build_template(server, project, run_module):
 def test_rejected_update(server, project, run_module):
     existing(server, project)
     server.route('PUT', '%s/templates/%d' % (project, tid(server)), 'template_update_id_mismatch')
-    result = run_module(template.main, dict(project='homelab', name='site', description='x'))
+    result = run_module(template.main, dict(project='webshop', name='site', description='x'))
     assert result['failed'] is True
     assert 'template id in URL and in body must be the same' in result['msg']
 
@@ -201,7 +201,7 @@ def test_delete_in_use(server, project, run_module):
     refs['body']['schedules'] = [dict(id=1, name='nightly')]
     server.route('GET', project + '/templates', 'templates_one')
     server.route('GET', '%s/templates/%d/refs' % (project, tid(server)), refs)
-    result = run_module(template.main, dict(project='homelab', name='site', state='absent'))
+    result = run_module(template.main, dict(project='webshop', name='site', state='absent'))
     assert result['failed'] is True
     assert 'still used by schedules nightly' in result['msg']
 
@@ -210,8 +210,8 @@ def test_delete(server, project, run_module):
     existing(server, project)
     server.route('GET', '%s/templates/%d/refs' % (project, tid(server)), 'template_refs_unused')
     server.route('DELETE', '%s/templates/%d' % (project, tid(server)), 'template_delete')
-    stored = run_module(template.main, dict(project='homelab', name='site'))['template']
-    result = run_module(template.main, dict(project='homelab', name='site', state='absent'))
+    stored = run_module(template.main, dict(project='webshop', name='site'))['template']
+    result = run_module(template.main, dict(project='webshop', name='site', state='absent'))
     assert result['changed'] is True
     assert len(server.calls('DELETE')) == 1
     # The diff shows what is deleted, in the shape an update shows it.
@@ -222,7 +222,7 @@ def test_delete(server, project, run_module):
 def test_delete_check_mode(server, project, run_module):
     existing(server, project)
     server.route('GET', '%s/templates/%d/refs' % (project, tid(server)), 'template_refs_unused')
-    result = run_module(template.main, dict(project='homelab', name='site', state='absent'), check_mode=True)
+    result = run_module(template.main, dict(project='webshop', name='site', state='absent'), check_mode=True)
     assert result['changed'] is True
     assert result['diff']['before']['playbook'] and result['diff']['after'] == {}
     assert server.calls('DELETE') == []
@@ -230,9 +230,9 @@ def test_delete_check_mode(server, project, run_module):
 
 def test_result_has_no_secret_or_raw_ids_only(server, project, run_module):
     existing(server, project)
-    result = run_module(template.main, dict(project='homelab', name='site'))
+    result = run_module(template.main, dict(project='webshop', name='site'))
     tpl = result['template']
-    assert tpl['repository'] == 'ansible' and tpl['inventory'] == 'homelab' and tpl['view'] == 'k8s'
+    assert tpl['repository'] == 'ansible' and tpl['inventory'] == 'webshop' and tpl['view'] == 'k8s'
     assert tpl['variable_groups'] == ['empty']
     assert json.dumps(tpl['vaults']) == json.dumps([dict(name='default', type='password', key='deploy', script='')])
 
@@ -247,7 +247,7 @@ def test_unchanged_survey_vars_go_back_as_stored(server, project, run_module):
     # 2.19 stores `target`; `colour` stands for a field a later version adds.
     stored = with_stored(server, survey_vars=[dict(name='host', title='Host', target='env', colour='red')])
     existing(server, project)
-    result = run_module(template.main, dict(project='homelab', name='site', description='updated'))
+    result = run_module(template.main, dict(project='webshop', name='site', description='updated'))
     assert result['changed'] is True
     assert server.calls('PUT')[0]['body']['survey_vars'] == stored['survey_vars']
 
@@ -257,7 +257,7 @@ def test_changed_survey_var_keeps_unmanaged_fields(server, project, run_module):
                                           values=[dict(name='a', value='a')]),
                                      dict(name='gone', title='Gone', target='env')])
     existing(server, project)
-    result = run_module(template.main, dict(project='homelab', name='site', survey_vars=[
+    result = run_module(template.main, dict(project='webshop', name='site', survey_vars=[
         dict(name='host', title='Target host', required=True), dict(name='new', title='New')]))
     assert result['changed'] is True
     assert server.calls('PUT')[0]['body']['survey_vars'] == [
@@ -271,7 +271,7 @@ def test_unknown_survey_type_round_trips(server, project, run_module):
     # `colour` stands for a type a later Semaphore adds.
     stored = with_stored(server, survey_vars=[dict(name='host', title='Host', type='colour')])
     existing(server, project)
-    result = run_module(template.main, dict(project='homelab', name='site', description='updated'))
+    result = run_module(template.main, dict(project='webshop', name='site', description='updated'))
     assert result['changed'] is True
     assert result['template']['survey_vars'][0]['type'] == 'colour'
     assert server.calls('PUT')[0]['body']['survey_vars'] == stored['survey_vars']
@@ -280,7 +280,7 @@ def test_unknown_survey_type_round_trips(server, project, run_module):
 def test_unknown_template_type_round_trips(server, project, run_module):
     with_stored(server, type='workflow')
     existing(server, project)
-    result = run_module(template.main, dict(project='homelab', name='site', description='updated'))
+    result = run_module(template.main, dict(project='webshop', name='site', description='updated'))
     assert result['changed'] is True
     assert result['template']['type'] == 'workflow'
     assert server.calls('PUT')[0]['body']['type'] == 'workflow'
@@ -289,7 +289,7 @@ def test_unknown_template_type_round_trips(server, project, run_module):
 def test_unchanged_arguments_go_back_as_stored(server, project, run_module):
     with_stored(server, arguments='-v --diff')
     existing(server, project)
-    result = run_module(template.main, dict(project='homelab', name='site', description='updated'))
+    result = run_module(template.main, dict(project='webshop', name='site', description='updated'))
     assert result['changed'] is True
     assert server.calls('PUT')[0]['body']['arguments'] == '-v --diff'
 
@@ -297,7 +297,7 @@ def test_unchanged_arguments_go_back_as_stored(server, project, run_module):
 def test_changed_arguments_are_written_as_a_list(server, project, run_module):
     with_stored(server, arguments='-v --diff')
     existing(server, project)
-    result = run_module(template.main, dict(project='homelab', name='site', arguments=['-v', '--diff']))
+    result = run_module(template.main, dict(project='webshop', name='site', arguments=['-v', '--diff']))
     assert result['changed'] is True
     assert server.calls('PUT')[0]['body']['arguments'] == '["-v", "--diff"]'
 
@@ -310,7 +310,7 @@ def test_changed_arguments_are_written_as_a_list(server, project, run_module):
 def test_arguments_that_match_the_stored_ones_are_no_change(server, project, run_module, stored, given):
     with_stored(server, arguments=stored)
     existing(server, project)
-    result = run_module(template.main, dict(project='homelab', name='site', arguments=given))
+    result = run_module(template.main, dict(project='webshop', name='site', arguments=given))
     assert result['changed'] is False
     assert server.calls('PUT') == []
 
@@ -326,7 +326,7 @@ def test_arguments_stored_as_anything_but_that_list_are_rewritten_as_the_list(se
     # repairs it, and the next run is no change.
     with_stored(server, arguments=stored)
     existing(server, project)
-    result = run_module(template.main, dict(project='homelab', name='site', arguments=['--check']))
+    result = run_module(template.main, dict(project='webshop', name='site', arguments=['--check']))
     assert result['changed'] is True
     assert result['diff']['before']['arguments'] == before
     assert server.calls('PUT')[0]['body']['arguments'] == '["--check"]'
@@ -352,7 +352,7 @@ def test_create_refuses_option_of_another_type(server, project, run_module, args
 def test_update_refuses_option_of_another_type(server, project, run_module):
     # The stored template is of type task: this used to report a change on every run.
     existing(server, project)
-    result = run_module(template.main, dict(project='homelab', name='site', start_version='1.0.0'))
+    result = run_module(template.main, dict(project='webshop', name='site', start_version='1.0.0'))
     assert result['failed'] is True
     assert 'start_version is only valid for a template of type build' in result['msg']
     assert server.calls('PUT') == []
@@ -361,7 +361,7 @@ def test_update_refuses_option_of_another_type(server, project, run_module):
 def test_empty_type_options_are_accepted_for_every_type(server, project, run_module):
     # What template_info returns for a task template.
     existing(server, project)
-    result = run_module(template.main, dict(project='homelab', name='site', start_version='', build_template=''))
+    result = run_module(template.main, dict(project='webshop', name='site', start_version='', build_template=''))
     assert result['changed'] is False
     assert server.calls('PUT') == []
 
@@ -378,7 +378,7 @@ def test_build_template_takes_start_version(server, project, run_module):
 def test_stored_type_decides_when_type_is_not_set(server, project, run_module):
     with_stored(server, type='build', start_version='1.0.0')
     existing(server, project)
-    result = run_module(template.main, dict(project='homelab', name='site', start_version='2.0.0'))
+    result = run_module(template.main, dict(project='webshop', name='site', start_version='2.0.0'))
     assert result['changed'] is True
     assert server.calls('PUT')[0]['body']['start_version'] == '2.0.0'
 
@@ -386,7 +386,7 @@ def test_stored_type_decides_when_type_is_not_set(server, project, run_module):
 def test_leaving_build_type_drops_start_version_from_the_result(server, project, run_module):
     with_stored(server, type='build', start_version='1.0.0')
     existing(server, project)
-    result = run_module(template.main, dict(project='homelab', name='site', type='task'))
+    result = run_module(template.main, dict(project='webshop', name='site', type='task'))
     assert result['changed'] is True
     assert server.calls('PUT')[0]['body']['start_version'] is None
     assert result['template']['start_version'] == ''
@@ -448,7 +448,7 @@ def test_stored_custom_app_is_not_looked_up_again(server, project, run_module):
     # server: an unrelated update still goes through.
     with_stored(server, app='ruby')
     existing(server, project)
-    result = run_module(template.main, dict(project='homelab', name='site', app='ruby', description='updated',
+    result = run_module(template.main, dict(project='webshop', name='site', app='ruby', description='updated',
                                             task_params=dict(bundle=True)))
     assert result['changed'] is True
     assert server.calls('GET', '/apps') == []

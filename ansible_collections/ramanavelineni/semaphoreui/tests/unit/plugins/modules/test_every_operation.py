@@ -48,7 +48,7 @@ def fid(server, fixture):
     return server.fixtures[fixture]['body']['id']
 
 
-def homelab(server):
+def webshop(server):
     server.route('GET', '/projects', 'projects_one')
     return '/project/%d' % server.fixtures['projects_one']['body'][0]['id']
 
@@ -65,54 +65,54 @@ def single(server, fixture):
 def project_create(server):
     server.route('GET', '/projects', 'projects_empty')
     server.route('POST', '/projects', 'project_create')
-    return dict(name='homelab')
+    return dict(name='webshop')
 
 
 def project_update(server):
     server.route('GET', '/projects', 'projects_one')
     server.route('PUT', '/project/%d' % fid(server, 'project_create'), 'project_update')
-    return dict(name='homelab', alert=True)
+    return dict(name='webshop', alert=True)
 
 
 def project_delete(server):
     server.route('GET', '/projects', 'projects_one')
     server.route('DELETE', '/project/%d' % fid(server, 'project_create'), 'project_delete')
-    return dict(name='homelab', state='absent', confirm_delete=True)
+    return dict(name='webshop', state='absent', confirm_delete=True)
 
 
 # -- key_store ------------------------------------------------------------------
 
 def key_create(server):
-    base = homelab(server)
+    base = webshop(server)
     server.route('GET', base + '/repositories', 'repositories_empty')
     server.route('GET', base + '/keys', 'keys_new_project')
     server.route('POST', base + '/keys', 'key_create')
-    return dict(project='homelab', name='deploy', type='ssh', ssh=dict(login='git', private_key=PRIVATE_KEY))
+    return dict(project='webshop', name='deploy', type='ssh', ssh=dict(login='git', private_key=PRIVATE_KEY))
 
 
 def key_update(server):
-    base = homelab(server)
+    base = webshop(server)
     server.route('GET', base + '/repositories', 'repositories_empty')
     server.route('GET', base + '/keys', 'keys_with_deploy')
     server.route('PUT', '%s/keys/%d' % (base, fid(server, 'key_create')), 'key_update')
-    return dict(project='homelab', name='deploy', type='login_password',
+    return dict(project='webshop', name='deploy', type='login_password',
                 login_password=dict(login='git', password='pw-unit-key'))
 
 
 def key_delete(server):
-    base = homelab(server)
+    base = webshop(server)
     path = '%s/keys/%d' % (base, fid(server, 'key_create'))
     server.route('GET', base + '/repositories', 'repositories_empty')
     server.route('GET', base + '/keys', 'keys_with_deploy')
     server.route('GET', path + '/refs', 'key_refs_unused')
     server.route('DELETE', path, 'key_delete')
-    return dict(project='homelab', name='deploy', state='absent')
+    return dict(project='webshop', name='deploy', state='absent')
 
 
 # -- repository -----------------------------------------------------------------
 
 def repository_routes(server, listing):
-    base = homelab(server)
+    base = webshop(server)
     server.route('GET', base + '/keys', 'keys_with_deploy')
     server.route('GET', base + '/repositories', listing)
     return base, '%s/repositories/%d' % (base, fid(server, 'repository_create'))
@@ -121,27 +121,27 @@ def repository_routes(server, listing):
 def repository_create(server):
     base, dummy = repository_routes(server, 'repositories_empty')
     server.route('POST', base + '/repositories', 'repository_create')
-    return dict(project='homelab', name='ansible', git_url='git@github.com:example/ansible.git', git_branch='main',
+    return dict(project='webshop', name='ansible', git_url='git@github.com:example/ansible.git', git_branch='main',
                 ssh_key='deploy')
 
 
 def repository_update(server):
     dummy, path = repository_routes(server, 'repositories_one')
     server.route('PUT', path, 'repository_update')
-    return dict(project='homelab', name='ansible', git_branch='develop')
+    return dict(project='webshop', name='ansible', git_branch='develop')
 
 
 def repository_delete(server):
     dummy, path = repository_routes(server, 'repositories_one')
     server.route('GET', path + '/refs', 'repository_refs_unused')
     server.route('DELETE', path, 'repository_delete')
-    return dict(project='homelab', name='ansible', state='absent')
+    return dict(project='webshop', name='ansible', state='absent')
 
 
 # -- inventory ------------------------------------------------------------------
 
 def inventory_routes(server, listing):
-    base = homelab(server)
+    base = webshop(server)
     server.route('GET', base + '/keys', 'keys_with_deploy')
     server.route('GET', base + '/repositories', 'repositories_one')
     server.route('GET', base + '/inventory', listing)
@@ -151,37 +151,37 @@ def inventory_routes(server, listing):
 def inventory_create(server):
     base, dummy = inventory_routes(server, 'inventories_empty')
     server.route('POST', base + '/inventory', 'inventory_create')
-    return dict(project='homelab', name='homelab', type='file', inventory='inventories/homelab/hosts',
+    return dict(project='webshop', name='webshop', type='file', inventory='inventories/webshop/hosts',
                 repository='ansible', ssh_key='deploy')
 
 
 def inventory_update(server):
     dummy, path = inventory_routes(server, 'inventories_one')
     server.route('PUT', path, 'inventory_update')
-    return dict(project='homelab', name='homelab', become_key='deploy')
+    return dict(project='webshop', name='webshop', become_key='deploy')
 
 
 def inventory_delete(server):
     dummy, path = inventory_routes(server, 'inventories_one')
     server.route('GET', path + '/refs', 'inventory_refs_unused')
     server.route('DELETE', path, 'inventory_delete')
-    return dict(project='homelab', name='homelab', state='absent')
+    return dict(project='webshop', name='webshop', state='absent')
 
 
 # -- view -----------------------------------------------------------------------
 
 def view_create(server):
-    base = homelab(server)
+    base = webshop(server)
     # The recorded create answer is the k8s view, so this is the recorded list without it.
     listing = server.response('views_two')
     listing['body'] = [v for v in listing['body'] if v['title'] != 'k8s']
     server.route('GET', base + '/views', listing)
     server.route('POST', base + '/views', 'view_create')
-    return dict(project='homelab', name='k8s')
+    return dict(project='webshop', name='k8s')
 
 
 def k8s_view(server):
-    base = homelab(server)
+    base = webshop(server)
     server.route('GET', base + '/views', 'views_two')
     view_id = [v for v in server.fixtures['views_two']['body'] if v['title'] == 'k8s'][0]['id']
     return '%s/views/%d' % (base, view_id)
@@ -189,26 +189,26 @@ def k8s_view(server):
 
 def view_update(server):
     server.route('PUT', k8s_view(server), 'view_update')
-    return dict(project='homelab', name='k8s', hidden=True)
+    return dict(project='webshop', name='k8s', hidden=True)
 
 
 def view_delete(server):
     server.route('DELETE', k8s_view(server), 'view_delete')
-    return dict(project='homelab', name='k8s', state='absent')
+    return dict(project='webshop', name='k8s', state='absent')
 
 
 # -- variable_group -------------------------------------------------------------
 
 def variable_group_create(server):
-    base = homelab(server)
+    base = webshop(server)
     server.route('GET', base + '/environment', 'variable_groups_empty')
     server.route('POST', base + '/environment', 'variable_group_create')
-    return dict(project='homelab', name='harbor', json=dict(harbor_url='https://harbor.example.com'), env=dict(TZ='UTC'),
+    return dict(project='webshop', name='harbor', json=dict(harbor_url='https://harbor.example.com'), env=dict(TZ='UTC'),
                 secrets=[dict(name='TOKEN', type='env', value='tok-1'), dict(name='db_pw', type='var', value='pw-1')])
 
 
 def stored_variable_group(server):
-    base = homelab(server)
+    base = webshop(server)
     path = '%s/environment/%d' % (base, fid(server, 'variable_group_create'))
     server.route('GET', base + '/environment', 'variable_groups_one')
     server.route('GET', path, 'variable_group_get')
@@ -217,20 +217,20 @@ def stored_variable_group(server):
 
 def variable_group_update(server):
     server.route('PUT', stored_variable_group(server), 'variable_group_update')
-    return dict(project='homelab', name='harbor', env=dict(TZ='Europe/Oslo'))
+    return dict(project='webshop', name='harbor', env=dict(TZ='Europe/Oslo'))
 
 
 def variable_group_delete(server):
     path = stored_variable_group(server)
     server.route('GET', path + '/refs', 'variable_group_refs_unused')
     server.route('DELETE', path, 'variable_group_delete')
-    return dict(project='homelab', name='harbor', state='absent')
+    return dict(project='webshop', name='harbor', state='absent')
 
 
 # -- template -------------------------------------------------------------------
 
 def template_routes(server, listing):
-    base = homelab(server)
+    base = webshop(server)
     server.route('GET', base + '/repositories', 'repositories_one')
     server.route('GET', base + '/inventory', 'inventories_one')
     server.route('GET', base + '/environment', 'variable_groups_for_templates')
@@ -245,7 +245,7 @@ def template_routes(server, listing):
 def template_create(server):
     base, dummy = template_routes(server, 'templates_empty')
     server.route('POST', base + '/templates', 'template_create')
-    return dict(project='homelab', name='site', playbook='site.yml', repository='ansible', inventory='homelab',
+    return dict(project='webshop', name='site', playbook='site.yml', repository='ansible', inventory='webshop',
                 variable_groups=['empty'], view='k8s', arguments=['-v'], task_params=dict(limit=['web']),
                 survey_vars=[dict(name='host', title='Host')], vaults=[dict(key='deploy')])
 
@@ -253,20 +253,20 @@ def template_create(server):
 def template_update(server):
     dummy, path = template_routes(server, 'templates_one')
     server.route('PUT', path, 'template_update')
-    return dict(project='homelab', name='site', description='updated')
+    return dict(project='webshop', name='site', description='updated')
 
 
 def template_delete(server):
     dummy, path = template_routes(server, 'templates_one')
     server.route('GET', path + '/refs', 'template_refs_unused')
     server.route('DELETE', path, 'template_delete')
-    return dict(project='homelab', name='site', state='absent')
+    return dict(project='webshop', name='site', state='absent')
 
 
 # -- schedule -------------------------------------------------------------------
 
 def schedule_routes(server, listing):
-    base = homelab(server)
+    base = webshop(server)
     server.route('GET', base + '/templates', 'templates_one')
     server.route('GET', base + '/repositories', 'repositories_one')
     server.route('GET', base + '/schedules', listing)
@@ -279,25 +279,25 @@ def schedule_routes(server, listing):
 def schedule_create(server):
     base, dummy = schedule_routes(server, 'schedules_empty')
     server.route('POST', base + '/schedules', 'schedule_create')
-    return dict(project='homelab', name='nightly', template='site', cron='0 3 * * *')
+    return dict(project='webshop', name='nightly', template='site', cron='0 3 * * *')
 
 
 def schedule_update(server):
     dummy, path = schedule_routes(server, 'schedules_project_list')
     server.route('PUT', path, 'schedule_update')
-    return dict(project='homelab', name='nightly', active=False)
+    return dict(project='webshop', name='nightly', active=False)
 
 
 def schedule_delete(server):
     dummy, path = schedule_routes(server, 'schedules_project_list')
     server.route('DELETE', path, 'schedule_delete')
-    return dict(project='homelab', name='nightly', state='absent')
+    return dict(project='webshop', name='nightly', state='absent')
 
 
 # -- integration ----------------------------------------------------------------
 
 def integration_routes(server, listing):
-    base = homelab(server)
+    base = webshop(server)
     server.route('GET', base + '/templates', 'templates_one')
     server.route('GET', base + '/keys', 'keys_with_deploy')
     server.route('GET', base + '/integrations', listing)
@@ -315,7 +315,7 @@ def integration_create(server):
     server.route('POST', path + '/matchers', 'integration_matcher_create')
     server.route('POST', path + '/values', 'integration_value_create')
     server.route('POST', path + '/aliases', 'integration_alias_create')
-    return dict(project='homelab', name='gh', template='site', auth_method='token', auth_key='deploy',
+    return dict(project='webshop', name='gh', template='site', auth_method='token', auth_key='deploy',
                 auth_header='X-Token', matchers=[dict(name='main', key='ref', value='refs/heads/main')],
                 extract_values=[dict(name='sha', key='after', variable='COMMIT_SHA')])
 
@@ -323,14 +323,14 @@ def integration_create(server):
 def integration_update(server):
     dummy, path = integration_routes(server, 'integrations_one')
     server.route('PUT', path, 'integration_update')
-    return dict(project='homelab', name='gh', searchable=True)
+    return dict(project='webshop', name='gh', searchable=True)
 
 
 def integration_delete(server):
     dummy, path = integration_routes(server, 'integrations_one')
     server.route('GET', path + '/refs', 'integration_refs_unused')
     server.route('DELETE', path, 'integration_delete')
-    return dict(project='homelab', name='gh', state='absent')
+    return dict(project='webshop', name='gh', state='absent')
 
 
 # -- team_member ----------------------------------------------------------------
@@ -440,19 +440,19 @@ def no_options(server):
 
 def integration_list(server):
     integration_routes(server, 'integrations_one')
-    return dict(project='homelab')
+    return dict(project='webshop')
 
 
 def inventory_list(server):
     inventory_routes(server, 'inventories_one')
-    return dict(project='homelab')
+    return dict(project='webshop')
 
 
 def key_list(server):
-    base = homelab(server)
+    base = webshop(server)
     server.route('GET', base + '/keys', 'keys_with_deploy')
     server.route('GET', base + '/repositories', 'repositories_one')
-    return dict(project='homelab')
+    return dict(project='webshop')
 
 
 def project_list(server):
@@ -462,7 +462,7 @@ def project_list(server):
 
 def repository_list(server):
     repository_routes(server, 'repositories_one')
-    return dict(project='homelab')
+    return dict(project='webshop')
 
 
 def runner_list(server):
@@ -472,7 +472,7 @@ def runner_list(server):
 
 def schedule_list(server):
     schedule_routes(server, 'schedules_project_list')
-    return dict(project='homelab')
+    return dict(project='webshop')
 
 
 def task_list(server):
@@ -490,7 +490,7 @@ def team_member_list(server):
 
 def template_list(server):
     template_routes(server, 'templates_one')
-    return dict(project='homelab')
+    return dict(project='webshop')
 
 
 def user_list(server):
@@ -500,12 +500,12 @@ def user_list(server):
 
 def variable_group_list(server):
     stored_variable_group(server)
-    return dict(project='homelab')
+    return dict(project='webshop')
 
 
 def view_list(server):
     k8s_view(server)
-    return dict(project='homelab')
+    return dict(project='webshop')
 
 
 def module_name(module):
@@ -520,13 +520,13 @@ OPERATIONS = [
     (integration, 'integration', 'delete', integration_delete, ('name', 'gh')),
     (inventory, 'inventory', 'create', inventory_create, None),
     (inventory, 'inventory', 'update', inventory_update, ('become_key', None, 'deploy')),
-    (inventory, 'inventory', 'delete', inventory_delete, ('name', 'homelab')),
+    (inventory, 'inventory', 'delete', inventory_delete, ('name', 'webshop')),
     (key_store, 'key', 'create', key_create, None),
     (key_store, 'key', 'update', key_update, ('type', 'ssh', 'login_password')),
     (key_store, 'key', 'delete', key_delete, ('name', 'deploy')),
     (project, 'project', 'create', project_create, None),
     (project, 'project', 'update', project_update, ('alert', False, True)),
-    (project, 'project', 'delete', project_delete, ('name', 'homelab')),
+    (project, 'project', 'delete', project_delete, ('name', 'webshop')),
     (repository, 'repository', 'create', repository_create, None),
     (repository, 'repository', 'update', repository_update, ('git_branch', 'main', 'develop')),
     (repository, 'repository', 'delete', repository_delete, ('name', 'ansible')),
