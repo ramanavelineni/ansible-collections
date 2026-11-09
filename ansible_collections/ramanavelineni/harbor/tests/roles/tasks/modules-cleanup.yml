@@ -1,0 +1,14 @@
+---
+# The robot first: it lives inside the project.
+- name: Remove the project robot
+  ramanavelineni.harbor.robot_account:
+    name: "{{ modules_robot }}"
+    level: project
+    project: "{{ modules_project }}"
+    state: absent
+
+- name: Remove the project
+  ramanavelineni.harbor.project:
+    name: "{{ modules_project }}"
+    state: absent
+    confirm_delete: true
