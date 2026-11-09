@@ -1,0 +1,36 @@
+---
+# Harbor's system settings. The options are those of the
+# ramanavelineni.harbor.configuration module (settings, oidc_client_secret,
+# ldap_search_password, uaa_client_secret, update_secret). Empty means the
+# settings are not managed.
+server_apply_configuration: {}
+
+# The schedules. Each takes the options of the module of the same name
+# (garbage_collection: schedule, cron, delete_untagged, workers, delete_tag;
+# scan_all: schedule, cron; log_rotation: schedule, cron,
+# audit_retention_hour, include_event_types, dry_run). Empty means that
+# schedule is not managed.
+server_apply_garbage_collection: {}
+server_apply_scan_all: {}
+server_apply_log_rotation: {}
+
+# Registry endpoints, keyed by name. The options of an entry are those of the
+# ramanavelineni.harbor.registry module, without name.
+server_apply_registries: {}
+
+# Replication rules, keyed by name. The options of an entry are those of the
+# ramanavelineni.harbor.replication module, without name.
+server_apply_replications: {}
+
+# System robot accounts, keyed by name. The options of an entry are those of
+# the ramanavelineni.harbor.robot_account module, without name, level and
+# project.
+server_apply_robot_accounts: {}
+
+# A drift check: nothing is expected to change, and the role fails at its end
+# when something did (or, with --check, would have). Secrets are then only
+# sent for objects that don't exist yet.
+server_apply_drift_check: false
+
+# Hide the tasks that carry secrets from the output.
+server_apply_no_log: true

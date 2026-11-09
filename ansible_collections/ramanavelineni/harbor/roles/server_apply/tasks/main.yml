@@ -1,0 +1,236 @@
+---
+# Applies Harbor's server-wide objects: the system settings, the schedules,
+# the registries, the replications and the system robot accounts, in that
+# order. Then the entries marked `state: absent` are deleted in the reverse
+# order (a replication before the registry it names). What the variables
+# don't mention is left alone.
+#
+# Every option of each module is passed through. The lists of those options
+# are in vars/main.yml; a key a module doesn't have fails before anything is
+# changed.
+
+- name: Check the Harbor server
+  ramanavelineni.harbor.info:
+
+- name: Check the option names
+  ansible.builtin.assert:
+    that:
+      - __server_apply_not_dicts | length == 0
+      - __server_apply_unknown | length == 0
+    fail_msg: >-
+      {{ ('not a dictionary: ' ~ (__server_apply_not_dicts | join(', ')))
+         if __server_apply_not_dicts | length > 0
+         else ('unknown option(s) ' ~ (__server_apply_unknown | join(', '))) }}
+    quiet: true
+  vars:
+    __server_apply_single:
+      configuration: "{{ server_apply_configuration | default({}, true) }}"
+      garbage_collection: "{{ server_apply_garbage_collection | default({}, true) }}"
+      scan_all: "{{ server_apply_scan_all | default({}, true) }}"
+      log_rotation: "{{ server_apply_log_rotation | default({}, true) }}"
+    __server_apply_keyed:
+      registry: "{{ server_apply_registries | default({}, true) }}"
+      replication: "{{ server_apply_replications | default({}, true) }}"
+      robot_account: "{{ server_apply_robot_accounts | default({}, true) }}"
+    # An entry may be empty (all defaults), but not a string or a list.
+    __server_apply_not_dicts: >-
+      {%- set bad = [] -%}
+      {%- for section, entries in __server_apply_keyed.items() -%}
+      {%-   for name, entry in entries.items() if entry is not none and entry is not mapping -%}
+      {%-     set _ = bad.append(section ~ '.' ~ name) -%}
+      {%-   endfor -%}
+      {%- endfor -%}
+      {{ bad }}
+    __server_apply_unknown: >-
+      {%- set bad = [] -%}
+      {%- for section, entry in __server_apply_single.items() -%}
+      {%-   for key in entry if key not in __server_apply_options[section] -%}
+      {%-     set _ = bad.append(section ~ '.' ~ key) -%}
+      {%-   endfor -%}
+      {%- endfor -%}
+      {%- for section, entries in __server_apply_keyed.items() -%}
+      {%-   for name, entry in entries.items() if entry is mapping -%}
+      {%-     for key in entry if key not in __server_apply_options[section] -%}
+      {%-       set _ = bad.append(section ~ '.' ~ name ~ '.' ~ key) -%}
+      {%-     endfor -%}
+      {%-   endfor -%}
+      {%- endfor -%}
+      {{ bad }}
+
+# ---- create and update ------------------------------------------------------
+
+- name: System settings
+  ramanavelineni.harbor.configuration:
+    settings: "{{ server_apply_configuration.settings | default(omit) }}"
+    oidc_client_secret: "{{ server_apply_configuration.oidc_client_secret | default(omit) }}"
+    ldap_search_password: "{{ server_apply_configuration.ldap_search_password | default(omit) }}"
+    uaa_client_secret: "{{ server_apply_configuration.uaa_client_secret | default(omit) }}"
+    update_secret: "{{ 'on_create' if server_apply_drift_check | bool else (server_apply_configuration.update_secret | default(omit)) }}"
+  when: server_apply_configuration | default({}, true) | length > 0
+  register: __server_apply_done_configuration
+  no_log: "{{ server_apply_no_log | bool }}"
+
+- name: Garbage collection schedule
+  ramanavelineni.harbor.garbage_collection:
+    schedule: "{{ server_apply_garbage_collection.schedule | default(omit) }}"
+    cron: "{{ server_apply_garbage_collection.cron | default(omit) }}"
+    delete_untagged: "{{ server_apply_garbage_collection.delete_untagged | default(omit) }}"
+    workers: "{{ server_apply_garbage_collection.workers | default(omit) }}"
+    delete_tag: "{{ server_apply_garbage_collection.delete_tag | default(omit) }}"
+  when: server_apply_garbage_collection | default({}, true) | length > 0
+  register: __server_apply_done_garbage_collection
+
+# Without a default vulnerability scanner Harbor refuses every Scan All
+# request, a read included, so the task only runs when it is asked for.
+- name: Scan All schedule
+  ramanavelineni.harbor.scan_all:
+    schedule: "{{ server_apply_scan_all.schedule | default(omit) }}"
+    cron: "{{ server_apply_scan_all.cron | default(omit) }}"
+  when: server_apply_scan_all | default({}, true) | length > 0
+  register: __server_apply_done_scan_all
+
+- name: Log rotation schedule
+  ramanavelineni.harbor.log_rotation:
+    schedule: "{{ server_apply_log_rotation.schedule | default(omit) }}"
+    cron: "{{ server_apply_log_rotation.cron | default(omit) }}"
+    audit_retention_hour: "{{ server_apply_log_rotation.audit_retention_hour | default(omit) }}"
+    include_event_types: "{{ server_apply_log_rotation.include_event_types | default(omit) }}"
+    dry_run: "{{ server_apply_log_rotation.dry_run | default(omit) }}"
+  when: server_apply_log_rotation | default({}, true) | length > 0
+  register: __server_apply_done_log_rotation
+
+- name: Registries
+  ramanavelineni.harbor.registry:
+    name: "{{ item.key }}"
+    state: "{{ (item.value | default({}, true)).state | default(omit) }}"
+    type: "{{ (item.value | default({}, true)).type | default(omit) }}"
+    endpoint_url: "{{ (item.value | default({}, true)).endpoint_url | default(omit) }}"
+    description: "{{ (item.value | default({}, true)).description | default(omit) }}"
+    insecure: "{{ (item.value | default({}, true)).insecure | default(omit) }}"
+    ca_certificate: "{{ (item.value | default({}, true)).ca_certificate | default(omit) }}"
+    credential_type: "{{ (item.value | default({}, true)).credential_type | default(omit) }}"
+    access_key: "{{ (item.value | default({}, true)).access_key | default(omit) }}"
+    access_secret: "{{ (item.value | default({}, true)).access_secret | default(omit) }}"
+    update_secret: "{{ 'on_create' if server_apply_drift_check | bool else ((item.value | default({}, true)).update_secret | default(omit)) }}"
+  loop: "{{ server_apply_registries | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') != 'absent'
+  register: __server_apply_done_registries
+  no_log: "{{ server_apply_no_log | bool }}"
+
+- name: Replications
+  ramanavelineni.harbor.replication:
+    name: "{{ item.key }}"
+    state: "{{ (item.value | default({}, true)).state | default(omit) }}"
+    description: "{{ (item.value | default({}, true)).description | default(omit) }}"
+    src_registry: "{{ (item.value | default({}, true)).src_registry | default(omit) }}"
+    dest_registry: "{{ (item.value | default({}, true)).dest_registry | default(omit) }}"
+    dest_namespace: "{{ (item.value | default({}, true)).dest_namespace | default(omit) }}"
+    dest_namespace_replace_count: "{{ (item.value | default({}, true)).dest_namespace_replace_count | default(omit) }}"
+    trigger: "{{ (item.value | default({}, true)).trigger | default(omit) }}"
+    filters: "{{ (item.value | default({}, true)).filters | default(omit) }}"
+    enabled: "{{ (item.value | default({}, true)).enabled | default(omit) }}"
+    override: "{{ (item.value | default({}, true)).override | default(omit) }}"
+    replicate_deletion: "{{ (item.value | default({}, true)).replicate_deletion | default(omit) }}"
+    speed: "{{ (item.value | default({}, true)).speed | default(omit) }}"
+    copy_by_chunk: "{{ (item.value | default({}, true)).copy_by_chunk | default(omit) }}"
+    single_active_replication: "{{ (item.value | default({}, true)).single_active_replication | default(omit) }}"
+  loop: "{{ server_apply_replications | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') != 'absent'
+  register: __server_apply_done_replications
+
+- name: Robot accounts
+  ramanavelineni.harbor.robot_account:
+    name: "{{ item.key }}"
+    level: system
+    state: "{{ (item.value | default({}, true)).state | default(omit) }}"
+    description: "{{ (item.value | default({}, true)).description | default(omit) }}"
+    duration: "{{ (item.value | default({}, true)).duration | default(omit) }}"
+    disable: "{{ (item.value | default({}, true)).disable | default(omit) }}"
+    permissions: "{{ (item.value | default({}, true)).permissions | default(omit) }}"
+    secret: "{{ (item.value | default({}, true)).secret | default(omit) }}"
+    update_secret: "{{ 'on_create' if server_apply_drift_check | bool else ((item.value | default({}, true)).update_secret | default(omit)) }}"
+  loop: "{{ server_apply_robot_accounts | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') != 'absent'
+  register: __server_apply_done_robot_accounts
+  # The result carries the secret Harbor generates for a new robot account.
+  no_log: "{{ server_apply_no_log | bool }}"
+
+- name: Show the secrets of new robot accounts (shown once)
+  ansible.builtin.debug:
+    msg: "{{ item.robot_account.full_name | default(item.item.key) }}: {{ item.secret }}"
+  # With no_log on the loop is empty, so no item exists to be printed: a
+  # skipped item would show in full with -v, the secret included.
+  loop: >-
+    {{ [] if server_apply_no_log | bool else
+       (__server_apply_done_robot_accounts.results | default([])
+        | selectattr('secret', 'defined') | selectattr('secret') | list) }}
+  loop_control:
+    label: "{{ item.item.key }}"
+
+# ---- delete (state: absent), reverse order ----------------------------------
+# The loops hold names only. An item is printed in full with -v, and an entry
+# can hold secrets. no_log would also hide why a delete was refused, such as
+# a registry a replication or a proxy-cache project still uses.
+
+- name: Delete robot accounts
+  ramanavelineni.harbor.robot_account:
+    name: "{{ item }}"
+    level: system
+    state: absent
+  loop: >-
+    {{ server_apply_robot_accounts | default({}, true) | dict2items
+       | selectattr('value', 'mapping') | selectattr('value.state', 'defined')
+       | selectattr('value.state', 'equalto', 'absent') | map(attribute='key') | list }}
+  register: __server_apply_gone_robot_accounts
+
+- name: Delete replications
+  ramanavelineni.harbor.replication:
+    name: "{{ item }}"
+    state: absent
+  loop: >-
+    {{ server_apply_replications | default({}, true) | dict2items
+       | selectattr('value', 'mapping') | selectattr('value.state', 'defined')
+       | selectattr('value.state', 'equalto', 'absent') | map(attribute='key') | list }}
+  register: __server_apply_gone_replications
+
+- name: Delete registries
+  ramanavelineni.harbor.registry:
+    name: "{{ item }}"
+    state: absent
+  loop: >-
+    {{ server_apply_registries | default({}, true) | dict2items
+       | selectattr('value', 'mapping') | selectattr('value.state', 'defined')
+       | selectattr('value.state', 'equalto', 'absent') | map(attribute='key') | list }}
+  register: __server_apply_gone_registries
+
+- name: Note what was done
+  ansible.builtin.set_fact:
+    server_apply_changed: >-
+      {{ __server_apply_results | map(attribute='changed', default=false) | select | list | length > 0 }}
+  vars:
+    __server_apply_results:
+      - "{{ __server_apply_done_configuration }}"
+      - "{{ __server_apply_done_garbage_collection }}"
+      - "{{ __server_apply_done_scan_all }}"
+      - "{{ __server_apply_done_log_rotation }}"
+      - "{{ __server_apply_done_registries }}"
+      - "{{ __server_apply_done_replications }}"
+      - "{{ __server_apply_done_robot_accounts }}"
+      - "{{ __server_apply_gone_robot_accounts }}"
+      - "{{ __server_apply_gone_replications }}"
+      - "{{ __server_apply_gone_registries }}"
+
+- name: Report drift
+  ansible.builtin.fail:
+    msg: >-
+      Harbor differs from the server_apply variables: see the tasks marked "changed" above. Apply them
+      without server_apply_drift_check to bring Harbor back in line, or change the variables to match.
+  when:
+    - server_apply_drift_check | bool
+    - server_apply_changed | bool

@@ -1,0 +1,87 @@
+---
+argument_specs:
+  main:
+    short_description: Apply the server-wide settings, schedules, registries, replications and robot accounts to Harbor
+    description:
+      - Brings the objects of a Harbor server that belong to no project in line with the role's variables,
+        through the modules of this collection.
+      - Each variable takes the options of the module of the same name. The system settings and the three
+        schedules are one dictionary each; an empty one is not managed. Registries, replications and robot
+        accounts are dictionaries keyed by name.
+      - The order is the system settings, the schedules, the registries, the replications (they name
+        registries) and the robot accounts. Then the entries marked C(state=absent) are deleted in the reverse
+        order. What the variables do not mention is left alone.
+      - An option a module does not have fails before anything is changed.
+      - The robot accounts are system robot accounts. A project robot account belongs to its project.
+      - A new robot account without a declared secret gets one from Harbor. It is shown once, in the output of
+        the run, and only with O(server_apply_no_log=false).
+      - The connection options are not variables of this role. Set them once with C(module_defaults) for the
+        action group C(ramanavelineni.harbor.harbor), or in the environment (E(HARBOR_URL), E(HARBOR_USERNAME)
+        and E(HARBOR_PASSWORD)).
+      - Afterwards C(server_apply_changed) says whether anything changed (or would have, with C(--check)).
+    author:
+      - ramanavelineni
+    options:
+      server_apply_configuration:
+        description:
+          - The system settings, with the options of the M(ramanavelineni.harbor.configuration) module.
+          - Only the settings given are compared and changed. Empty means the settings are not managed.
+        type: dict
+        default: {}
+      server_apply_garbage_collection:
+        description:
+          - The garbage collection schedule, with the options of the
+            M(ramanavelineni.harbor.garbage_collection) module.
+          - Empty means the schedule is not managed.
+        type: dict
+        default: {}
+      server_apply_scan_all:
+        description:
+          - The schedule of the vulnerability scan of all artifacts, with the options of the
+            M(ramanavelineni.harbor.scan_all) module.
+          - Harbor needs a default vulnerability scanner for it. Empty means the schedule is not managed, and the
+            role then does not ask Harbor about it.
+        type: dict
+        default: {}
+      server_apply_log_rotation:
+        description:
+          - The audit log rotation schedule, with the options of the M(ramanavelineni.harbor.log_rotation) module.
+          - Empty means the schedule is not managed.
+        type: dict
+        default: {}
+      server_apply_registries:
+        description:
+          - Registry endpoints, keyed by name.
+          - The options of an entry are those of the M(ramanavelineni.harbor.registry) module, without C(name).
+        type: dict
+        default: {}
+      server_apply_replications:
+        description:
+          - Replication rules, keyed by name.
+          - The options of an entry are those of the M(ramanavelineni.harbor.replication) module, without
+            C(name).
+        type: dict
+        default: {}
+      server_apply_robot_accounts:
+        description:
+          - System robot accounts, keyed by name.
+          - The options of an entry are those of the M(ramanavelineni.harbor.robot_account) module, without
+            C(name), C(level) and C(project).
+        type: dict
+        default: {}
+      server_apply_drift_check:
+        description:
+          - Fail at the end of the role when something changed, or would have changed with C(--check).
+          - Secrets are then only sent for registries and robot accounts that do not exist yet, and the OIDC and
+            LDAP secrets of the system settings only while their client is set up. Harbor never shows a stored
+            secret, so it would count as a difference on every run.
+        type: bool
+        default: false
+      server_apply_no_log:
+        description:
+          - Hide the output of the tasks that carry secrets (the system settings, the registries and the robot
+            accounts).
+          - With V(false), the secrets Harbor generates for robot accounts created in the run are shown.
+          - Set it to V(false) only to find a mistake in the variables.
+        type: bool
+        default: true

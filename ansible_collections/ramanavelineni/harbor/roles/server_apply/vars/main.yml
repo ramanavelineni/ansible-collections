@@ -1,0 +1,62 @@
+---
+# The options each variable may use: those of the module of the same name,
+# without the ones the role fills in itself (the name an entry is keyed by,
+# and a robot account's level and project). tests/unit/roles/test_server_apply.py
+# fails when a list here, or a task in tasks/main.yml, no longer matches its
+# module.
+__server_apply_options:
+  configuration:
+    - settings
+    - oidc_client_secret
+    - ldap_search_password
+    - uaa_client_secret
+    - update_secret
+  garbage_collection:
+    - schedule
+    - cron
+    - delete_untagged
+    - workers
+    - delete_tag
+  scan_all:
+    - schedule
+    - cron
+  log_rotation:
+    - schedule
+    - cron
+    - audit_retention_hour
+    - include_event_types
+    - dry_run
+  registry:
+    - state
+    - type
+    - endpoint_url
+    - description
+    - insecure
+    - ca_certificate
+    - credential_type
+    - access_key
+    - access_secret
+    - update_secret
+  replication:
+    - state
+    - description
+    - src_registry
+    - dest_registry
+    - dest_namespace
+    - dest_namespace_replace_count
+    - trigger
+    - filters
+    - enabled
+    - override
+    - replicate_deletion
+    - speed
+    - copy_by_chunk
+    - single_active_replication
+  robot_account:
+    - state
+    - description
+    - duration
+    - disable
+    - permissions
+    - secret
+    - update_secret
