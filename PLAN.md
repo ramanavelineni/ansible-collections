@@ -5,11 +5,8 @@ Two Ansible collections, `ramanavelineni.semaphoreui` and
 roles call one idempotent module per resource instead of writing REST calls
 with `ansible.builtin.uri`.
 
-They grew out of two roles in the homelab ansible repo, `semaphore_config` and
-`harbor_config`, which already covered both APIs and worked around their
-quirks. The collections move that knowledge into Python modules that anyone
-can use. This file records the decisions behind them and every API quirk found
-along the way. Each quirk is handled inside a module and covered by a test.
+This file records the decisions behind them and every API quirk found along
+the way. Each quirk is handled inside a module and covered by a test.
 
 ## Status and roadmap
 
@@ -30,9 +27,6 @@ along the way. Each quirk is handled inside a module and covered by a test.
 - [x] Harbor roles `server_apply` and `project_apply`, tested in CI against
       a Harbor installed from its offline installer (harbor 0.7.0); next: a
       `project_export` role
-- [x] Switch the homelab `harbor_config` role to the collection (homelab
-      ansible repo). Project members, for the role's OIDC groups, can be
-      added once a release carries `project_member`
 
 ---
 
@@ -61,9 +55,9 @@ lists are conditions, not dates.
 ### ramanavelineni.harbor
 
 - [ ] `project_export` released (harbor 0.8.0).
-- [ ] The homelab `harbor_config` role runs through `server_apply` and
-      `project_apply`, and a few weeks of real use pass without a change to
-      an option, a role variable or the project file format.
+- [ ] `server_apply` and `project_apply` used for real against a Harbor,
+      and a few weeks pass without a change to an option, a role variable or
+      the project file format.
 - [ ] Harbor 2.16 tested: fixtures recorded, live suite and CI role tests
       run against it. Harbor 2.16.0 was released on 2026-11-09.
 - [ ] The Harbor versions 1.0.0 supports decided, and any version to drop
@@ -78,8 +72,8 @@ lists are conditions, not dates.
       2.20 was at release candidates on 2026-11-08 (`v2.20.20-rc2`).
 - [ ] The Semaphore versions 1.0.0 supports decided (2.19 and 2.20, and
       whether 2.18 stays), with any version to drop dropped before 1.0.0.
-- [ ] The roles keep working in the homelab `semaphore-config` repository
-      without changes to a role variable or the project file format.
+- [ ] The roles used for real against a Semaphore, and a few weeks pass
+      without a change to a role variable or the project file format.
 
 ---
 
@@ -92,7 +86,7 @@ lists are conditions, not dates.
 | License | Apache-2.0 |
 | Supported versions | ansible-core 2.20–2.22 (the versions still getting releases); Semaphore UI 2.18 and 2.19; Harbor 2.14 and 2.15. Other server versions warn but work |
 | Module names | the servers' UI labels, singular (`key_store`, `variable_group`, `team_member`, `robot_account`, `tag_retention`, …), each with an `_info` module |
-| Option names | follow the old roles' YAML, with name-based references, so the roles can pass their data straight through. Fields the roles didn't use keep the API's names. Where a name clashes with a connection option, the module uses another: `user`, `login`/`user_password`, `endpoint_url` |
+| Option names | use name-based references, so a role can pass its data straight through. Fields without an established name keep the API's names. Where a name clashes with a connection option, the module uses another: `user`, `login`/`user_password`, `endpoint_url` |
 | State | every resource module takes `state: present \| absent` |
 | Project references | objects inside a project take `project: <name>`; the semaphoreui modules also take `project_id` |
 | Deleting | fails with the list of what still uses the object. Deleting a project needs `confirm_delete: true` |
@@ -460,8 +454,8 @@ each module logs in and out within its own run.
   success paths are unit-tested only.
 
 ### info
-- Server version and registered apps; the old role builds its own `fail` or
-  `warn` version switch on top.
+- Server version and registered apps, so a playbook can build its own
+  `fail` or `warn` version switch on top.
 
 ---
 
@@ -598,8 +592,7 @@ or an OIDC user's CLI secret.
 - Without a default vulnerability scanner, every Scan All call answers 412.
   POST refuses while a schedule exists, so the module uses PUT.
 - Every log-rotation write needs `audit_retention_hour` and
-  `include_event_types`, removing the schedule included. The old role's
-  example omitted `include_event_types` and would have been rejected.
+  `include_event_types`, removing the schedule included.
 
 ### project_member
 Facts from goharbor/harbor `v2.14.6` and `v2.15.4` (`api/v2.0/swagger.yaml`,
@@ -661,8 +654,6 @@ the same in both apart from two error messages. The recorded answers
   don't write a recording in which they find a secret.
 - Before merging, every module is exercised live against those servers.
 - The modules' live suites don't run in CI; only the role tests above do.
-  Before a release is used, the homelab roles run against it: first in check
-  mode, then for real.
 
 ## Versioning and release
 
