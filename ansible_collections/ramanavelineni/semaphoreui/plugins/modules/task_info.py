@@ -70,7 +70,7 @@ EXAMPLES = r'''
 
 - name: The last five runs of the site template
   ramanavelineni.semaphoreui.task_info:
-    project: homelab
+    project: webshop
     template: site
     limit: 5
   register: result
@@ -81,7 +81,7 @@ EXAMPLES = r'''
 
 - name: Wait for a task that was started with wait false
   ramanavelineni.semaphoreui.task_info:
-    project: homelab
+    project: webshop
     task_id: 16
     output_lines: 50
   register: result
@@ -175,7 +175,7 @@ tasks:
       elements: str
   sample:
     - id: 16
-      project: homelab
+      project: webshop
       template: site
       template_id: 3
       status: success

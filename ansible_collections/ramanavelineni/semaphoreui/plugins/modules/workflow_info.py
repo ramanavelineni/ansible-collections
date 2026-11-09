@@ -39,12 +39,12 @@ EXAMPLES = r'''
 
 - name: Read every workflow of a project
   ramanavelineni.semaphoreui.workflow_info:
-    project: homelab
+    project: webshop
   register: found
 
 - name: Read one workflow
   ramanavelineni.semaphoreui.workflow_info:
-    project: homelab
+    project: webshop
     name: release
   register: release
 '''
@@ -60,7 +60,7 @@ workflows:
   sample:
     - id: 4
       name: release
-      project: homelab
+      project: webshop
       project_id: 1
       description: ""
       revision: 2

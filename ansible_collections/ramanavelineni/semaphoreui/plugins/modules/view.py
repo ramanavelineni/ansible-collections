@@ -71,9 +71,9 @@ EXAMPLES = r'''
 # with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
 # collection's README shows both under "Connecting".
 
-- name: Tabs for the homelab project
+- name: Tabs for the webshop project
   ramanavelineni.semaphoreui.view:
-    project: homelab
+    project: webshop
     name: "{{ item.name }}"
     position: "{{ item.position }}"
   loop:
@@ -82,7 +82,7 @@ EXAMPLES = r'''
 
 - name: Hide the built-in All tab
   ramanavelineni.semaphoreui.view:
-    project: homelab
+    project: webshop
     name: All
     hidden: true
 '''

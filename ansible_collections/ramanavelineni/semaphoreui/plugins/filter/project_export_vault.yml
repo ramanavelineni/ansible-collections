@@ -26,14 +26,14 @@ DOCUMENTATION:
       description:
         - What the name of every variable that stands for a secret starts with, in lower case. The name goes on with the
           project, the section, the object and the field, as in
-          C(vault_homelab_key_deploy_ssh_private_key).
+          C(vault_webshop_key_deploy_ssh_private_key).
       type: str
       default: vault
 
 EXAMPLES: |
   - name: Write the variables to fill in
     ansible.builtin.copy:
-      dest: config/homelab.vault.example
+      dest: config/webshop.vault.example
       mode: "0644"
       content: "{{ exported | ramanavelineni.semaphoreui.project_export_vault }}"
 

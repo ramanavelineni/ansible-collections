@@ -16,7 +16,7 @@ def project(server):
 
 
 def test_key_store_info(server, project, run_module):
-    result = run_module(key_store_info.main, dict(project='homelab'))
+    result = run_module(key_store_info.main, dict(project='webshop'))
     assert result['changed'] is False
     names = [k['name'] for k in result['key_store']]
     assert names == sorted(names) and 'None' in names and 'deploy' in names
@@ -27,15 +27,15 @@ def test_key_store_info(server, project, run_module):
 
 
 def test_key_store_info_by_name(server, project, run_module):
-    result = run_module(key_store_info.main, dict(project='homelab', name='None'))
+    result = run_module(key_store_info.main, dict(project='webshop', name='None'))
     assert [k['name'] for k in result['key_store']] == ['None']
 
 
 def test_repository_info(server, project, run_module):
-    result = run_module(repository_info.main, dict(project='homelab'))
+    result = run_module(repository_info.main, dict(project='webshop'))
     assert [r['name'] for r in result['repositories']] == ['ansible']
     assert result['repositories'][0]['ssh_key'] == 'deploy'
 
 
 def test_repository_info_by_name(server, project, run_module):
-    assert run_module(repository_info.main, dict(project='homelab', name='other'))['repositories'] == []
+    assert run_module(repository_info.main, dict(project='webshop', name='other'))['repositories'] == []

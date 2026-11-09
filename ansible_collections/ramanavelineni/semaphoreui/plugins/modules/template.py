@@ -241,11 +241,11 @@ EXAMPLES = r'''
 
 - name: Ansible template with a vault password
   ramanavelineni.semaphoreui.template:
-    project: homelab
-    name: harbor_config
-    playbook: playbooks/harbor_config.yaml
+    project: webshop
+    name: release
+    playbook: playbooks/release.yml
     repository: ansible
-    inventory: homelab
+    inventory: webshop
     variable_groups: [empty]
     view: infra
     vaults:
@@ -255,7 +255,7 @@ EXAMPLES = r'''
 
 - name: OpenTofu template
   ramanavelineni.semaphoreui.template:
-    project: homelab
+    project: webshop
     name: infra-apply
     app: tofu
     repository: terraform
@@ -384,11 +384,11 @@ template:
       type: bool
   sample:
     id: 3
-    name: harbor_config
+    name: release
     app: ansible
-    playbook: playbooks/harbor_config.yaml
+    playbook: playbooks/release.yml
     repository: ansible
-    inventory: homelab
+    inventory: webshop
     variable_groups: [empty]
     view: infra
     type: task

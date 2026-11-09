@@ -39,9 +39,9 @@ EXAMPLES = r'''
 # with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
 # collection's README shows both under "Connecting".
 
-- name: Webhook URLs of the homelab project's integrations
+- name: Webhook URLs of the webshop project's integrations
   ramanavelineni.semaphoreui.integration_info:
-    project: homelab
+    project: webshop
   register: result
 '''
 
@@ -132,7 +132,7 @@ integrations:
   sample:
     - id: 1
       name: gh-push
-      template: harbor_config
+      template: release
       auth_method: github
       auth_key: github-webhook-secret
       auth_header: ""

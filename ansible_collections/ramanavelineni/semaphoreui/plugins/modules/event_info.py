@@ -47,9 +47,9 @@ EXAMPLES = r'''
 # with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
 # collection's README shows both under "Connecting".
 
-- name: The last twenty events of the homelab project
+- name: The last twenty events of the webshop project
   ramanavelineni.semaphoreui.event_info:
-    project: homelab
+    project: webshop
     limit: 20
   register: activity
 
@@ -105,7 +105,7 @@ events:
       object_id: 48
       object_name: ""
       project_id: 3
-      project: homelab
+      project: webshop
       user_id: 1
       username: admin
       integration_id: null

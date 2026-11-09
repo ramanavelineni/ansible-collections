@@ -105,7 +105,7 @@ EXAMPLES = r'''
 
 - name: Variable group with a token in the environment
   ramanavelineni.semaphoreui.variable_group:
-    project: homelab
+    project: webshop
     name: harbor
     json:
       harbor_url: https://harbor.example.com
@@ -118,7 +118,7 @@ EXAMPLES = r'''
 
 - name: Empty variable group for templates that need none
   ramanavelineni.semaphoreui.variable_group:
-    project: homelab
+    project: webshop
     name: empty
     json: {}
     env: {}

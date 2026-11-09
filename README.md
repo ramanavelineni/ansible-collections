@@ -66,7 +66,7 @@ the modules.
 ```yaml
 - name: The ansible repository
   ramanavelineni.semaphoreui.repository:
-    project: homelab
+    project: webshop
     name: ansible
     git_url: git@github.com:example/ansible.git
     git_branch: main
@@ -139,10 +139,10 @@ ansible-galaxy collection install -r requirements.yml
       api_token: "{{ semaphore_api_token }}"
   tasks:
     - ramanavelineni.semaphoreui.project:
-        name: homelab
+        name: webshop
 
     - ramanavelineni.semaphoreui.key_store:
-        project: homelab
+        project: webshop
         name: deploy
         type: ssh
         ssh:
@@ -151,36 +151,36 @@ ansible-galaxy collection install -r requirements.yml
         update_secret: on_create
 
     - ramanavelineni.semaphoreui.repository:
-        project: homelab
+        project: webshop
         name: ansible
         git_url: git@github.com:example/ansible.git
         git_branch: main
         ssh_key: deploy
 
     - ramanavelineni.semaphoreui.inventory:
-        project: homelab
-        name: homelab
+        project: webshop
+        name: webshop
         type: file
-        inventory: inventories/homelab/hosts
+        inventory: inventories/webshop/hosts
         repository: ansible
         ssh_key: deploy
 
     - ramanavelineni.semaphoreui.variable_group:
-        project: homelab
+        project: webshop
         name: default
         json: {}
         env: {}
 
     - ramanavelineni.semaphoreui.template:
-        project: homelab
+        project: webshop
         name: site
         playbook: site.yml
         repository: ansible
-        inventory: homelab
+        inventory: webshop
         variable_groups: [default]
 
     - ramanavelineni.semaphoreui.schedule:
-        project: homelab
+        project: webshop
         name: nightly-site
         template: site
         cron: "0 3 * * *"

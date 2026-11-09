@@ -30,19 +30,19 @@ DOCUMENTATION:
       description:
         - What the name of every variable that stands for a secret starts with, in lower case. The name goes on with the
           project, the section, the object and the field, as in
-          C(vault_homelab_key_deploy_ssh_private_key).
+          C(vault_webshop_key_deploy_ssh_private_key).
       type: str
       default: vault
 
 EXAMPLES: |
   - name: Read the keys and the project
     ramanavelineni.semaphoreui.key_store_info:
-      project: homelab
+      project: webshop
     register: keys
 
   - name: Show the keys the way a project file declares them
     ansible.builtin.debug:
-      msg: "{{ {'project': {'name': 'homelab'}, 'key_store': keys.key_store}
+      msg: "{{ {'project': {'name': 'webshop'}, 'key_store': keys.key_store}
                | ramanavelineni.semaphoreui.project_export_config }}"
 
 RETURN:

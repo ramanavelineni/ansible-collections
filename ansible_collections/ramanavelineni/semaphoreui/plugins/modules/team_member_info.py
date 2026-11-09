@@ -38,9 +38,9 @@ EXAMPLES = r'''
 # with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
 # collection's README shows both under "Connecting".
 
-- name: Who is in the homelab project
+- name: Who is in the webshop project
   ramanavelineni.semaphoreui.team_member_info:
-    project: homelab
+    project: webshop
   register: result
 '''
 

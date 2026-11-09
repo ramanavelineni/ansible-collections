@@ -39,9 +39,9 @@ EXAMPLES = r'''
 # with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
 # collection's README shows both under "Connecting".
 
-- name: List the homelab project's inventories
+- name: List the webshop project's inventories
   ramanavelineni.semaphoreui.inventory_info:
-    project: homelab
+    project: webshop
   register: result
 '''
 
@@ -88,9 +88,9 @@ inventories:
       type: int
   sample:
     - id: 1
-      name: homelab
+      name: webshop
       type: file
-      inventory: inventories/homelab/hosts
+      inventory: inventories/webshop/hosts
       repository_id: 1
       repository: ansible
       ssh_key_id: 4

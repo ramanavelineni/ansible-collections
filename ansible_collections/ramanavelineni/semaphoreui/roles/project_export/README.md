@@ -10,16 +10,16 @@ per kind of object (`key_store`, `repository`, `inventory`, `variable_group`,
 name, with the options of the module of that name:
 
 ```yaml
-name: homelab
+name: webshop
 max_parallel_tasks: 2
 
 key_store:
   deploy:
     type: ssh
     ssh:
-      login: "{{ vault_homelab_key_deploy_ssh_login }}"
-      passphrase: "{{ vault_homelab_key_deploy_ssh_passphrase }}"
-      private_key: "{{ vault_homelab_key_deploy_ssh_private_key }}"
+      login: "{{ vault_webshop_key_deploy_ssh_login }}"
+      passphrase: "{{ vault_webshop_key_deploy_ssh_passphrase }}"
+      private_key: "{{ vault_webshop_key_deploy_ssh_private_key }}"
     update_secret: on_create
 
 repository:
@@ -42,12 +42,12 @@ repository:
   roles:
     - role: ramanavelineni.semaphoreui.project_export
       vars:
-        project_export_project: homelab
+        project_export_project: webshop
         project_export_dest: "{{ playbook_dir }}/config/projects"
 ```
 
-This writes `config/projects/homelab.yml` and
-`config/projects/homelab.vault.example`. The connection options are not role
+This writes `config/projects/webshop.yml` and
+`config/projects/webshop.vault.example`. The connection options are not role
 variables: set them with `module_defaults` as above, or in the environment
 (`SEMAPHORE_URL`, `SEMAPHORE_API_TOKEN`).
 
@@ -92,7 +92,7 @@ comment that says what it is the secret of:
 
 ```yaml
 # key deploy: ssh.private_key
-vault_homelab_key_deploy_ssh_private_key: ""
+vault_webshop_key_deploy_ssh_private_key: ""
 ```
 
 Give each its value and keep the result in an Ansible Vault file that the play
@@ -124,7 +124,7 @@ key_store:
   deploy:
     type: ssh
     ssh:
-      private_key: "{{ vault_homelab_key_deploy_ssh_private_key }}"
+      private_key: "{{ vault_webshop_key_deploy_ssh_private_key }}"
     update_secret: always
 ```
 

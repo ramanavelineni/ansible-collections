@@ -52,10 +52,10 @@ def bare_integration(server, project):
 
 
 def test_integration_without_items_is_reported_with_empty_lists(server, bare_integration, run_module):
-    result = run_module(integration_info.main, dict(project='homelab'))
+    result = run_module(integration_info.main, dict(project='webshop'))
     assert result['integrations'][0]['matchers'] == []
     assert result['integrations'][0]['extract_values'] == []
-    unchanged = run_module(integration.main, dict(project='homelab', name='gh', matchers=[], extract_values=[]))
+    unchanged = run_module(integration.main, dict(project='webshop', name='gh', matchers=[], extract_values=[]))
     assert unchanged['changed'] is False
 
 
@@ -63,7 +63,7 @@ def test_integration_without_items_gets_the_declared_ones(server, bare_integrati
     server.route('POST', bare_integration + '/matchers', 'integration_matcher_create')
     server.route('POST', bare_integration + '/values', 'integration_value_create')
     result = run_module(integration.main, dict(
-        project='homelab', name='gh', matchers=[dict(name='main', key='ref', value='refs/heads/main')],
+        project='webshop', name='gh', matchers=[dict(name='main', key='ref', value='refs/heads/main')],
         extract_values=[dict(name='sha', key='after', variable='COMMIT_SHA')]))
     assert result['changed'] is True
     assert result['diff']['before']['matchers'] == [] and result['diff']['before']['extract_values'] == []
@@ -79,11 +79,11 @@ def test_inventory_list_without_the_workspace_inventory(server, project, run_mod
     server.route('GET', project + '/keys', 'keys_with_deploy')
     server.route('GET', project + '/repositories', 'repositories_one')
     server.route('GET', project + '/inventory', 'inventory_list_hides_workspace')
-    listed = run_module(inventory_info.main, dict(project='homelab'))
+    listed = run_module(inventory_info.main, dict(project='webshop'))
     # The workspace inventory ("default") belongs to its template and is not listed.
-    assert [i['name'] for i in listed['inventories']] == ['homelab']
+    assert [i['name'] for i in listed['inventories']] == ['webshop']
     assert listed['inventories'][0]['become_key'] == 'deploy'
-    result = run_module(inventory.main, dict(project='homelab', name='homelab', become_key='deploy'))
+    result = run_module(inventory.main, dict(project='webshop', name='webshop', become_key='deploy'))
     assert result['changed'] is False
     assert result['inventory'] == listed['inventories'][0]
 
@@ -93,14 +93,14 @@ def test_inventory_list_without_the_workspace_inventory(server, project, run_mod
 def test_key_after_a_type_change_is_no_change(server, project, run_module):
     server.route('GET', project + '/repositories', 'repositories_empty')
     server.route('GET', project + '/keys', 'keys_with_deploy_updated')
-    result = run_module(key_store.main, dict(project='homelab', name='deploy', type='login_password',
+    result = run_module(key_store.main, dict(project='webshop', name='deploy', type='login_password',
                                              login_password=dict(login='git', password='pw-unit'),
                                              update_secret='on_create'))
     assert result['changed'] is False and result['secret_updated'] is False
     assert result['key']['type'] == 'login_password'
     # The stored type is what decides: the old one is a change again.
     server.route('PUT', '%s/keys/%d' % (project, fid(server, 'key_create')), 'key_update')
-    back = run_module(key_store.main, dict(project='homelab', name='deploy', type='ssh', ssh=dict(private_key='k'),
+    back = run_module(key_store.main, dict(project='webshop', name='deploy', type='ssh', ssh=dict(private_key='k'),
                                            update_secret='on_create'))
     assert back['changed'] is True
     assert (back['diff']['before']['type'], back['diff']['after']['type']) == ('login_password', 'ssh')
@@ -109,7 +109,7 @@ def test_key_after_a_type_change_is_no_change(server, project, run_module):
 def test_repository_after_an_update_is_no_change(server, project, run_module):
     server.route('GET', project + '/keys', 'keys_with_deploy')
     server.route('GET', project + '/repositories', 'repositories_one_updated')
-    result = run_module(repository.main, dict(project='homelab', name='ansible', git_branch='develop'))
+    result = run_module(repository.main, dict(project='webshop', name='ansible', git_branch='develop'))
     assert result['changed'] is False
     assert result['repository']['git_branch'] == 'develop'
     assert server.calls('PUT') == []
@@ -124,14 +124,14 @@ def test_template_after_an_update_is_no_change(server, project, run_module):
     server.route('GET', project + '/keys', 'keys_with_deploy')
     server.route('GET', project + '/templates', 'templates_one')
     server.route('GET', path, 'template_get_updated')
-    result = run_module(template.main, dict(project='homelab', name='site', description='updated'))
+    result = run_module(template.main, dict(project='webshop', name='site', description='updated'))
     assert result['changed'] is False
     assert result['template']['description'] == 'updated'
     assert server.calls('PUT') == []
     # Against what was stored before, the same task is a change.
     server.route('GET', path, 'template_get')
     server.route('PUT', path, 'template_update')
-    assert run_module(template.main, dict(project='homelab', name='site', description='updated'))['changed'] is True
+    assert run_module(template.main, dict(project='webshop', name='site', description='updated'))['changed'] is True
 
 
 # -- refusals the modules normally prevent, reported as the server gives them ----
@@ -142,7 +142,7 @@ def test_key_that_came_into_use_after_the_check(server, project, run_module):
     server.route('GET', project + '/keys', 'keys_with_deploy')
     server.route('GET', path + '/refs', 'key_refs_unused')
     server.route('DELETE', path, 'key_delete_in_use')
-    result = run_module(key_store.main, dict(project='homelab', name='deploy', state='absent'))
+    result = run_module(key_store.main, dict(project='webshop', name='deploy', state='absent'))
     assert result['failed'] is True
     assert 'HTTP 400' in result['msg']
     # 2.18 refuses without a body; 2.19 says why.

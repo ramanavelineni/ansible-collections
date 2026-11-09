@@ -74,7 +74,7 @@ EXAMPLES = r'''
 
 - name: Repository cloned over SSH
   ramanavelineni.semaphoreui.repository:
-    project: homelab
+    project: webshop
     name: ansible
     git_url: git@github.com:example/ansible.git
     git_branch: main
@@ -82,7 +82,7 @@ EXAMPLES = r'''
 
 - name: Public repository
   ramanavelineni.semaphoreui.repository:
-    project: homelab
+    project: webshop
     name: examples
     git_url: https://github.com/example/examples.git
     git_branch: main

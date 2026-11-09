@@ -5,7 +5,7 @@ import pytest
 
 from ansible_collections.ramanavelineni.semaphoreui.plugins.modules import inventory, inventory_info
 
-INV = dict(project='homelab', name='homelab', type='file', inventory='inventories/homelab/hosts',
+INV = dict(project='webshop', name='webshop', type='file', inventory='inventories/webshop/hosts',
            repository='ansible', ssh_key='deploy')
 
 
@@ -33,13 +33,13 @@ def test_create(server, project, run_module):
     assert result['inventory']['repository'] == 'ansible'
     assert result['inventory']['ssh_key'] == 'deploy'
     assert server.calls('POST', project + '/inventory')[0]['body'] == dict(
-        project_id=int(project.split('/')[-1]), name='homelab', type='file', inventory=INV['inventory'],
+        project_id=int(project.split('/')[-1]), name='webshop', type='file', inventory=INV['inventory'],
         repository_id=repo_id, ssh_key_id=key_id, become_key_id=None)
 
 
 def test_create_needs_type_and_inventory(server, project, run_module):
     server.route('GET', project + '/inventory', 'inventories_empty')
-    result = run_module(inventory.main, dict(project='homelab', name='homelab'))
+    result = run_module(inventory.main, dict(project='webshop', name='webshop'))
     assert result['failed'] is True
     assert 'type, inventory' in result['msg']
 
@@ -62,7 +62,7 @@ def test_update_keeps_unmanaged_fields(server, project, run_module):
     inv_id, key_id, repo_id = ids(server)
     server.route('GET', project + '/inventory', 'inventories_one')
     server.route('PUT', '%s/inventory/%d' % (project, inv_id), 'inventory_update')
-    result = run_module(inventory.main, dict(project='homelab', name='homelab', become_key='deploy'))
+    result = run_module(inventory.main, dict(project='webshop', name='webshop', become_key='deploy'))
     assert result['changed'] is True
     assert result['diff']['before']['become_key'] is None
     assert result['inventory']['become_key'] == 'deploy'
@@ -77,14 +77,14 @@ def test_empty_string_clears_reference(server, project, run_module):
     inv_id, dummy, dummy2 = ids(server)
     server.route('GET', project + '/inventory', 'inventories_one_updated')
     server.route('PUT', '%s/inventory/%d' % (project, inv_id), 'inventory_update')
-    result = run_module(inventory.main, dict(project='homelab', name='homelab', become_key=''))
+    result = run_module(inventory.main, dict(project='webshop', name='webshop', become_key=''))
     assert result['changed'] is True
     assert server.calls('PUT')[0]['body']['become_key_id'] is None
 
 
 def test_empty_string_on_unset_reference_is_no_change(server, project, run_module):
     server.route('GET', project + '/inventory', 'inventories_one')
-    result = run_module(inventory.main, dict(project='homelab', name='homelab', become_key=''))
+    result = run_module(inventory.main, dict(project='webshop', name='webshop', become_key=''))
     assert result['changed'] is False
 
 
@@ -93,7 +93,7 @@ def test_absolute_path_update_fails_with_explanation(server, project, run_module
     listing['body'][0]['inventory'] = '/etc/ansible/hosts'
     listing['body'][0]['repository_id'] = None
     server.route('GET', project + '/inventory', listing)
-    result = run_module(inventory.main, dict(project='homelab', name='homelab', become_key='deploy'))
+    result = run_module(inventory.main, dict(project='webshop', name='webshop', become_key='deploy'))
     assert result['failed'] is True
     assert 'outside its working directory' in result['msg']
     assert server.calls('PUT') == []
@@ -101,7 +101,7 @@ def test_absolute_path_update_fails_with_explanation(server, project, run_module
 
 def test_unknown_repository(server, project, run_module):
     server.route('GET', project + '/inventory', 'inventories_one')
-    result = run_module(inventory.main, dict(project='homelab', name='homelab', repository='other'))
+    result = run_module(inventory.main, dict(project='webshop', name='webshop', repository='other'))
     assert result['failed'] is True
     assert "Repository 'other' does not exist" in result['msg']
 
@@ -111,8 +111,8 @@ def test_delete(server, project, run_module):
     server.route('GET', project + '/inventory', 'inventories_one')
     server.route('GET', '%s/inventory/%d/refs' % (project, inv_id), 'inventory_refs_unused')
     server.route('DELETE', '%s/inventory/%d' % (project, inv_id), 'inventory_delete')
-    stored = run_module(inventory.main, dict(project='homelab', name='homelab'))['inventory']
-    result = run_module(inventory.main, dict(project='homelab', name='homelab', state='absent'))
+    stored = run_module(inventory.main, dict(project='webshop', name='webshop'))['inventory']
+    result = run_module(inventory.main, dict(project='webshop', name='webshop', state='absent'))
     assert result['changed'] is True
     # The diff shows what is deleted, in the shape an update shows it.
     assert result['diff'] == dict(before=stored, after={})
@@ -125,13 +125,13 @@ def test_delete_in_use(server, project, run_module):
     refs['body']['templates'] = [dict(id=1, name='site')]
     server.route('GET', project + '/inventory', 'inventories_one')
     server.route('GET', '%s/inventory/%d/refs' % (project, inv_id), refs)
-    result = run_module(inventory.main, dict(project='homelab', name='homelab', state='absent'))
+    result = run_module(inventory.main, dict(project='webshop', name='webshop', state='absent'))
     assert result['failed'] is True
     assert 'still used by templates site' in result['msg']
 
 
 def test_inventory_info(server, project, run_module):
     server.route('GET', project + '/inventory', 'inventories_one_updated')
-    result = run_module(inventory_info.main, dict(project='homelab'))
+    result = run_module(inventory_info.main, dict(project='webshop'))
     inv = result['inventories'][0]
     assert inv['repository'] == 'ansible' and inv['ssh_key'] == 'deploy' and inv['become_key'] == 'deploy'

@@ -93,7 +93,7 @@ EXAMPLES = r'''
 
 - name: Run the release workflow
   ramanavelineni.semaphoreui.workflow_run:
-    project: homelab
+    project: webshop
     workflow: release
     variables:
       release: "1.4.2"
@@ -101,7 +101,7 @@ EXAMPLES = r'''
 
 - name: Approve the sign-off when the run waits for it
   ramanavelineni.semaphoreui.workflow_approval:
-    project: homelab
+    project: webshop
     workflow: release
     run_id: "{{ run.run.id }}"
     decision: approved
@@ -109,13 +109,13 @@ EXAMPLES = r'''
 
 - name: Wait for the rest of the run
   ramanavelineni.semaphoreui.workflow_run:
-    project: homelab
+    project: webshop
     workflow: release
     run_id: "{{ run.run.id }}"
 
 - name: Stop a run
   ramanavelineni.semaphoreui.workflow_run:
-    project: homelab
+    project: webshop
     workflow: release
     state: stopped
     run_id: "{{ run.run.id }}"
@@ -174,7 +174,7 @@ run:
       elements: int
   sample:
     id: 7
-    project: homelab
+    project: webshop
     workflow: release
     workflow_id: 4
     revision_id: 2

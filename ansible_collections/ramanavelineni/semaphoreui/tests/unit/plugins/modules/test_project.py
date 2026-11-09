@@ -14,13 +14,13 @@ from ansible_collections.ramanavelineni.semaphoreui.tests.unit.plugins.conftest 
 def test_create(server, run_module):
     server.route('GET', '/projects', 'projects_empty')
     server.route('POST', '/projects', 'project_create')
-    result = run_module(project.main, dict(name='homelab'))
+    result = run_module(project.main, dict(name='webshop'))
 
     assert result['changed'] is True
     assert result['project']['id'] == server.fixtures['project_create']['body']['id']
     assert result['project']['alert'] is False
     assert result['project']['max_parallel_tasks'] == 0
-    assert server.calls('POST', '/projects')[0]['body'] == dict(name='homelab', alert=False, max_parallel_tasks=0)
+    assert server.calls('POST', '/projects')[0]['body'] == dict(name='webshop', alert=False, max_parallel_tasks=0)
     assert result['diff']['before'] == {}
     # Password login, logged out at the end.
     assert server.requests[0]['path'] == '/auth/login'
@@ -30,14 +30,14 @@ def test_create(server, run_module):
 def test_create_sends_alert_chat_only_when_set(server, run_module):
     server.route('GET', '/projects', 'projects_empty')
     server.route('POST', '/projects', 'project_create')
-    run_module(project.main, dict(name='homelab', alert=True, alert_chat='ops', max_parallel_tasks=3))
+    run_module(project.main, dict(name='webshop', alert=True, alert_chat='ops', max_parallel_tasks=3))
     assert server.calls('POST', '/projects')[0]['body'] == dict(
-        name='homelab', alert=True, alert_chat='ops', max_parallel_tasks=3)
+        name='webshop', alert=True, alert_chat='ops', max_parallel_tasks=3)
 
 
 def test_create_check_mode_sends_nothing(server, run_module):
     server.route('GET', '/projects', 'projects_empty')
-    result = run_module(project.main, dict(name='homelab', max_parallel_tasks=2), check_mode=True)
+    result = run_module(project.main, dict(name='webshop', max_parallel_tasks=2), check_mode=True)
     assert result['changed'] is True
     assert 'id' not in result['project']
     assert result['project']['max_parallel_tasks'] == 2
@@ -46,14 +46,14 @@ def test_create_check_mode_sends_nothing(server, run_module):
 
 def test_no_change_when_matching(server, run_module):
     server.route('GET', '/projects', 'projects_one_updated')
-    result = run_module(project.main, dict(name='homelab', alert=True, alert_chat='ops', max_parallel_tasks=3))
+    result = run_module(project.main, dict(name='webshop', alert=True, alert_chat='ops', max_parallel_tasks=3))
     assert result['changed'] is False
     assert server.calls('PUT') == []
 
 
 def test_unset_options_are_not_managed(server, run_module):
     server.route('GET', '/projects', 'projects_one_updated')
-    result = run_module(project.main, dict(name='homelab'))
+    result = run_module(project.main, dict(name='webshop'))
     assert result['changed'] is False
     assert result['project']['alert_chat'] == 'ops'
 
@@ -61,7 +61,7 @@ def test_unset_options_are_not_managed(server, run_module):
 def test_update_sends_whole_object(server, run_module):
     server.route('GET', '/projects', 'projects_one')
     server.route('PUT', '/project/%d' % pid(server), 'project_update')
-    result = run_module(project.main, dict(name='homelab', alert=True))
+    result = run_module(project.main, dict(name='webshop', alert=True))
 
     assert result['changed'] is True
     assert result['diff']['before']['alert'] is False
@@ -69,12 +69,12 @@ def test_update_sends_whole_object(server, run_module):
     # The server's update rewrites every column, so unset ones carry the
     # current value, and the body must carry the project's id.
     assert server.calls('PUT')[0]['body'] == dict(
-        id=pid(server), name='homelab', alert=True, alert_chat='', max_parallel_tasks=0)
+        id=pid(server), name='webshop', alert=True, alert_chat='', max_parallel_tasks=0)
 
 
 def test_update_check_mode_sends_nothing(server, run_module):
     server.route('GET', '/projects', 'projects_one')
-    result = run_module(project.main, dict(name='homelab', max_parallel_tasks=4), check_mode=True)
+    result = run_module(project.main, dict(name='webshop', max_parallel_tasks=4), check_mode=True)
     assert result['changed'] is True
     assert result['project']['max_parallel_tasks'] == 4
     assert server.calls('PUT') == []
@@ -83,7 +83,7 @@ def test_update_check_mode_sends_nothing(server, run_module):
 def test_rejected_update_reports_request_and_response(server, run_module):
     server.route('GET', '/projects', 'projects_one')
     server.route('PUT', '/project/%d' % pid(server), 'project_update_id_mismatch')
-    result = run_module(project.main, dict(name='homelab', alert=True))
+    result = run_module(project.main, dict(name='webshop', alert=True))
 
     assert result['failed'] is True
     assert 'returned HTTP 400' in result['msg']
@@ -97,7 +97,7 @@ def test_rejected_update_reports_request_and_response(server, run_module):
 
 def test_delete_requires_confirmation(server, run_module):
     server.route('GET', '/projects', 'projects_one')
-    result = run_module(project.main, dict(name='homelab', state='absent'))
+    result = run_module(project.main, dict(name='webshop', state='absent'))
     assert result['failed'] is True
     assert 'confirm_delete' in result['msg']
     assert server.calls('DELETE') == []
@@ -106,7 +106,7 @@ def test_delete_requires_confirmation(server, run_module):
 def test_delete(server, run_module):
     server.route('GET', '/projects', 'projects_one')
     server.route('DELETE', '/project/%d' % pid(server), 'project_delete')
-    result = run_module(project.main, dict(name='homelab', state='absent', confirm_delete=True))
+    result = run_module(project.main, dict(name='webshop', state='absent', confirm_delete=True))
     assert result['changed'] is True
     assert result['project'] == {}
     assert len(server.calls('DELETE')) == 1
@@ -114,14 +114,14 @@ def test_delete(server, run_module):
 
 def test_delete_check_mode_sends_nothing(server, run_module):
     server.route('GET', '/projects', 'projects_one')
-    result = run_module(project.main, dict(name='homelab', state='absent', confirm_delete=True), check_mode=True)
+    result = run_module(project.main, dict(name='webshop', state='absent', confirm_delete=True), check_mode=True)
     assert result['changed'] is True
     assert server.calls('DELETE') == []
 
 
 def test_delete_missing_is_no_change(server, run_module):
     server.route('GET', '/projects', 'projects_empty')
-    result = run_module(project.main, dict(name='homelab', state='absent', confirm_delete=True))
+    result = run_module(project.main, dict(name='webshop', state='absent', confirm_delete=True))
     assert result['changed'] is False
 
 
@@ -130,7 +130,7 @@ def test_duplicate_names_fail(server, run_module):
     twin = dict(listing['body'][0], id=listing['body'][0]['id'] + 1)
     listing['body'].append(twin)
     server.route('GET', '/projects', listing)
-    result = run_module(project.main, dict(name='homelab', alert=True))
+    result = run_module(project.main, dict(name='webshop', alert=True))
     assert result['failed'] is True
     assert 'More than one project is named' in result['msg']
     assert server.calls('PUT') == []
@@ -141,7 +141,7 @@ def test_list_at_cap_fails_instead_of_creating(server, run_module):
     row = listing['body'][0]
     listing['body'] = [dict(row, id=i, name='p%03d' % i) for i in range(LIST_CAP)]
     server.route('GET', '/projects', listing)
-    result = run_module(project.main, dict(name='homelab'))
+    result = run_module(project.main, dict(name='webshop'))
     assert result['failed'] is True
     assert 'cap' in result['msg']
     assert server.calls('POST', '/projects') == []
@@ -149,7 +149,7 @@ def test_list_at_cap_fails_instead_of_creating(server, run_module):
 
 def test_api_token_skips_login(server, run_module):
     server.route('GET', '/projects', 'projects_one_updated')
-    result = run_module(project.main, dict(name='homelab', username=None, password=None, api_token='tok-123'))
+    result = run_module(project.main, dict(name='webshop', username=None, password=None, api_token='tok-123'))
     assert result['changed'] is False
     assert server.calls(path='/auth/login') == []
     assert server.calls(path='/auth/logout') == []
@@ -158,7 +158,7 @@ def test_api_token_skips_login(server, run_module):
 
 def test_bad_password_fails(server, run_module):
     server.route('POST', '/auth/login', 'login_bad_password')
-    result = run_module(project.main, dict(name='homelab'))
+    result = run_module(project.main, dict(name='webshop'))
     assert result['failed'] is True
     assert result['request_details']['status'] == 401
     assert 's3cret-pw' not in json.dumps(result)
@@ -166,7 +166,7 @@ def test_bad_password_fails(server, run_module):
 
 def test_reads_are_retried_after_transport_errors(server, run_module):
     server.route('GET', '/projects', transport_error(), 'projects_one_updated')
-    result = run_module(project.main, dict(name='homelab', alert=True, alert_chat='ops', max_parallel_tasks=3))
+    result = run_module(project.main, dict(name='webshop', alert=True, alert_chat='ops', max_parallel_tasks=3))
     assert result['changed'] is False
     assert len(server.calls('GET', '/projects')) == 2
 
@@ -174,7 +174,7 @@ def test_reads_are_retried_after_transport_errors(server, run_module):
 def test_creates_are_not_retried(server, run_module):
     server.route('GET', '/projects', 'projects_empty')
     server.route('POST', '/projects', transport_error(), 'project_create')
-    result = run_module(project.main, dict(name='homelab'))
+    result = run_module(project.main, dict(name='webshop'))
     assert result['failed'] is True
     assert 'without an HTTP response' in result['msg']
     assert len(server.calls('POST', '/projects')) == 1
@@ -185,14 +185,14 @@ def test_untested_version_warns(server, run_module):
     info['body']['version'] = 'v2.17.9'
     server.route('GET', '/info', info)
     server.route('GET', '/projects', 'projects_one_updated')
-    result = run_module(project.main, dict(name='homelab'))
+    result = run_module(project.main, dict(name='webshop'))
     assert result['changed'] is False
     assert 'v2.17.9' in json.dumps(result.get('warnings', []))
 
 
 def test_api_suffix_in_url_is_accepted(server, run_module):
     server.route('GET', '/projects', 'projects_one_updated')
-    result = run_module(project.main, dict(name='homelab', url='https://semaphore.example.com/api/'))
+    result = run_module(project.main, dict(name='webshop', url='https://semaphore.example.com/api/'))
     assert result['changed'] is False
 
 
@@ -204,7 +204,7 @@ def test_password_with_quotes_is_not_reported(server, run_module):
     # Ansible only masks a secret that appears exactly as passed; in a JSON
     # string the quote and backslash are escaped.
     server.route('POST', '/auth/login', 'login_bad_password')
-    result = run_module(project.main, dict(name='homelab', password='quoted"Zebra7\\pw'))
+    result = run_module(project.main, dict(name='webshop', password='quoted"Zebra7\\pw'))
     assert result['failed'] is True
     assert 'Zebra7' not in json.dumps(result)
     assert result['request_details']['request'] == dict(auth='admin', password='********')
@@ -213,7 +213,7 @@ def test_password_with_quotes_is_not_reported(server, run_module):
 def test_unexpected_answer_fails_cleanly_and_logs_out(server, run_module):
     server.route('GET', '/projects', 'projects_empty')
     server.route('POST', '/projects', dict(status=201, body=None))
-    result = run_module(project.main, dict(name='homelab'))
+    result = run_module(project.main, dict(name='webshop'))
     assert result['failed'] is True
     assert result['msg'].startswith('Unexpected ')
     assert server.requests[-1]['path'] == '/auth/logout'
@@ -221,7 +221,7 @@ def test_unexpected_answer_fails_cleanly_and_logs_out(server, run_module):
 
 def test_list_that_is_not_a_list_fails(server, run_module):
     server.route('GET', '/projects', dict(status=200, body=dict(message='not semaphore')))
-    result = run_module(project.main, dict(name='homelab'))
+    result = run_module(project.main, dict(name='webshop'))
     assert result['failed'] is True
     assert 'did not return a list' in result['msg']
     assert server.requests[-1]['path'] == '/auth/logout'
@@ -234,7 +234,7 @@ def test_list_that_is_not_a_list_fails(server, run_module):
 # GET /projects is set, so a module that reads the capped list fails the test.
 
 def project_7(**fields):
-    body = dict(created='2026-10-03T22:36:11.143205Z', id=7, name='homelab', type='')
+    body = dict(created='2026-10-03T22:36:11.143205Z', id=7, name='webshop', type='')
     body.update(fields)
     return dict(status=200, body=body)
 
@@ -244,50 +244,50 @@ NOT_FOUND = dict(status=404, body=None)
 
 def test_by_id_matching_project_is_no_change_and_skips_the_list(server, run_module):
     server.route('GET', '/project/7', project_7(alert=True, alert_chat='ops', max_parallel_tasks=3))
-    result = run_module(project.main, dict(id=7, name='homelab', alert=True, alert_chat='ops', max_parallel_tasks=3))
+    result = run_module(project.main, dict(id=7, name='webshop', alert=True, alert_chat='ops', max_parallel_tasks=3))
     assert result.get('failed') is not True, result.get('msg')
     assert result['changed'] is False
-    assert result['project'] == dict(id=7, name='homelab', alert=True, alert_chat='ops', max_parallel_tasks=3, type='')
+    assert result['project'] == dict(id=7, name='webshop', alert=True, alert_chat='ops', max_parallel_tasks=3, type='')
     assert server.calls('PUT') == []
 
 
 def test_by_id_update_sends_the_whole_object_to_that_project(server, run_module):
     server.route('GET', '/project/7', project_7())
     server.route('PUT', '/project/7', 'project_update')
-    result = run_module(project.main, dict(id=7, name='homelab', alert=True))
+    result = run_module(project.main, dict(id=7, name='webshop', alert=True))
     assert result['changed'] is True
     assert server.calls('PUT', '/project/7')[0]['body'] == dict(
-        id=7, name='homelab', alert=True, alert_chat='', max_parallel_tasks=0)
-    assert result['project'] == dict(id=7, name='homelab', alert=True, alert_chat='', max_parallel_tasks=0, type='')
+        id=7, name='webshop', alert=True, alert_chat='', max_parallel_tasks=0)
+    assert result['project'] == dict(id=7, name='webshop', alert=True, alert_chat='', max_parallel_tasks=0, type='')
 
 
 def test_by_id_a_different_name_renames_the_project(server, run_module):
     server.route('GET', '/project/7', project_7(name='old-name', max_parallel_tasks=2))
     server.route('PUT', '/project/7', 'project_update')
-    result = run_module(project.main, dict(id=7, name='homelab'))
+    result = run_module(project.main, dict(id=7, name='webshop'))
     assert result['changed'] is True
     # The other columns keep their values: the update rewrites them all.
     assert server.calls('PUT', '/project/7')[0]['body'] == dict(
-        id=7, name='homelab', alert=False, alert_chat='', max_parallel_tasks=2)
-    assert result['project']['name'] == 'homelab'
+        id=7, name='webshop', alert=False, alert_chat='', max_parallel_tasks=2)
+    assert result['project']['name'] == 'webshop'
     assert result['diff']['before']['name'] == 'old-name'
-    assert result['diff']['after']['name'] == 'homelab'
+    assert result['diff']['after']['name'] == 'webshop'
 
 
 def test_by_id_rename_in_check_mode_shows_the_diff_and_sends_nothing(server, run_module):
     server.route('GET', '/project/7', project_7(name='old-name'))
-    result = run_module(project.main, dict(id=7, name='homelab'), check_mode=True)
+    result = run_module(project.main, dict(id=7, name='webshop'), check_mode=True)
     assert result['changed'] is True
     assert result['diff'] == dict(
         before=dict(id=7, name='old-name', alert=False, alert_chat='', max_parallel_tasks=0, type=''),
-        after=dict(id=7, name='homelab', alert=False, alert_chat='', max_parallel_tasks=0, type=''))
+        after=dict(id=7, name='webshop', alert=False, alert_chat='', max_parallel_tasks=0, type=''))
     assert server.calls('PUT') == []
 
 
 @pytest.mark.parametrize('check_mode', [False, True], ids=['run', 'check_mode'])
 def test_by_id_a_missing_project_fails_instead_of_creating_one(server, run_module, check_mode):
     server.route('GET', '/project/7', NOT_FOUND)
-    result = run_module(project.main, dict(id=7, name='homelab'), check_mode=check_mode)
+    result = run_module(project.main, dict(id=7, name='webshop'), check_mode=check_mode)
     assert result['failed'] is True
     assert 'Project with id 7 does not exist' in result['msg']
     assert 'leave out id' in result['msg']
@@ -299,7 +299,7 @@ def test_by_id_a_missing_project_fails_instead_of_creating_one(server, run_modul
 def test_by_id_deleting_a_missing_project_is_no_change(server, run_module, answer):
     # 403 is what a project the user is no member of answers; it counts as missing.
     server.route('GET', '/project/7', answer)
-    result = run_module(project.main, dict(id=7, name='homelab', state='absent', confirm_delete=True))
+    result = run_module(project.main, dict(id=7, name='webshop', state='absent', confirm_delete=True))
     assert result.get('failed') is not True, result.get('msg')
     assert result['changed'] is False
     assert result['project'] == {}
@@ -311,7 +311,7 @@ def test_by_id_delete_removes_that_project(server, run_module):
     # The name in the task need not match: the id says which project goes.
     server.route('GET', '/project/7', project_7(name='old-name'))
     server.route('DELETE', '/project/7', 'project_delete')
-    result = run_module(project.main, dict(id=7, name='homelab', state='absent', confirm_delete=True))
+    result = run_module(project.main, dict(id=7, name='webshop', state='absent', confirm_delete=True))
     assert result['changed'] is True
     assert result['project'] == {}
     assert result['diff']['before']['name'] == 'old-name'
@@ -320,7 +320,7 @@ def test_by_id_delete_removes_that_project(server, run_module):
 
 def test_by_id_delete_in_check_mode_sends_nothing(server, run_module):
     server.route('GET', '/project/7', project_7())
-    result = run_module(project.main, dict(id=7, name='homelab', state='absent', confirm_delete=True), check_mode=True)
+    result = run_module(project.main, dict(id=7, name='webshop', state='absent', confirm_delete=True), check_mode=True)
     assert result['changed'] is True
     assert result['diff']['before']['id'] == 7
     assert server.calls('DELETE') == []
@@ -328,6 +328,6 @@ def test_by_id_delete_in_check_mode_sends_nothing(server, run_module):
 
 def test_by_id_a_server_error_is_not_taken_for_a_missing_project(server, run_module):
     server.route('GET', '/project/7', dict(status=500, body=dict(error='database is locked')))
-    result = run_module(project.main, dict(id=7, name='homelab', state='absent', confirm_delete=True))
+    result = run_module(project.main, dict(id=7, name='webshop', state='absent', confirm_delete=True))
     assert result['failed'] is True
     assert result['request_details']['status'] == 500

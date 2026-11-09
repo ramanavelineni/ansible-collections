@@ -42,16 +42,16 @@ EXAMPLES = r'''
 # with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
 # collection's README shows both under "Connecting".
 
-- name: List the homelab project's templates
+- name: List the webshop project's templates
   ramanavelineni.semaphoreui.template_info:
-    project: homelab
+    project: webshop
   register: result
 
 - name: Show one template's vaults
   ramanavelineni.semaphoreui.template_info:
-    project: homelab
-    name: harbor_config
-  register: harbor_config
+    project: webshop
+    name: release
+  register: release_template
 '''
 
 RETURN = r'''
@@ -172,11 +172,11 @@ templates:
       type: bool
   sample:
     - id: 3
-      name: harbor_config
+      name: release
       app: ansible
-      playbook: playbooks/harbor_config.yaml
+      playbook: playbooks/release.yml
       repository: ansible
-      inventory: homelab
+      inventory: webshop
       variable_groups: [empty]
       view: infra
       type: task

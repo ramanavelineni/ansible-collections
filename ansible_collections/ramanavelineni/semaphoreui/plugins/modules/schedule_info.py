@@ -39,9 +39,9 @@ EXAMPLES = r'''
 # with module_defaults, or in the SEMAPHORE_URL and SEMAPHORE_API_TOKEN environment variables; the
 # collection's README shows both under "Connecting".
 
-- name: List the homelab project's schedules
+- name: List the webshop project's schedules
   ramanavelineni.semaphoreui.schedule_info:
-    project: homelab
+    project: webshop
   register: result
 '''
 
@@ -85,7 +85,7 @@ schedules:
   sample:
     - id: 3
       name: reconcile-on-push
-      template: semaphore_config
+      template: release
       kind: poller
       cron: "*/5 * * * *"
       repository: ansible

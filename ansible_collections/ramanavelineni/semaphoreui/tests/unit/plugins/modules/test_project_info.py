@@ -10,13 +10,13 @@ def test_lists_all(server, run_module):
     server.route('GET', '/projects', 'projects_one_updated')
     result = run_module(project_info.main, {})
     assert result['changed'] is False
-    assert [p['name'] for p in result['projects']] == ['homelab']
+    assert [p['name'] for p in result['projects']] == ['webshop']
 
 
 def test_filters_by_name(server, run_module):
     server.route('GET', '/projects', 'projects_one_updated')
     assert run_module(project_info.main, dict(name='other'))['projects'] == []
-    assert len(run_module(project_info.main, dict(name='homelab'))['projects']) == 1
+    assert len(run_module(project_info.main, dict(name='webshop'))['projects']) == 1
 
 
 def test_empty(server, run_module):
@@ -36,7 +36,7 @@ def test_by_id_returns_that_project_from_the_recorded_answer(server, run_module)
     assert result.get('failed') is not True, result.get('msg')
     assert result['changed'] is False
     # The recorded answer leaves out false and zero fields.
-    assert result['projects'] == [dict(id=pid, name='homelab', alert=False, alert_chat='', max_parallel_tasks=0, type='')]
+    assert result['projects'] == [dict(id=pid, name='webshop', alert=False, alert_chat='', max_parallel_tasks=0, type='')]
 
 
 def test_by_id_returns_the_fields_semaphore_sends(server, run_module):
@@ -64,7 +64,7 @@ def test_by_id_a_server_error_fails(server, run_module):
 
 
 def test_id_and_name_exclude_each_other(server, run_module):
-    result = run_module(project_info.main, dict(id=7, name='homelab'))
+    result = run_module(project_info.main, dict(id=7, name='webshop'))
     assert result['failed'] is True
     assert result['msg'] == 'parameters are mutually exclusive: name|id'
     assert server.requests == []

@@ -58,14 +58,14 @@ EXAMPLES = r'''
 
 - name: Approve the one approval the run waits for
   ramanavelineni.semaphoreui.workflow_approval:
-    project: homelab
+    project: webshop
     workflow: release
     run_id: 7
     decision: approved
 
 - name: Reject one of several
   ramanavelineni.semaphoreui.workflow_approval:
-    project: homelab
+    project: webshop
     workflow: release
     run_id: 7
     node_id: 32

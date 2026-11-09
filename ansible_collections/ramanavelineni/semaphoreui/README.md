@@ -14,7 +14,7 @@ options you set, and supports **check mode and `--diff`**. The exception is
 `task`, which starts a run each time: in check mode it starts nothing, and it
 has no diff. Objects refer to
 each other by name too: a repository's `ssh_key: deploy`, a template's
-`inventory: homelab`.
+`inventory: webshop`.
 
 ## Install
 
@@ -46,11 +46,11 @@ work but print a warning.
   tasks:
     - name: Project
       ramanavelineni.semaphoreui.project:
-        name: homelab
+        name: webshop
 
     - name: Deploy key, set once and left alone afterwards
       ramanavelineni.semaphoreui.key_store:
-        project: homelab
+        project: webshop
         name: deploy
         type: ssh
         ssh:
@@ -60,7 +60,7 @@ work but print a warning.
 
     - name: Repository
       ramanavelineni.semaphoreui.repository:
-        project: homelab
+        project: webshop
         name: ansible
         git_url: git@github.com:example/ansible.git
         git_branch: main
@@ -68,16 +68,16 @@ work but print a warning.
 
     - name: Inventory read from the repository
       ramanavelineni.semaphoreui.inventory:
-        project: homelab
-        name: homelab
+        project: webshop
+        name: webshop
         type: file
-        inventory: inventories/homelab/hosts
+        inventory: inventories/webshop/hosts
         repository: ansible
         ssh_key: deploy
 
     - name: Variable group with a secret
       ramanavelineni.semaphoreui.variable_group:
-        project: homelab
+        project: webshop
         name: default
         env:
           TZ: UTC
@@ -88,16 +88,16 @@ work but print a warning.
 
     - name: Template
       ramanavelineni.semaphoreui.template:
-        project: homelab
+        project: webshop
         name: site
         playbook: site.yml
         repository: ansible
-        inventory: homelab
+        inventory: webshop
         variable_groups: [default]
 
     - name: Run it whenever main moves (checked every 5 minutes)
       ramanavelineni.semaphoreui.schedule:
-        project: homelab
+        project: webshop
         name: site-on-push
         template: site
         repository: ansible
@@ -348,12 +348,12 @@ manages it.
   roles:
     - role: ramanavelineni.semaphoreui.project_export
       vars:
-        project_export_project: homelab
+        project_export_project: webshop
         project_export_dest: "{{ playbook_dir }}/config/projects"
 ```
 
 Semaphore never returns a stored secret, so each one becomes a reference to a
-variable (`"{{ vault_homelab_key_deploy_ssh_private_key }}"`), and the role
+variable (`"{{ vault_webshop_key_deploy_ssh_private_key }}"`), and the role
 lists those variables in a second file for you to fill in and keep in an Ansible
 Vault. The same project always gives the same files, and a file that differs is
 not replaced unless `project_export_overwrite` is set. See the

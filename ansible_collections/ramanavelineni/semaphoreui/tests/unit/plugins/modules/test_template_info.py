@@ -28,11 +28,11 @@ def test_lists_templates_with_vaults(server, project, run_module):
     tid = server.fixtures['template_create']['body']['id']
     server.route('GET', project + '/templates', 'templates_one')
     server.route('GET', '%s/templates/%d' % (project, tid), 'template_get')
-    result = run_module(template_info.main, dict(project='homelab'))
+    result = run_module(template_info.main, dict(project='webshop'))
     assert result['changed'] is False
     tpl = result['templates'][0]
     assert tpl['name'] == 'site'
-    assert tpl['repository'] == 'ansible' and tpl['inventory'] == 'homelab' and tpl['view'] == 'k8s'
+    assert tpl['repository'] == 'ansible' and tpl['inventory'] == 'webshop' and tpl['view'] == 'k8s'
     assert tpl['variable_groups'] == ['empty']
     # The list has no vaults; they come from the single read.
     assert tpl['vaults'] == [dict(name='default', type='password', key='deploy', script='')]
@@ -45,7 +45,7 @@ def test_filter_by_name_reads_only_matches(server, project, run_module):
     server.route('GET', project + '/templates', 'templates_two')
     server.route('GET', '%s/templates/%d' % (project, tofu['id']), single(server, 'template_create_tofu'))
     server.route('GET', '%s/inventory/%d' % (project, tofu['inventory_id']), 'inventory_get_workspace')
-    result = run_module(template_info.main, dict(project='homelab', name='infra'))
+    result = run_module(template_info.main, dict(project='webshop', name='infra'))
     assert [t['name'] for t in result['templates']] == ['infra']
     # The workspace inventory is hidden from the inventory list but still named.
     assert result['templates'][0]['inventory'] == 'default'
@@ -56,7 +56,7 @@ def test_filter_by_name_reads_only_matches(server, project, run_module):
 
 def test_no_templates(server, project, run_module):
     server.route('GET', project + '/templates', 'templates_empty')
-    assert run_module(template_info.main, dict(project='homelab'))['templates'] == []
+    assert run_module(template_info.main, dict(project='webshop'))['templates'] == []
 
 
 # Semaphore keeps a template's arguments as JSON in a string. A value that is
@@ -76,5 +76,5 @@ def test_returns_stored_arguments_parsed_or_as_stored(server, project, run_modul
     answer['body']['arguments'] = stored
     server.route('GET', project + '/templates', 'templates_one')
     server.route('GET', '%s/templates/%d' % (project, tid), answer)
-    result = run_module(template_info.main, dict(project='homelab'))
+    result = run_module(template_info.main, dict(project='webshop'))
     assert result['templates'][0]['arguments'] == arguments

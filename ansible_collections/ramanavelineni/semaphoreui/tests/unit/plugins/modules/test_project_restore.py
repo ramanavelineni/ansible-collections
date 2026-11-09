@@ -93,7 +93,7 @@ def test_check_mode_predicts_what_a_real_run_returns(server, run_module):
 
 @pytest.mark.parametrize('given, said', [
     (dict(backup={}), 'it has no "meta" section'),
-    (dict(backup=dict(meta='homelab')), 'it has no "meta" section'),
+    (dict(backup=dict(meta='webshop')), 'it has no "meta" section'),
     (dict(backup=dict(meta=dict(alert=False))), 'names no project (meta.name), and the task gives no name'),
     (dict(backup=dict(meta=dict(name='  '))), 'names no project'),
     (dict(backup=dict(meta=dict(name='x')), name=''), 'names no project'),

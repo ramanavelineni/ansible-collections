@@ -8,7 +8,7 @@ import pytest
 from ansible_collections.ramanavelineni.semaphoreui.plugins.modules import key_store
 
 PRIVATE_KEY = '-----BEGIN OPENSSH PRIVATE KEY-----\nunit-test\n-----END OPENSSH PRIVATE KEY-----'
-SSH = dict(project='homelab', name='deploy', type='ssh', ssh=dict(login='git', private_key=PRIVATE_KEY))
+SSH = dict(project='webshop', name='deploy', type='ssh', ssh=dict(login='git', private_key=PRIVATE_KEY))
 
 
 @pytest.fixture
@@ -41,7 +41,7 @@ def test_create_ssh_key(server, project, run_module):
 
 def test_create_needs_secret(server, project, run_module):
     server.route('GET', project + '/keys', 'keys_new_project')
-    result = run_module(key_store.main, dict(project='homelab', name='deploy', type='ssh'))
+    result = run_module(key_store.main, dict(project='webshop', name='deploy', type='ssh'))
     assert result['failed'] is True
     assert 'ssh.private_key' in result['msg']
     assert server.calls('POST', project + '/keys') == []
@@ -50,7 +50,7 @@ def test_create_needs_secret(server, project, run_module):
 def test_create_none_key_needs_no_secret(server, project, run_module):
     server.route('GET', project + '/keys', 'keys_new_project')
     server.route('POST', project + '/keys', 'key_create')
-    result = run_module(key_store.main, dict(project='homelab', name='public', type='none'))
+    result = run_module(key_store.main, dict(project='webshop', name='public', type='none'))
     assert result['changed'] is True
     assert result['secret_updated'] is False
     assert server.calls('POST', project + '/keys')[0]['body'] == dict(
@@ -90,7 +90,7 @@ def test_on_create_leaves_existing_secret(server, project, run_module):
 
 def test_existing_key_without_secret_is_left_alone(server, project, run_module):
     server.route('GET', project + '/keys', 'keys_with_deploy')
-    result = run_module(key_store.main, dict(project='homelab', name='deploy', type='ssh'))
+    result = run_module(key_store.main, dict(project='webshop', name='deploy', type='ssh'))
     assert result['changed'] is False
     assert server.calls('PUT') == []
 
@@ -98,7 +98,7 @@ def test_existing_key_without_secret_is_left_alone(server, project, run_module):
 def test_type_change_in_place(server, project, run_module):
     server.route('GET', project + '/keys', 'keys_with_deploy')
     server.route('PUT', '%s/keys/%d' % (project, key_id(server)), 'key_update')
-    result = run_module(key_store.main, dict(project='homelab', name='deploy', type='login_password',
+    result = run_module(key_store.main, dict(project='webshop', name='deploy', type='login_password',
                                              login_password=dict(password='pw'), update_secret='on_create'))
     assert result['changed'] is True
     assert result['diff']['before']['type'] == 'ssh'
@@ -108,7 +108,7 @@ def test_type_change_in_place(server, project, run_module):
 
 def test_type_change_needs_secret(server, project, run_module):
     server.route('GET', project + '/keys', 'keys_with_deploy')
-    result = run_module(key_store.main, dict(project='homelab', name='deploy', type='login_password'))
+    result = run_module(key_store.main, dict(project='webshop', name='deploy', type='login_password'))
     assert result['failed'] is True
     assert 'needs the secret' in result['msg']
 
@@ -116,7 +116,7 @@ def test_type_change_needs_secret(server, project, run_module):
 def test_type_change_to_none(server, project, run_module):
     server.route('GET', project + '/keys', 'keys_with_deploy')
     server.route('PUT', '%s/keys/%d' % (project, key_id(server)), 'key_update')
-    result = run_module(key_store.main, dict(project='homelab', name='deploy', type='none'))
+    result = run_module(key_store.main, dict(project='webshop', name='deploy', type='none'))
     assert result['changed'] is True
     assert result['secret_updated'] is False
     assert server.calls('PUT')[0]['body']['type'] == 'none'
@@ -136,7 +136,7 @@ def test_repository_key_secret_skipped_with_warning(server, project, run_module)
 def test_repository_key_type_change_fails_without_force(server, project, run_module):
     server.route('GET', project + '/keys', 'keys_with_deploy')
     server.route('GET', project + '/repositories', 'repositories_one')
-    result = run_module(key_store.main, dict(project='homelab', name='deploy', type='none'))
+    result = run_module(key_store.main, dict(project='webshop', name='deploy', type='none'))
     assert result['failed'] is True
     assert 'force_repository_key_update' in result['msg']
     assert server.calls('PUT') == []
@@ -164,7 +164,7 @@ def test_rejected_update_is_reported(server, project, run_module):
 
 
 def test_option_for_other_type_fails(server, project, run_module):
-    result = run_module(key_store.main, dict(project='homelab', name='deploy', type='none',
+    result = run_module(key_store.main, dict(project='webshop', name='deploy', type='none',
                                              ssh=dict(private_key=PRIVATE_KEY)))
     assert result['failed'] is True
     assert 'only valid with type: ssh' in result['msg']
@@ -174,7 +174,7 @@ def test_delete(server, project, run_module):
     server.route('GET', project + '/keys', 'keys_with_deploy')
     server.route('GET', '%s/keys/%d/refs' % (project, key_id(server)), 'key_refs_unused')
     server.route('DELETE', '%s/keys/%d' % (project, key_id(server)), 'key_delete')
-    result = run_module(key_store.main, dict(project='homelab', name='deploy', state='absent'))
+    result = run_module(key_store.main, dict(project='webshop', name='deploy', state='absent'))
     assert result['changed'] is True
     assert len(server.calls('DELETE')) == 1
 
@@ -183,7 +183,7 @@ def test_delete_in_use_lists_users(server, project, run_module):
     server.route('GET', project + '/keys', 'keys_with_deploy')
     server.route('GET', project + '/repositories', 'repositories_one')
     server.route('GET', '%s/keys/%d/refs' % (project, key_id(server)), 'key_refs_used_by_repository')
-    result = run_module(key_store.main, dict(project='homelab', name='deploy', state='absent'))
+    result = run_module(key_store.main, dict(project='webshop', name='deploy', state='absent'))
     assert result['failed'] is True
     assert "still used by repositories ansible" in result['msg']
     assert server.calls('DELETE') == []
@@ -191,19 +191,19 @@ def test_delete_in_use_lists_users(server, project, run_module):
 
 def test_delete_missing(server, project, run_module):
     server.route('GET', project + '/keys', 'keys_new_project')
-    result = run_module(key_store.main, dict(project='homelab', name='deploy', state='absent'))
+    result = run_module(key_store.main, dict(project='webshop', name='deploy', state='absent'))
     assert result['changed'] is False
 
 
 def test_unknown_project(server, run_module):
     server.route('GET', '/projects', 'projects_empty')
-    result = run_module(key_store.main, dict(project='homelab', name='deploy', type='none'))
+    result = run_module(key_store.main, dict(project='webshop', name='deploy', type='none'))
     assert result['failed'] is True
-    assert "Project 'homelab' does not exist" in result['msg']
+    assert "Project 'webshop' does not exist" in result['msg']
 
 
 def test_type_required_when_present(server, project, run_module):
-    result = run_module(key_store.main, dict(project='homelab', name='deploy'))
+    result = run_module(key_store.main, dict(project='webshop', name='deploy'))
     assert result['failed'] is True
     assert result['msg'] == 'state is present but all of the following are missing: type'
     # The argument spec refuses it, so not even the login is sent.

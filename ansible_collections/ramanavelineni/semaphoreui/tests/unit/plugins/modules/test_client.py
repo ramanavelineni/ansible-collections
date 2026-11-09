@@ -293,7 +293,7 @@ def test_updates_are_retried(server, run_module):
     # A PUT carries the whole object, so sending it twice ends the same.
     server.route('GET', '/projects', 'projects_one')
     server.route('PUT', '/project/%d' % pid(server), unavailable(), transport_error(), 'project_update')
-    result = run_module(project.main, dict(name='homelab', alert=True))
+    result = run_module(project.main, dict(name='webshop', alert=True))
     assert result['changed'] is True
     puts = server.calls('PUT')
     assert len(puts) == 3
@@ -304,7 +304,7 @@ def test_creates_are_not_retried_after_a_gateway_status(server, run_module):
     # The server may have created the object before the proxy gave up.
     server.route('GET', '/projects', 'projects_empty')
     server.route('POST', '/projects', unavailable(), 'project_create')
-    result = run_module(project.main, dict(name='homelab'))
+    result = run_module(project.main, dict(name='webshop'))
     assert result['failed'] is True
     assert result['request_details']['status'] == 503
     assert len(server.calls('POST', '/projects')) == 1
@@ -314,7 +314,7 @@ def test_creates_are_not_retried_after_a_gateway_status(server, run_module):
 def test_deletes_are_not_retried(server, run_module):
     server.route('GET', '/projects', 'projects_one')
     server.route('DELETE', '/project/%d' % pid(server), unavailable(), 'project_delete')
-    result = run_module(project.main, dict(name='homelab', state='absent', confirm_delete=True))
+    result = run_module(project.main, dict(name='webshop', state='absent', confirm_delete=True))
     assert result['failed'] is True
     assert len(server.calls('DELETE')) == 1
 

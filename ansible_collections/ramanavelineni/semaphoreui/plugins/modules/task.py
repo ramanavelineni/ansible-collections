@@ -177,7 +177,7 @@ EXAMPLES = r'''
 
 - name: Run the site playbook and wait for it
   ramanavelineni.semaphoreui.task:
-    project: homelab
+    project: webshop
     template: site
     task_message: started by the nightly play
   register: run
@@ -188,7 +188,7 @@ EXAMPLES = r'''
 
 - name: Run it for two hosts, in check mode, with a survey value
   ramanavelineni.semaphoreui.task:
-    project: homelab
+    project: webshop
     template: site
     variables:
       release: "1.4.2"
@@ -199,28 +199,28 @@ EXAMPLES = r'''
 
 - name: Start a long run and come back later
   ramanavelineni.semaphoreui.task:
-    project: homelab
+    project: webshop
     template: backup
     wait: false
   register: started
 
 - name: Read how it went
   ramanavelineni.semaphoreui.task_info:
-    project: homelab
+    project: webshop
     task_id: "{{ started.task.id }}"
     output_lines: 50
   register: later
 
 - name: Give a run ten minutes, then stop it
   ramanavelineni.semaphoreui.task:
-    project: homelab
+    project: webshop
     template: site
     wait_timeout: 600
     stop_on_timeout: true
 
 - name: Stop a task
   ramanavelineni.semaphoreui.task:
-    project: homelab
+    project: webshop
     state: stopped
     task_id: "{{ started.task.id }}"
 '''
@@ -313,7 +313,7 @@ task:
       elements: str
   sample:
     id: 16
-    project: homelab
+    project: webshop
     template: site
     template_id: 3
     status: success
