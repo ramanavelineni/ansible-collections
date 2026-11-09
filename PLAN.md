@@ -49,7 +49,7 @@ along the way. Each quirk is handled inside a module and covered by a test.
 | Secrets | `update_secret: always` (default) or `on_create`, since neither server returns stored secrets |
 | Module imports | modules import only `module_utils`: Ansible ships nothing else with a module, and sanity's import test enforces it |
 | License hygiene | no GPL-licensed ansible-core code is imported, extended or copied; only its BSD-licensed `module_utils` and the Python standard library |
-| CI | `ansible-test` sanity and unit tests on every supported ansible-core version, an install test of the built tarball, `ansible-lint` and a coverage floor, for the collections a change touches. The semaphoreui role tests run in CI against a Semaphore container; the modules' live suites in `tests/live` run locally |
+| CI | `ansible-test` sanity and unit tests on every supported ansible-core version, an install test of the built tarball, `ansible-lint` and a coverage floor, for the collections a change touches. The role tests run in CI, against a Semaphore container and a Harbor installed from its offline installer; the modules' live suites in `tests/live` run locally |
 | Fixtures | API responses recorded from throwaway local servers of every supported version, one file per area |
 | Distribution | Git tags via `requirements.yml`, with GitHub Releases for the tarballs. Not published to Ansible Galaxy |
 | Workflow | feature branch and pull request for every change; squash-merge; no Co-Authored-By trailer; the owner pushes. `main` takes changes only through a pull request whose "CI result" check passed |
@@ -597,9 +597,11 @@ the same in both apart from two error messages. The recorded answers
   to cover at least 95% of the plugin code.
 - Each collection has a live suite in `tests/live` that runs the modules
   against a real server. It runs locally, never in CI.
-- The roles of the semaphoreui collection run in CI against a Semaphore
-  container, once per tested version (`tests/roles`): a role can't be tested
-  without a server.
+- The role tests (`tests/roles`) run in CI once per tested server version: a
+  role can't be tested without a server. semaphoreui's run against a Semaphore
+  container, harbor's against a Harbor the job installs from its offline
+  installer, checked against a pinned SHA-256. Until the harbor roles exist,
+  harbor's `modules.yml` runs the modules they'll be built on.
 - Unit tests replay API responses recorded from throwaway local servers:
   Semaphore UI 2.18.31 and 2.19.17, Harbor 2.14.6 and 2.15.4. Each quirk above
   has at least one test. The recorders live in `tools/`, one area at a time.

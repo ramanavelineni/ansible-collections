@@ -1,0 +1,90 @@
+---
+# Run by CI against the throwaway Harbor the job installs
+# (.github/scripts/harbor-ci-up.sh), and by hand with `make role-test
+# COLLECTION=harbor`. The server comes from the environment: HARBOR_URL,
+# HARBOR_USERNAME and HARBOR_PASSWORD, which the modules read themselves.
+#
+# The modules the harbor roles are built on, run the way a role runs them: a
+# project and a project robot are created, found unchanged on a second run, and
+# removed. Everything it makes is named roletest-modules… and is removed again,
+# also when a check fails. Throwaway servers only.
+- name: Test the modules the harbor roles are built on
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    modules_project: roletest-modules
+    modules_robot: ci
+    modules_permissions:
+      - access:
+          - {resource: repository, action: pull}
+  tasks:
+    - name: Check that a server is named
+      ansible.builtin.assert:
+        that: lookup('ansible.builtin.env', 'HARBOR_URL') | length > 0
+        fail_msg: Set HARBOR_URL, HARBOR_USERNAME and HARBOR_PASSWORD to a throwaway Harbor.
+        quiet: true
+
+    - name: Run the test and clean up after it
+      block:
+        - name: Remove the project an earlier run left behind
+          ansible.builtin.include_tasks: tasks/modules-cleanup.yml
+
+        - name: Read the server
+          ramanavelineni.harbor.info:
+          register: modules_info
+
+        - name: Check that the server answered as the login user
+          ansible.builtin.assert:
+            that: modules_info.harbor_version is match('v2\.1[45]\.')
+            fail_msg: "Unexpected Harbor version: {{ modules_info.harbor_version | default('none') }}"
+            quiet: true
+
+        - name: Create the project
+          ramanavelineni.harbor.project:
+            name: "{{ modules_project }}"
+            public: false
+            metadata:
+              auto_scan: true
+          register: modules_created
+
+        - name: Create the project robot
+          ramanavelineni.harbor.robot_account:
+            name: "{{ modules_robot }}"
+            level: project
+            project: "{{ modules_project }}"
+            duration: 30
+            permissions: "{{ modules_permissions }}"
+          register: modules_robot_created
+          no_log: true
+
+        - name: Run the project again
+          ramanavelineni.harbor.project:
+            name: "{{ modules_project }}"
+            public: false
+            metadata:
+              auto_scan: true
+          register: modules_project_again
+
+        - name: Run the robot again
+          ramanavelineni.harbor.robot_account:
+            name: "{{ modules_robot }}"
+            level: project
+            project: "{{ modules_project }}"
+            duration: 30
+            permissions: "{{ modules_permissions }}"
+          register: modules_robot_again
+          no_log: true
+
+        - name: Check that the first run changed both and the second run nothing
+          ansible.builtin.assert:
+            that:
+              - modules_created is changed
+              - modules_robot_created is changed
+              - modules_project_again is not changed
+              - modules_robot_again is not changed
+            quiet: true
+
+      always:
+        - name: Remove what the test made
+          ansible.builtin.include_tasks: tasks/modules-cleanup.yml

@@ -59,8 +59,8 @@ release:
   only (elsewhere on every one)
 - the install test on the oldest ansible-core only (elsewhere also on the
   newest)
-- the role tests against the newest Semaphore only (elsewhere against every
-  tested version)
+- the role tests against the newest Semaphore and Harbor only (elsewhere
+  against every tested version)
 
 A
 change to the CI or release workflow, `.github/dependabot.yml`,
@@ -100,20 +100,29 @@ A role is tasks, so it can only be tested by running it against a server. The
 playbooks in a collection's `tests/roles/` do that: they apply sample
 descriptions, apply them again and expect no change, run in check mode, and
 feed the roles what they must refuse. CI runs them in the "Role tests" jobs:
-one job per playbook and tested Semaphore version, each against a Semaphore
-container it starts for itself, so the playbooks run side by side. The job
-logs in once as the admin, makes an API token and runs the playbook with
-`SEMAPHORE_API_TOKEN` only. With a username and password every module call
-would log in and out again. Locally either works:
+one job per playbook and tested server version, each against a server it starts
+for itself, so the playbooks run side by side.
+
+- semaphoreui: a Semaphore container. The job logs in once as the admin, makes
+  an API token and runs the playbook with `SEMAPHORE_API_TOKEN` only. With a
+  username and password every module call would log in and out again.
+- harbor: a Harbor installed from its offline installer by
+  `.github/scripts/harbor-ci-up.sh`, which checks the installer against a
+  pinned SHA-256 (add one there for a new Harbor version). The job writes the
+  install time and the time per request to its summary.
+
+Locally:
 
 ```sh
 SEMAPHORE_URL=http://127.0.0.1:3019 SEMAPHORE_USERNAME=admin SEMAPHORE_PASSWORD=... \
     make role-test COLLECTION=semaphoreui
+HARBOR_URL=http://127.0.0.1:8015 HARBOR_PASSWORD=... make role-test COLLECTION=harbor
 ```
 
 Every playbook in `tests/roles/` is run; `ROLE_TEST_PLAYBOOK=apply` runs only
-`apply.yml`. A new playbook also needs its name in the `roles` job's matrix in
-`.github/workflows/ci.yml`, or CI never runs it.
+`apply.yml`. A new playbook also needs its name in the matrix of its job in
+`.github/workflows/ci.yml` (`roles` for semaphoreui, `harbor-roles` for
+harbor), or CI never runs it.
 Each has to stand alone: it only touches objects named `roletest-...`, and
 removes them before it starts and when it ends. Throwaway servers only.
 

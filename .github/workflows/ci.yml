@@ -4,8 +4,8 @@ name: CI
 # Only what a change touches is tested. The first job lists the changed files
 # and the other jobs run for the collections among them:
 #   - files under one collection: that collection's jobs (lint, sanity and
-#     units on each ansible-core version, the install test, and for semaphoreui
-#     the role tests)
+#     units on each ansible-core version, the install test, and the role
+#     tests)
 #   - this workflow, the release workflow, .github/dependabot.yml,
 #     .github/scripts/ or the Makefile: everything
 #   - tools/, or a file that tools/tests compares between the collections
@@ -18,7 +18,7 @@ name: CI
 #
 # A pull request runs a little less than a push to main, the weekly run and a
 # release do: the install test on the oldest ansible-core only, the role tests
-# against the newest Semaphore only, and no run on ansible-core's development
+# against the newest Semaphore and Harbor only, and no run on ansible-core's development
 # branch. Sanity and units run on every supported ansible-core everywhere, as
 # one job per collection and version.
 #
@@ -36,10 +36,10 @@ name: CI
 # ansible-core names that a new version may change. It is not part of
 # "CI result"; a red weekly run is the warning.
 #
-# "Role tests (...)" runs the roles of the semaphoreui collection against a
-# throwaway Semaphore that the job starts as a service container: the playbooks
-# in the collection's tests/roles/. Roles cannot be tested without a server, so
-# unlike the modules' live suites this one is part of CI and of "CI result".
+# "Role tests (...)" runs the playbooks in a collection's tests/roles/
+# against a throwaway server the job starts: Semaphore as a service container,
+# Harbor from its offline installer. Roles cannot be tested without a server, so
+# unlike the modules' live suites these are part of CI and of "CI result".
 #
 # The release workflow calls this one with a collection name. Then nothing is
 # compared: that collection's jobs run at the tagged commit, because the last
@@ -374,6 +374,73 @@ jobs:
         env:
           ROLE_TEST_PLAYBOOK: ${{ matrix.playbook }}
 
+  # The harbor roles, run for real against a Harbor the job installs from
+  # Harbor's offline installer (.github/scripts/harbor-ci-up.sh): the installer
+  # is cached between runs and checked against a pinned SHA-256 before it runs.
+  # Same pairing as above: 2.14 with the oldest supported ansible-core, 2.15
+  # with the newest, and a pull request runs only the newer pair. The job also
+  # writes to its summary how long the install took and what a request costs:
+  # Harbor 2.15 checks the password on every request with basic authentication
+  # (PBKDF2-SHA256, 600,000 iterations). The server and its admin password
+  # exist only for the run, so the password is not a secret.
+  harbor-roles:
+    name: Role tests (harbor, ${{ matrix.playbook }}, Harbor ${{ matrix.harbor }}, ansible-core ${{ matrix.ansible }})
+    needs: changes
+    if: needs.changes.outputs.collections != '[]' && contains(needs.changes.outputs.collections, '"harbor"')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include: >-
+          ${{ fromJSON(github.event_name == 'pull_request'
+              && '[{"harbor": "v2.15.4", "ansible": "2.22", "playbook": "modules"}]'
+              || '[{"harbor": "v2.14.6", "ansible": "2.20", "playbook": "modules"}, {"harbor": "v2.15.4", "ansible": "2.22", "playbook": "modules"}]') }}
+    env:
+      HARBOR_URL: http://127.0.0.1:8080
+      HARBOR_USERNAME: admin
+      # Harbor's password rule wants upper and lower case letters and a digit.
+      HARBOR_PASSWORD: Roletest-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - run: pip install "ansible-core~=${{ matrix.ansible }}.0"
+      # Keyed by version alone: a release's installer doesn't change, and the
+      # script checks the SHA-256 of a cached file as well.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/harbor-installer
+          key: harbor-offline-installer-${{ matrix.harbor }}
+      - name: Install Harbor
+        run: .github/scripts/harbor-ci-up.sh "${{ matrix.harbor }}" "${RUNNER_TEMP}/harbor-installer"
+      - name: Measure what a request costs
+        shell: bash
+        run: |
+          average_ms() {  # average_ms <curl options...>: mean time of 10 requests, in ms
+            local started i
+            started="$(date +%s%N)"
+            for i in $(seq 1 10); do curl -fsS -o /dev/null "$@"; done
+            echo "$(( ($(date +%s%N) - started) / 10000000 ))"
+          }
+          anonymous="$(average_ms "${HARBOR_URL}/api/v2.0/systeminfo")"
+          logged_in="$(average_ms -u "admin:${HARBOR_PASSWORD}" "${HARBOR_URL}/api/v2.0/users/current")"
+          echo "anonymous ${anonymous} ms, logged in ${logged_in} ms per request"
+          {
+            echo "### Harbor ${{ matrix.harbor }}: time per request (mean of 10)"
+            echo
+            echo "| Request | Time |"
+            echo "|---|---|"
+            echo "| anonymous \`/systeminfo\` | ${anonymous} ms |"
+            echo "| logged in \`/users/current\` | ${logged_in} ms |"
+          } >> "${GITHUB_STEP_SUMMARY}"
+      - run: .github/scripts/role-test.sh harbor
+        env:
+          ROLE_TEST_PLAYBOOK: ${{ matrix.playbook }}
+
   # Early warning only, in the weekly run: the unit tests on ansible-core's
   # development branch. Not in the needs of "CI result". Units only: sanity on
   # devel would need a tests/sanity/ignore-<version>.txt that exists only for
@@ -411,7 +478,7 @@ jobs:
 
   result:
     name: CI result
-    needs: [changes, sanity, units, units-coverage, install, lint, roles, tools]
+    needs: [changes, sanity, units, units-coverage, install, lint, roles, harbor-roles, tools]
     if: always()
     runs-on: ubuntu-latest
     steps:
