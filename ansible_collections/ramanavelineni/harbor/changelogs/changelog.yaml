@@ -411,3 +411,36 @@ releases:
         name: server_apply
         namespace: null
     release_date: '2026-11-08'
+  0.8.0:
+    changes:
+      release_summary: The ``project_export`` role writes a Harbor project out as
+        the file ``project_apply`` reads, with robot secrets, webhook auth headers
+        and Slack webhook URLs as vault variables, and the four filters behind it
+        can be used on their own. Exporting a project and applying the export again
+        changes nothing, which the CI role tests check against a real Harbor.
+    fragments:
+    - project-export-role.yml
+    - release-summary.yml
+    objects:
+      role:
+      - description: Write a Harbor project as the YAML file the project\_apply role
+          reads.
+        name: project_export
+        namespace: null
+    plugins:
+      filter:
+      - description: A Harbor project as the mapping the project\_apply role reads.
+        name: project_export_config
+        namespace: null
+      - description: The vault variables an exported Harbor project needs, as a file
+          to fill in.
+        name: project_export_vault
+        namespace: null
+      - description: The names of the vault variables an exported Harbor project needs.
+        name: project_export_vault_variables
+        namespace: null
+      - description: Write a Harbor project as the YAML file the project\_apply role
+          reads.
+        name: project_export_yaml
+        namespace: null
+    release_date: '2026-11-09'

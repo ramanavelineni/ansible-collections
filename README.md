@@ -117,7 +117,7 @@ collections:
     version: semaphoreui-v0.7.0
   - name: https://github.com/ramanavelineni/ansible-collections.git#/ansible_collections/ramanavelineni/harbor
     type: git
-    version: harbor-v0.7.0
+    version: harbor-v0.8.0
 ```
 
 ```sh
