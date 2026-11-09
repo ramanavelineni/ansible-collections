@@ -140,7 +140,7 @@
               ansible.builtin.assert:
                 that:
                   - "'exists and differs' in export_refusal"
-                  - lookup('ansible.builtin.file', export_file) == 'name: changed by hand'
+                  - "lookup('ansible.builtin.file', export_file) == 'name: changed by hand'"
                 fail_msg: "{{ export_refusal }}"
                 quiet: true
               vars:
@@ -160,7 +160,7 @@
           ansible.builtin.assert:
             that:
               - (lookup('ansible.builtin.file', export_file) | from_yaml).name == 'roletest-export'
-              - lookup('ansible.builtin.file', export_vault) == 'vault_roletest_export_robot_ci_secret: filled in'
+              - "lookup('ansible.builtin.file', export_vault) == 'vault_roletest_export_robot_ci_secret: filled in'"
             quiet: true
 
         # ---- a directory --------------------------------------------------
