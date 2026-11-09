@@ -1,5 +1,5 @@
 {
-  "recorded_from": "v2.15.2-a97e7b83",
+  "recorded_from": "v2.15.4-d8841742",
   "responses": {
     "system_configurations": {
       "body": {
@@ -553,17 +553,17 @@
     },
     "system_gc_schedule_custom": {
       "body": {
-        "creation_time": "2026-10-03T22:29:17.780Z",
-        "id": 44,
+        "creation_time": "2026-11-09T05:41:40.063Z",
+        "id": 4,
         "job_kind": "0 0 4 * * 0",
         "job_parameters": "{\"delete_tag\":false,\"delete_untagged\":true,\"workers\":2}",
         "job_status": "Running",
         "schedule": {
           "cron": "0 0 4 * * 0",
-          "next_scheduled_time": "2026-10-04T04:00:00.000Z",
+          "next_scheduled_time": "2026-11-15T04:00:00.000Z",
           "type": "Custom"
         },
-        "update_time": "2026-10-03T22:29:17.780Z"
+        "update_time": "2026-11-09T05:41:40.063Z"
       },
       "headers": {},
       "status": 200
@@ -587,17 +587,17 @@
     },
     "system_purge_schedule_custom": {
       "body": {
-        "creation_time": "2026-10-03T22:29:22.598Z",
-        "id": 45,
+        "creation_time": "2026-11-09T05:41:44.958Z",
+        "id": 5,
         "job_kind": "0 0 6 * * *",
         "job_parameters": "{\"audit_retention_hour\":720,\"include_event_types\":\"create_artifact,delete_artifact\"}",
         "job_status": "Running",
         "schedule": {
           "cron": "0 0 6 * * *",
-          "next_scheduled_time": "2026-10-04T06:00:00.000Z",
+          "next_scheduled_time": "2026-11-09T06:00:00.000Z",
           "type": "Custom"
         },
-        "update_time": "2026-10-03T22:29:22.598Z"
+        "update_time": "2026-11-09T05:41:44.958Z"
       },
       "headers": {},
       "status": 200
@@ -607,7 +607,7 @@
         "errors": [
           {
             "code": "BAD_REQUEST",
-            "message": "bad request: schedule parameter cann't be empty"
+            "message": "bad request: schedule parameter cannot be empty"
           }
         ]
       },
@@ -629,7 +629,7 @@
         "errors": [
           {
             "code": "PRECONDITION",
-            "message": "no scanner is configured, it's not possible to scan"
+            "message": "No scanner is configured; scanning cannot be performed."
           }
         ]
       },

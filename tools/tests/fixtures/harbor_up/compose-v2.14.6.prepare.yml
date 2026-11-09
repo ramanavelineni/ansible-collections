@@ -1,6 +1,6 @@
 services:
   log:
-    image: goharbor/harbor-log:v2.15.2
+    image: goharbor/harbor-log:v2.14.6
     container_name: harbor-log
     restart: always
     cap_drop:
@@ -23,7 +23,7 @@ services:
     networks:
       - harbor
   registry:
-    image: goharbor/registry-photon:v2.15.2
+    image: goharbor/registry-photon:v2.14.6
     container_name: registry
     restart: always
     cap_drop:
@@ -33,10 +33,10 @@ services:
       - SETGID
       - SETUID
     volumes:
-      - /var/home/core/harbor-lab/v2.15.2/data/registry:/storage:z
+      - /var/home/core/harbor-lab/v2.14.6/data/registry:/storage:z
       - ./common/config/registry/:/etc/registry/:z
       - type: bind
-        source: /var/home/core/harbor-lab/v2.15.2/data/secret/registry/root.crt
+        source: /var/home/core/harbor-lab/v2.14.6/data/secret/registry/root.crt
         target: /etc/registry/root.crt
       - type: bind
         source: ./common/config/shared/trust-certificates
@@ -51,7 +51,7 @@ services:
         syslog-address: "tcp://localhost:1514"
         tag: "registry"
   registryctl:
-    image: goharbor/harbor-registryctl:v2.15.2
+    image: goharbor/harbor-registryctl:v2.14.6
     container_name: registryctl
     env_file:
       - ./common/config/registryctl/env
@@ -63,7 +63,7 @@ services:
       - SETGID
       - SETUID
     volumes:
-      - /var/home/core/harbor-lab/v2.15.2/data/registry:/storage:z
+      - /var/home/core/harbor-lab/v2.14.6/data/registry:/storage:z
       - ./common/config/registry/:/etc/registry/:z
       - type: bind
         source: ./common/config/registryctl/config.yml
@@ -81,7 +81,7 @@ services:
         syslog-address: "tcp://localhost:1514"
         tag: "registryctl"
   postgresql:
-    image: goharbor/harbor-db:v2.15.2
+    image: goharbor/harbor-db:v2.14.6
     container_name: harbor-db
     restart: always
     cap_drop:
@@ -92,7 +92,7 @@ services:
       - SETGID
       - SETUID
     volumes:
-      - /var/home/core/harbor-lab/v2.15.2/data/database:/var/lib/postgresql/data:z
+      - /var/home/core/harbor-lab/v2.14.6/data/database:/var/lib/postgresql/data:z
     networks:
       harbor:
     env_file:
@@ -106,7 +106,7 @@ services:
         tag: "postgresql"
     shm_size: '1gb'
   core:
-    image: goharbor/harbor-core:v2.15.2
+    image: goharbor/harbor-core:v2.14.6
     container_name: harbor-core
     env_file:
       - ./common/config/core/env
@@ -117,17 +117,17 @@ services:
       - SETGID
       - SETUID
     volumes:
-      - /var/home/core/harbor-lab/v2.15.2/data/ca_download/:/etc/core/ca/:z
-      - /var/home/core/harbor-lab/v2.15.2/data/:/data/:z
+      - /var/home/core/harbor-lab/v2.14.6/data/ca_download/:/etc/core/ca/:z
+      - /var/home/core/harbor-lab/v2.14.6/data/:/data/:z
       - ./common/config/core/certificates/:/etc/core/certificates/:z
       - type: bind
         source: ./common/config/core/app.conf
         target: /etc/core/app.conf
       - type: bind
-        source: /var/home/core/harbor-lab/v2.15.2/data/secret/core/private_key.pem
+        source: /var/home/core/harbor-lab/v2.14.6/data/secret/core/private_key.pem
         target: /etc/core/private_key.pem
       - type: bind
-        source: /var/home/core/harbor-lab/v2.15.2/data/secret/keys/secretkey
+        source: /var/home/core/harbor-lab/v2.14.6/data/secret/keys/secretkey
         target: /etc/core/key
       - type: bind
         source: ./common/config/shared/trust-certificates
@@ -145,7 +145,7 @@ services:
         syslog-address: "tcp://localhost:1514"
         tag: "core"
   portal:
-    image: goharbor/harbor-portal:v2.15.2
+    image: goharbor/harbor-portal:v2.14.6
     container_name: harbor-portal
     restart: always
     cap_drop:
@@ -170,7 +170,7 @@ services:
         tag: "portal"
 
   jobservice:
-    image: goharbor/harbor-jobservice:v2.15.2
+    image: goharbor/harbor-jobservice:v2.14.6
     container_name: harbor-jobservice
     env_file:
       - ./common/config/jobservice/env
@@ -182,7 +182,7 @@ services:
       - SETGID
       - SETUID
     volumes:
-      - /var/home/core/harbor-lab/v2.15.2/data/job_logs:/var/log/jobs:z
+      - /var/home/core/harbor-lab/v2.14.6/data/job_logs:/var/log/jobs:z
       - type: bind
         source: ./common/config/jobservice/config.yml
         target: /etc/jobservice/config.yml
@@ -199,7 +199,7 @@ services:
         syslog-address: "tcp://localhost:1514"
         tag: "jobservice"
   redis:
-    image: goharbor/valkey-photon:v2.15.2
+    image: goharbor/redis-photon:v2.14.6
     container_name: redis
     restart: always
     cap_drop:
@@ -209,7 +209,7 @@ services:
       - SETGID
       - SETUID
     volumes:
-      - /var/home/core/harbor-lab/v2.15.2/data/redis:/var/lib/redis
+      - /var/home/core/harbor-lab/v2.14.6/data/redis:/var/lib/redis
     networks:
       harbor:
     depends_on:
@@ -220,7 +220,7 @@ services:
         syslog-address: "tcp://localhost:1514"
         tag: "redis"
   proxy:
-    image: goharbor/nginx-photon:v2.15.2
+    image: goharbor/nginx-photon:v2.14.6
     container_name: nginx
     restart: always
     cap_drop:

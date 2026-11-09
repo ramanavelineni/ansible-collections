@@ -1,5 +1,5 @@
 {
-  "recorded_from": "v2.14.4-79a297f7",
+  "recorded_from": "v2.14.6-f435c950",
   "responses": {
     "system_configurations": {
       "body": {
@@ -553,17 +553,17 @@
     },
     "system_gc_schedule_custom": {
       "body": {
-        "creation_time": "2026-10-03T22:30:39.753Z",
-        "id": 27,
+        "creation_time": "2026-11-09T05:37:59.524Z",
+        "id": 4,
         "job_kind": "0 0 4 * * 0",
         "job_parameters": "{\"delete_untagged\":true,\"workers\":2}",
         "job_status": "Running",
         "schedule": {
           "cron": "0 0 4 * * 0",
-          "next_scheduled_time": "2026-10-04T04:00:00.000Z",
+          "next_scheduled_time": "2026-11-15T04:00:00.000Z",
           "type": "Custom"
         },
-        "update_time": "2026-10-03T22:30:39.753Z"
+        "update_time": "2026-11-09T05:37:59.524Z"
       },
       "headers": {},
       "status": 200
@@ -587,17 +587,17 @@
     },
     "system_purge_schedule_custom": {
       "body": {
-        "creation_time": "2026-10-03T22:30:39.840Z",
-        "id": 28,
+        "creation_time": "2026-11-09T05:37:59.619Z",
+        "id": 5,
         "job_kind": "0 0 6 * * *",
         "job_parameters": "{\"audit_retention_hour\":720,\"include_event_types\":\"create_artifact,delete_artifact\"}",
         "job_status": "Running",
         "schedule": {
           "cron": "0 0 6 * * *",
-          "next_scheduled_time": "2026-10-04T06:00:00.000Z",
+          "next_scheduled_time": "2026-11-09T06:00:00.000Z",
           "type": "Custom"
         },
-        "update_time": "2026-10-03T22:30:39.840Z"
+        "update_time": "2026-11-09T05:37:59.619Z"
       },
       "headers": {},
       "status": 200

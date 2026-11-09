@@ -26,7 +26,7 @@ SCRIPT = os.path.join(os.path.dirname(HERE), 'harbor_up.sh')
 BASH = shutil.which('bash')
 FIXTURES = os.path.join(HERE, 'fixtures', 'harbor_up')
 # Version and the port its working server is published on.
-VERSIONS = (('v2.14.4', '8014'), ('v2.15.2', '8015'))
+VERSIONS = (('v2.14.6', '8014'), ('v2.15.4', '8015'))
 
 
 def fixture(name):
@@ -206,11 +206,11 @@ class AdjustCompose(unittest.TestCase):
                 self.assertIn('harbor', proxy['networks'])
 
     def test_the_port_is_the_one_asked_for(self):
-        proxy = self.adjusted('v2.15.2', '8099')['services']['proxy']
+        proxy = self.adjusted('v2.15.4', '8099')['services']['proxy']
         self.assertEqual(proxy['ports'], ['127.0.0.1:8099:8080'])
 
     def test_an_unexpected_file_is_refused(self):
-        whole = fixture('compose-v2.15.2.prepare.yml')
+        whole = fixture('compose-v2.15.4.prepare.yml')
         cases = dict(
             log=whole.replace('  log:\n', '  logs:\n'),
             logging=whole.replace('    logging:\n', '    loging:\n'),
