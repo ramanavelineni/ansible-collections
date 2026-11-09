@@ -62,7 +62,7 @@
             that:
               - export_needed | dict2items | map(attribute='key') | sort
                 == ['vault_roletest_export_robot_ci_secret', 'vault_roletest_export_webhook_ci_notify_auth_header']
-            fail_msg: "{{ export_needed }}"
+            fail_msg: "{{ export_needed | to_json }}"
             quiet: true
 
         # What a vault file would hold: the values the project was made with.

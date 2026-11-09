@@ -81,7 +81,7 @@
               - export_webhook_header not in (lookup('ansible.builtin.file', export_file))
               - "'vault_roletest_export_robot_ci_secret: \"\"' in export_vault_text"
               - "'vault_roletest_export_webhook_ci_notify_auth_header: \"\"' in export_vault_text"
-            fail_msg: "{{ export_written }}"
+            fail_msg: "{{ export_written | to_json }}"
             quiet: true
 
         - name: Look at the file before a second export
@@ -139,7 +139,7 @@
                 that:
                   - "'exists and differs' in ansible_failed_result.msg"
                   - lookup('ansible.builtin.file', export_file) == 'name: changed by hand'
-                fail_msg: "{{ ansible_failed_result.msg | default(ansible_failed_result) }}"
+                fail_msg: "{{ ansible_failed_result.msg | default(ansible_failed_result | to_json) }}"
                 quiet: true
 
         - name: Export with overwrite
@@ -180,7 +180,7 @@
               - export_parts.files | map(attribute='path') | map('basename') | sort
                 == ['project.yml', 'project_member.yml', 'robot_account.yml', 'tag_immutability.yml',
                     'tag_retention.yml', 'webhook.yml']
-            fail_msg: "{{ export_parts.files | map(attribute='path') | list }}"
+            fail_msg: "{{ export_parts.files | map(attribute='path') | join(', ') }}"
             quiet: true
 
       always:
