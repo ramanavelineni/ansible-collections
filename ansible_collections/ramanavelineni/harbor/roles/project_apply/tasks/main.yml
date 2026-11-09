@@ -1,0 +1,204 @@
+---
+# Applies every project found in project_apply_path. See the README and
+# meta/argument_specs.yml for what a project looks like.
+#
+# Every project is read and checked first. Only when all of them pass is the
+# first one applied, so a mistake in one file changes nothing anywhere.
+
+- name: Start with nothing changed
+  ansible.builtin.set_fact:
+    project_apply_changed: false
+    project_apply_projects: []
+    __project_apply_loaded: []
+
+- name: Check the directory of projects
+  ansible.builtin.assert:
+    that: project_apply_path is directory
+    fail_msg: "project_apply_path is not a directory: {{ project_apply_path }}"
+    quiet: true
+
+- name: Check the Harbor server
+  ramanavelineni.harbor.info:
+
+# A project is one file (projects/apps.yml) or one directory of files
+# (projects/apps/*.yml). Both .yml and .yaml are read.
+- name: Find the single-file projects
+  ansible.builtin.find:
+    paths: "{{ project_apply_path }}"
+    patterns:
+      - "*.yml"
+      - "*.yaml"
+  register: __project_apply_files
+
+- name: Find the project directories
+  ansible.builtin.find:
+    paths: "{{ project_apply_path }}"
+    file_type: directory
+  register: __project_apply_dirs
+
+- name: Check that no project is described twice
+  ansible.builtin.assert:
+    that: __project_apply_repeated | length == 0
+    fail_msg: >-
+      {{ project_apply_path }} describes {{ __project_apply_repeated | join(', ') }} more than once:
+      as a file and a directory, or as both .yml and .yaml. Keep one. Nothing was changed.
+    quiet: true
+  vars:
+    __project_apply_names: >-
+      {{ (__project_apply_files.files | map(attribute='path') | map('basename') | map('splitext') | map('first') | list)
+         + (__project_apply_dirs.files | map(attribute='path') | map('basename') | list) }}
+    __project_apply_repeated: >-
+      {%- set bad = [] -%}
+      {%- for name in __project_apply_names | unique if __project_apply_names | select('equalto', name) | list | length > 1 -%}
+      {%-   set _ = bad.append(name) -%}
+      {%- endfor -%}
+      {{ bad }}
+
+- name: Read each project
+  ansible.builtin.include_tasks: load.yml
+  loop: "{{ (__project_apply_files.files + __project_apply_dirs.files) | map(attribute='path') | sort }}"
+  loop_control:
+    loop_var: __project_apply_source
+    label: "{{ __project_apply_source | basename }}"
+
+- name: Check that every project sets its name
+  ansible.builtin.assert:
+    that: __project_apply_unnamed | length == 0
+    fail_msg: >-
+      {{ __project_apply_unnamed | join(', ') }} must set `name`. Nothing was changed.
+    quiet: true
+  vars:
+    __project_apply_unnamed: >-
+      {{ __project_apply_loaded | rejectattr('project.name', 'defined') | map(attribute='source') | list }}
+
+# Two files (or directories) that name the same project would apply one
+# after the other to the same project.
+- name: Check that no project name is declared twice
+  ansible.builtin.assert:
+    that: __project_apply_same_name | length == 0
+    fail_msg: >-
+      {{ project_apply_path }} declares the same project name in more than one place:
+      {{ __project_apply_same_name | join(', ') }}. Each project is declared once. Nothing was changed.
+    quiet: true
+  vars:
+    __project_apply_same_name: >-
+      {%- set seen = {} -%}
+      {%- set bad = [] -%}
+      {%- for loaded in __project_apply_loaded -%}
+      {%-   set name = loaded.project.name | string -%}
+      {%-   if name in seen -%}
+      {%-     set _ = bad.append(name ~ ' (' ~ seen[name] ~ ', ' ~ loaded.name_file ~ ')') -%}
+      {%-   else -%}
+      {%-     set _ = seen.update({name: loaded.name_file}) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ bad }}
+
+- name: Check that no project is protected
+  ansible.builtin.assert:
+    that: __project_apply_protected | length == 0
+    fail_msg: >-
+      {{ __project_apply_protected | join(', ') }}: must not describe one of the projects in
+      project_apply_protected_projects ({{ project_apply_protected_projects | join(', ') }}). Nothing was changed.
+    quiet: true
+  vars:
+    __project_apply_protected: >-
+      {{ __project_apply_loaded | selectattr('project.name', 'in', project_apply_protected_projects)
+         | map(attribute='source') | list }}
+
+# Each section must have the shape its kind asks for (vars/main.yml), and each
+# entry may use only the options of its module.
+- name: Check the sections and option names
+  ansible.builtin.assert:
+    that: __project_apply_wrong | length == 0
+    fail_msg: "Nothing was changed. {{ __project_apply_wrong | join('; ') }}"
+    quiet: true
+  vars:
+    __project_apply_wrong: >-
+      {%- set bad = [] -%}
+      {%- for loaded in __project_apply_loaded -%}
+      {%-   set where = loaded.source ~ ': ' -%}
+      {%-   for key, value in loaded.project.items() if not key.startswith('_') -%}
+      {%-     set kind = __project_apply_section_kinds[key] | default('') -%}
+      {%-     set options = __project_apply_options[key] | default([]) -%}
+      {%-     if kind == '' and key not in __project_apply_options.project -%}
+      {%-       set _ = bad.append(where ~ 'unknown option ' ~ key) -%}
+      {%-     elif kind == 'keyed' and value is not none and value is not mapping -%}
+      {%-       set _ = bad.append(where ~ key ~ ' must map entry names to their options') -%}
+      {%-     elif kind == 'keyed' -%}
+      {%-       for name, entry in (value | default({}, true)).items() -%}
+      {%-         if entry is not none and entry is not mapping -%}
+      {%-           set _ = bad.append(where ~ key ~ '.' ~ name ~ ' must be a mapping of options') -%}
+      {%-         else -%}
+      {%-           for option in (entry | default({}, true)) if option not in options -%}
+      {%-             set _ = bad.append(where ~ 'unknown option ' ~ key ~ '.' ~ name ~ '.' ~ option) -%}
+      {%-           endfor -%}
+      {%-         endif -%}
+      {%-       endfor -%}
+      {%-     elif kind == 'list' and value is not none and (value is string or value is mapping or value is not sequence) -%}
+      {%-       set _ = bad.append(where ~ key ~ ' must be a list of entries') -%}
+      {%-     elif kind == 'list' -%}
+      {%-       for entry in value | default([], true) -%}
+      {%-         if entry is not mapping -%}
+      {%-           set _ = bad.append(where ~ key ~ ' holds an entry that is not a mapping of options') -%}
+      {%-         else -%}
+      {%-           if key == 'project_member' and (entry.user is defined) == (entry.group is defined) -%}
+      {%-             set _ = bad.append(where ~ 'a ' ~ key ~ ' entry needs exactly one of user and group') -%}
+      {%-           elif key == 'tag_immutability' and entry.tags is not defined -%}
+      {%-             set _ = bad.append(where ~ 'a ' ~ key ~ ' entry needs tags') -%}
+      {%-           endif -%}
+      {%-           set label = entry.user | default(entry.group | default(entry.tags | default('?'))) -%}
+      {%-           for option in entry if option not in options -%}
+      {%-             set _ = bad.append(where ~ 'unknown option ' ~ key ~ '[' ~ label ~ '].' ~ option) -%}
+      {%-           endfor -%}
+      {%-         endif -%}
+      {%-       endfor -%}
+      {%-     elif kind == 'single' and value is not none and value is not mapping -%}
+      {%-       set _ = bad.append(where ~ key ~ ' must be a mapping of options') -%}
+      {%-     elif kind == 'single' -%}
+      {%-       for option in (value | default({}, true)) if option not in options -%}
+      {%-         set _ = bad.append(where ~ 'unknown option ' ~ key ~ '.' ~ option) -%}
+      {%-       endfor -%}
+      {%-     endif -%}
+      {%-   endfor -%}
+      {%- endfor -%}
+      {{ bad }}
+
+# Deleting a project deletes everything in it, so it is asked for on its own:
+# with confirm_delete, and with nothing else described in that project.
+- name: Check the projects to delete
+  ansible.builtin.assert:
+    that: __project_apply_bad_delete | length == 0
+    fail_msg: "Nothing was changed. {{ __project_apply_bad_delete | join('; ') }}"
+    quiet: true
+  vars:
+    __project_apply_bad_delete: >-
+      {%- set bad = [] -%}
+      {%- for loaded in __project_apply_loaded if loaded.project.state | default('present') == 'absent' -%}
+      {%-   if not loaded.project.confirm_delete | default(false) | bool -%}
+      {%-     set _ = bad.append(loaded.source ~ ': state absent deletes the whole project and needs confirm_delete: true') -%}
+      {%-   endif -%}
+      {%-   set sections = __project_apply_sections | select('in', loaded.project) | list -%}
+      {%-   if sections | length > 0 -%}
+      {%-     set _ = bad.append(loaded.source ~ ': a project with state absent is deleted with everything in it;'
+                                 ~ ' describe nothing else in it (found ' ~ (sections | join(', ')) ~ ')') -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ bad }}
+
+- name: Apply each project
+  ansible.builtin.include_tasks: project.yml
+  loop: "{{ __project_apply_loaded }}"
+  loop_control:
+    loop_var: __project_apply_loaded_project
+    label: "{{ __project_apply_loaded_project.source }}"
+
+- name: Report drift
+  ansible.builtin.fail:
+    msg: >-
+      Harbor differs from {{ project_apply_path }}: see the tasks marked "changed" above. Apply the
+      projects without project_apply_drift_check to bring Harbor back in line, or change the
+      project descriptions to match.
+  when:
+    - project_apply_drift_check | bool
+    - project_apply_changed | bool

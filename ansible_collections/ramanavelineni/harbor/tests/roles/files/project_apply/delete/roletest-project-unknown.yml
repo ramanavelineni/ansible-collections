@@ -1,0 +1,8 @@
+---
+# A project to delete, without confirm_delete and with a section: refused.
+name: roletest-project-unknown
+state: absent
+
+webhook:
+  roletest-hook:
+    state: absent

@@ -1,0 +1,8 @@
+---
+# full/roletest-project.yml with another role for the user: a drift check
+# against what full/ applied must fail.
+name: roletest-project
+
+project_member:
+  - user: roletest-project-user
+    role: maintainer

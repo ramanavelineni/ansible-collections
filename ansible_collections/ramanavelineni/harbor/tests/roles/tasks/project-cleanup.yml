@@ -1,0 +1,63 @@
+---
+# Takes everything project_apply.yml makes off the server. It runs before the
+# test, so that what a failed run left behind is no obstacle, and after it.
+# Harbor removes a project's robot accounts, members and tag rules with the
+# project.
+
+- name: Delete the projects of the role test
+  ramanavelineni.harbor.project:
+    name: "{{ item }}"
+    state: absent
+    confirm_delete: true
+  loop:
+    - roletest-project
+    - roletest-project-split
+    - roletest-project-proxy
+    - roletest-project-fine
+    - roletest-project-unknown
+    - roletest-project-twice
+    - roletest-project-repeated
+
+# After the proxy-cache project: Harbor refuses to delete an endpoint in use.
+- name: Delete the registry endpoint
+  ramanavelineni.harbor.registry:
+    name: "{{ project_endpoint }}"
+    state: absent
+
+- name: Find the test user
+  ansible.builtin.uri:
+    url: "{{ project_api }}/users?q=username%3D{{ project_user }}&page=1&page_size=100"
+    url_username: "{{ project_admin }}"
+    url_password: "{{ project_password }}"
+    force_basic_auth: true
+  register: project_found_users
+
+- name: Delete the test user
+  ansible.builtin.uri:
+    url: "{{ project_api }}/users/{{ item.user_id }}"
+    method: DELETE
+    url_username: "{{ project_admin }}"
+    url_password: "{{ project_password }}"
+    force_basic_auth: true
+  loop: "{{ project_found_users.json | default([], true) | selectattr('username', 'equalto', project_user) | list }}"
+  loop_control:
+    label: "{{ item.username }}"
+
+- name: Find the test group
+  ansible.builtin.uri:
+    url: "{{ project_api }}/usergroups?group_name={{ project_group }}&page=1&page_size=100"
+    url_username: "{{ project_admin }}"
+    url_password: "{{ project_password }}"
+    force_basic_auth: true
+  register: project_found_groups
+
+- name: Delete the test group
+  ansible.builtin.uri:
+    url: "{{ project_api }}/usergroups/{{ item.id }}"
+    method: DELETE
+    url_username: "{{ project_admin }}"
+    url_password: "{{ project_password }}"
+    force_basic_auth: true
+  loop: "{{ project_found_groups.json | default([], true) | selectattr('group_name', 'equalto', project_group) | list }}"
+  loop_control:
+    label: "{{ item.group_name }}"

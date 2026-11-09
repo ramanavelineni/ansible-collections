@@ -1,0 +1,10 @@
+---
+tag_immutability:
+  - tags: latest
+
+webhook:
+  roletest-split-hook:
+    event_types:
+      - DELETE_ARTIFACT
+    address: http://roletest.invalid/split
+    enabled: false

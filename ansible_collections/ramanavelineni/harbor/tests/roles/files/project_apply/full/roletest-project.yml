@@ -1,0 +1,40 @@
+---
+# A project in one file, with every section.
+name: roletest-project
+public: false
+metadata:
+  auto_scan: true
+quota_gb: 5
+
+robot_account:
+  roletest-ci:
+    description: made by the role test
+    duration: 30
+    permissions:
+      - access:
+          - {resource: repository, action: pull}
+
+# The user and the OIDC group are made by project_apply.yml.
+project_member:
+  - user: roletest-project-user
+    role: developer
+  - group: roletest-project-group
+    group_type: oidc
+    role: guest
+
+tag_retention:
+  schedule: "0 0 3 * * *"
+  rules:
+    - template: latestPushedK
+      value: 10
+
+tag_immutability:
+  - tags: "v*"
+  - tags: "release-*"
+    repositories: "apps/**"
+
+webhook:
+  roletest-hook:
+    event_types:
+      - PUSH_ARTIFACT
+    address: http://roletest.invalid/hook

@@ -1,0 +1,71 @@
+---
+# The sections of a project; every other key in a project is an option of the
+# project itself. This is also the order they are created in; entries marked
+# `state: absent` are deleted in the reverse order.
+__project_apply_sections:
+  - robot_account
+  - project_member
+  - tag_retention
+  - tag_immutability
+  - webhook
+
+# How each section holds its entries:
+#   keyed:  a mapping of entry name to options (the name is the module's `name`)
+#   list:   a list of options; the module finds the object by some of them
+#   single: one set of options (a project has one retention policy)
+__project_apply_section_kinds:
+  robot_account: keyed
+  project_member: list
+  tag_retention: single
+  tag_immutability: list
+  webhook: keyed
+
+# The options an entry of each section may use: those of the module of the
+# same name, without the ones the role fills in itself (the project, the name
+# a keyed entry is keyed by, and a robot's level).
+# tests/unit/roles/test_project_apply.py fails when a list here, or a task in
+# tasks/project.yml, no longer matches its module.
+__project_apply_options:
+  project:
+    - name
+    - state
+    - public
+    - metadata
+    - proxy_registry
+    - quota_gb
+    - confirm_delete
+  robot_account:
+    - state
+    - description
+    - duration
+    - disable
+    - permissions
+    - secret
+    - update_secret
+  project_member:
+    - user
+    - group
+    - group_type
+    - role
+    - state
+  tag_retention:
+    - state
+    - schedule
+    - rules
+  tag_immutability:
+    - state
+    - repositories
+    - repositories_decoration
+    - tags
+    - tags_decoration
+    - disabled
+  webhook:
+    - state
+    - description
+    - enabled
+    - event_types
+    - notify_type
+    - address
+    - auth_header
+    - skip_cert_verify
+    - payload_format

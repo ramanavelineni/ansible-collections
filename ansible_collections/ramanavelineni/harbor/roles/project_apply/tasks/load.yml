@@ -1,0 +1,90 @@
+---
+# Reads one project, described by one file or by a directory of files, puts
+# its files together and adds it to __project_apply_loaded. Nothing is sent to
+# Harbor here: main.yml checks every project before it applies the first one.
+
+- name: "Find the files of {{ __project_apply_source | basename }}"
+  ansible.builtin.find:
+    paths: "{{ __project_apply_source }}"
+    patterns:
+      - "*.yml"
+      - "*.yaml"
+  register: __project_apply_dir_files
+  when: __project_apply_source is directory
+
+- name: "Load {{ __project_apply_source | basename }}"
+  ansible.builtin.include_vars:
+    file: "{{ item }}"
+    name: project_apply_part
+  loop: >-
+    {{ (__project_apply_dir_files.files | map(attribute='path') | sort)
+       if __project_apply_source is directory else [__project_apply_source] }}
+  loop_control:
+    label: "{{ item | relpath(project_apply_path) }}"
+  register: __project_apply_parts
+  no_log: "{{ project_apply_no_log | bool }}"
+
+- name: "Check the files of {{ __project_apply_source | basename }}"
+  ansible.builtin.assert:
+    that:
+      - __project_apply_parts.results | length > 0
+      - __project_apply_repeated | length == 0
+    fail_msg: >-
+      {{ __project_apply_source | relpath(project_apply_path) }}:
+      {{ 'no .yml or .yaml file in this directory' if __project_apply_parts.results | length == 0
+         else 'declared more than once: ' ~ (__project_apply_repeated | join(', ')) }}. Nothing was changed.
+    quiet: true
+  vars:
+    # A section may be spread over several files, but each entry (and each
+    # project option) is declared once. A keyed entry is known by its name, a
+    # member by its user or group, an immutability rule by what it matches, and
+    # the retention policy and each project option by their key.
+    __project_apply_repeated: >-
+      {%- set seen = {} -%}
+      {%- set bad = [] -%}
+      {%- for part in __project_apply_parts.results -%}
+      {%-   set file = part.item | basename -%}
+      {%-   for key, value in part.ansible_facts['project_apply_part'].items() if not key.startswith('_') -%}
+      {%-     set kind = __project_apply_section_kinds[key] | default('') -%}
+      {%-     set ids = [key] -%}
+      {%-     if kind == 'keyed' and value is mapping -%}
+      {%-       set ids = value | list | map('regex_replace', '^', key ~ '.') | list -%}
+      {%-     elif kind == 'list' and value is sequence and value is not string and value is not mapping -%}
+      {%-       set ids = [] -%}
+      {%-       for entry in value if entry is mapping -%}
+      {%-         if key == 'project_member' and entry.user is defined -%}
+      {%-           set _ = ids.append(key ~ '[user=' ~ entry.user ~ ']') -%}
+      {%-         elif key == 'project_member' -%}
+      {%-           set _ = ids.append(key ~ '[group=' ~ entry.group | default('') ~ ', group_type='
+                                       ~ entry.group_type | default('') ~ ']') -%}
+      {%-         else -%}
+      {%-           set _ = ids.append(key ~ '[repositories=' ~ entry.repositories | default('**') ~ ' ('
+                                       ~ entry.repositories_decoration | default('matches') ~ '), tags='
+                                       ~ entry.tags | default('') ~ ' (' ~ entry.tags_decoration | default('matches') ~ ')]') -%}
+      {%-         endif -%}
+      {%-       endfor -%}
+      {%-     endif -%}
+      {%-     for id in ids -%}
+      {%-       if id in seen -%}
+      {%-         set _ = bad.append(id ~ ' (' ~ seen[id] ~ ', ' ~ file ~ ')') -%}
+      {%-       else -%}
+      {%-         set _ = seen.update({id: file}) -%}
+      {%-       endif -%}
+      {%-     endfor -%}
+      {%-   endfor -%}
+      {%- endfor -%}
+      {{ bad }}
+
+# Lists are appended, so a member list or the immutability rules may be spread
+# over several files. Nothing else can collide: the check above refused that.
+- name: "Put together the files of {{ __project_apply_source | basename }}"
+  ansible.builtin.set_fact:
+    __project_apply_loaded: >-
+      {{ __project_apply_loaded + [{
+           'source': __project_apply_source | relpath(project_apply_path),
+           'name_file': __project_apply_parts.results | selectattr('ansible_facts.project_apply_part.name', 'defined')
+                        | map(attribute='item') | map('relpath', project_apply_path) | first | default(''),
+           'project': {} | combine(__project_apply_parts.results | map(attribute='ansible_facts.project_apply_part') | list,
+                                   recursive=true, list_merge='append')
+         }] }}
+  no_log: "{{ project_apply_no_log | bool }}"

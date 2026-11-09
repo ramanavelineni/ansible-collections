@@ -1,0 +1,10 @@
+---
+webhook:
+  roletest-hook:
+    event_types:
+      - PUSH_ARTIFACT
+    address: http://roletest.invalid/b
+
+project_member:
+  - user: roletest-project-user
+    role: developer

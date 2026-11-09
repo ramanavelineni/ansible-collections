@@ -1,0 +1,17 @@
+---
+# The directory that holds the projects: one file <name>.yml (or .yaml) or one
+# directory <name>/ of such files per project. Give an absolute path, for
+# example "{{ playbook_dir }}/config/projects".
+# project_apply_path:
+
+# A drift check: nothing is expected to change, and the role fails at its end
+# when something did (or, with --check, would have). Robot secrets are then
+# only sent for robot accounts that don't exist yet, because Harbor never
+# shows a stored secret and it would count as a difference on every run.
+project_apply_drift_check: false
+
+# Names of projects this role refuses to manage.
+project_apply_protected_projects: []
+
+# Hide the tasks that carry secrets (robot accounts, webhooks) from the output.
+project_apply_no_log: true
