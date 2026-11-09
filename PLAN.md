@@ -26,7 +26,7 @@ along the way. Each quirk is handled inside a module and covered by a test.
       modules `task`, `task_info`, `project_backup`, `project_restore`,
       `user_token` and `event_info` (semaphoreui 0.4.0)
 - [x] Harbor modules `project_member` and `project_member_info` (see
-      [project_member](#project_member)); next: a harbor release
+      [project_member](#project_member)), released in harbor 0.6.0
 - [x] Switch the homelab `harbor_config` role to the collection (homelab
       ansible repo). Project members, for the role's OIDC groups, can be
       added once a release carries `project_member`

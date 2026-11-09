@@ -374,3 +374,18 @@ releases:
     - connection-options-not-required.yml
     - release-summary.yml
     release_date: '2026-11-08'
+  0.6.0:
+    changes:
+      release_summary: New modules ``project_member`` and ``project_member_info``
+        manage and list the members of a project, users and OIDC, LDAP or HTTP groups
+        with a role. The fixtures are now recorded from Harbor 2.14.6 and 2.15.4.
+    fragments:
+    - release-summary.yml
+    modules:
+    - description: Manage the members of a Harbor project.
+      name: project_member
+      namespace: ''
+    - description: List the members of a Harbor project.
+      name: project_member_info
+      namespace: ''
+    release_date: '2026-11-08'
