@@ -27,6 +27,8 @@ the way. Each quirk is handled inside a module and covered by a test.
 - [x] Harbor roles `server_apply` and `project_apply`, tested in CI against
       a Harbor installed from its offline installer (harbor 0.7.0)
 - [x] Harbor role `project_export` and its filters (harbor 0.8.0)
+- [x] Harbor vault files in project directories: `project_apply_vault_files`,
+      and `<name>/vault.yaml.example` from a directory export (harbor 0.9.0)
 
 ---
 
