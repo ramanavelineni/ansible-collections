@@ -9,6 +9,8 @@
     patterns:
       - "*.yml"
       - "*.yaml"
+    # The vault file is not part of the project; main.yml has loaded it.
+    excludes: "{{ project_apply_vault_files }}"
   register: __project_apply_dir_files
   when: __project_apply_source is directory
 
@@ -31,7 +33,7 @@
       - __project_apply_repeated | length == 0
     fail_msg: >-
       {{ __project_apply_source | relpath(project_apply_path) }}:
-      {{ 'no .yml or .yaml file in this directory' if __project_apply_parts.results | length == 0
+      {{ 'no .yml or .yaml file in this directory, besides a vault file' if __project_apply_parts.results | length == 0
          else 'declared more than once: ' ~ (__project_apply_repeated | join(', ')) }}. Nothing was changed.
     quiet: true
   vars:

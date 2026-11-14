@@ -13,5 +13,14 @@ project_apply_drift_check: false
 # Names of projects this role refuses to manage.
 project_apply_protected_projects: []
 
-# Hide the tasks that carry secrets (robot accounts, webhooks) from the output.
+# In a project directory, a file with one of these names is not part of the
+# project: it is loaded as variables (ansible-vault encrypted or not), which
+# the project's other files may use. Every vault file is loaded before the
+# first project is read. [] reads every .yml and .yaml file as the project.
+project_apply_vault_files:
+  - vault.yaml
+  - vault.yml
+
+# Hide the tasks that carry secrets (vault files, robot accounts, webhooks)
+# from the output.
 project_apply_no_log: true
