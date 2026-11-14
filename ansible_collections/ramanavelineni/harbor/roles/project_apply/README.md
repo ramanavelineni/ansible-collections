@@ -77,7 +77,8 @@ webhook:
   `repositories_decoration`, `tags` and `tags_decoration`. Change one of those
   and it is another rule, so mark the old one `state: absent`.
 - A key that starts with an underscore is ignored: a place for YAML anchors.
-- Values may use variables (`{{ ... }}`), so secrets can come from a vault.
+- Values may use variables (`{{ ... }}`), so secrets can come from a vault,
+  such as the project's own [vault file](#vault-files).
 
 A robot account without `secret` gets one from Harbor when it is created. The
 role never shows it, so declare `secret` when something has to log in as the
@@ -98,15 +99,61 @@ public: true
 proxy_registry: docker-hub
 ```
 
+### Vault files
+
+A project directory can keep its secrets in a vault file, `vault.yaml` or
+`vault.yml`. The role does not read that file as part of the project. It loads
+the file as variables with `ansible.builtin.include_vars`, which decrypts a
+file encrypted with `ansible-vault`, and the project's other files refer to
+those variables:
+
+```yaml
+# projects/webshop/project.yaml
+name: webshop
+robot_account:
+  release:
+    duration: -1
+    permissions:
+      - access:
+          - {resource: repository, action: push}
+    secret: "{{ vault_webshop_robot_release_secret }}"
+    update_secret: on_create
+```
+
+```yaml
+# projects/webshop/vault.yaml, before `ansible-vault encrypt projects/webshop/vault.yaml`
+vault_webshop_robot_release_secret: Change-me-1
+```
+
+Run the play with the vault password, for example with
+`--ask-vault-pass` or `--vault-password-file`.
+
+- The role loads the vault files of all projects before it reads the first
+  project. The variables stay defined for the rest of the play.
+- The variables are ordinary Ansible variables, loaded with `include_vars`
+  and with its precedence. The role loads the vault files in sorted path
+  order, so when two projects define the same variable, the later project's
+  value wins for both. Give each project variable names of its own, for
+  example starting with the project's name, as `project_export` does.
+- A directory with both `vault.yaml` and `vault.yml` fails too.
+- Only a project directory has a vault file. A `vault.yaml` directly in
+  `project_apply_path` is a single-file project like any other file, and the
+  role refuses it because it does not set `name`. Keep secrets for a
+  single-file project in your own vars files.
+- `project_apply_vault_files` sets the names. `[]` turns vault files off: the
+  role then reads every `.yml` and `.yaml` file of a directory as the project.
+
 ## What the role does with it
 
 1. It reads every project and checks all of them before it changes anything.
-   It fails, and changes nothing, on any of these:
+   Before that, it loads the vault files. It fails, and changes nothing, on
+   any of these:
    - an option a module doesn't have, or a section of the wrong shape
    - a project described twice: a file and a directory, `.yml` and `.yaml`,
      or two files that declare the same `name`
    - an entry declared twice, in one file or in two files of a directory
    - a project named in `project_apply_protected_projects`
+   - a project directory with more than one vault file
    - a project with `state: absent` but without `confirm_delete: true`, or
      with anything else described in it
 2. It creates or updates everything declared, in this order: the project,
@@ -135,7 +182,8 @@ confirm_delete: true
 | `project_apply_path` | required | The directory that holds the projects. Give an absolute path, such as `{{ playbook_dir }}/config/projects` |
 | `project_apply_drift_check` | `false` | Fail at the end when something changed, or would have changed with `--check`. Robot secrets are then only sent for robot accounts that don't exist yet |
 | `project_apply_protected_projects` | `[]` | Names of projects the role refuses to manage |
-| `project_apply_no_log` | `true` | Hide the output of the tasks that carry secrets: robot accounts, webhooks and the loaded projects |
+| `project_apply_vault_files` | `["vault.yaml", "vault.yml"]` | Names of the files in a project directory that are loaded as variables, not read as the project. `[]` turns this off. See [Vault files](#vault-files) |
+| `project_apply_no_log` | `true` | Hide the output of the tasks that carry secrets: the vault files, robot accounts, webhooks and the loaded projects |
 
 Afterwards `project_apply_changed` says whether anything changed, and
 `project_apply_projects` lists the projects that were applied.

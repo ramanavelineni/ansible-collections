@@ -6,6 +6,9 @@
 # any order on one server.
 # Usage: role-test.sh <collection> [ansible-playbook options]   (from the repository root)
 # ROLE_TEST_PLAYBOOK=<name> runs only tests/roles/<name>.yml, as each CI job does.
+# When tests/roles/files/vault-password exists, it is passed with
+# --vault-password-file: the test-only password of the files in tests/roles that
+# are encrypted with ansible-vault. It protects nothing and is not a secret.
 # Needs ansible-core on the PATH, and for semaphoreui SEMAPHORE_URL with
 # SEMAPHORE_USERNAME and SEMAPHORE_PASSWORD (or SEMAPHORE_API_TOKEN). The
 # modules read those themselves. Throwaway servers only.
@@ -47,8 +50,13 @@ export ANSIBLE_COLLECTIONS_PATH
 # The playbooks run on the implicit localhost; no inventory is wanted.
 export ANSIBLE_LOCALHOST_WARNING=false ANSIBLE_INVENTORY_UNPARSED_WARNING=false
 
+vault_password="${tests_dir}/files/vault-password"
 for playbook in "${playbooks[@]}"; do
   echo "== ${playbook}"
-  ansible-playbook "${playbook}" "$@"
+  if [ -f "${vault_password}" ]; then
+    ansible-playbook --vault-password-file "${vault_password}" "${playbook}" "$@"
+  else
+    ansible-playbook "${playbook}" "$@"
+  fi
 done
 echo "== ${#playbooks[@]} role test playbook(s) passed"

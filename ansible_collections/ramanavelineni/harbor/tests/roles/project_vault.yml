@@ -1,0 +1,150 @@
+---
+# Role test of project_apply's vault files, run by CI against the throwaway
+# Harbor the job installs (.github/scripts/harbor-ci-up.sh), and by hand with
+# `make role-test COLLECTION=harbor`. The server comes from the environment:
+# HARBOR_URL, HARBOR_USERNAME and HARBOR_PASSWORD, which the modules read
+# themselves.
+#
+# The projects in files/project_vault/apply/ take their robot secrets from a
+# vault file in the project's directory: vault.yml in plain text, and
+# vault.yaml encrypted with ansible-vault. Its password is the test-only file
+# files/vault-password, which .github/scripts/role-test.sh passes to
+# ansible-playbook; it protects nothing. The role must apply both, change
+# nothing on a second run, read a vault file as the project when vault files
+# are turned off, and refuse a directory with two vault files before it
+# creates anything. Everything it makes is named roletest-vault… and is
+# removed before it starts and when it ends, also when a check fails.
+# Throwaway servers only.
+- name: Test the vault files of project_apply
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    vault_files: "{{ playbook_dir }}/files/project_vault"
+    vault_applied:
+      - roletest-vault-encrypted
+      - roletest-vault-plain
+    vault_all:
+      - roletest-vault-encrypted
+      - roletest-vault-plain
+      - roletest-vault-twice
+  tasks:
+    - name: Check that a server is named
+      ansible.builtin.assert:
+        that: lookup('ansible.builtin.env', 'HARBOR_URL') | length > 0
+        fail_msg: Set HARBOR_URL, HARBOR_USERNAME and HARBOR_PASSWORD to a throwaway Harbor.
+        quiet: true
+
+    - name: Run the test and clean up after it
+      block:
+        - name: Remove the projects an earlier run left behind
+          ramanavelineni.harbor.project:
+            name: "{{ item }}"
+            state: absent
+            confirm_delete: true
+          loop: "{{ vault_all }}"
+
+        # ---- vault files that apply ----------------------------------------
+
+        - name: Apply the projects with vault files
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.project_apply
+          vars:
+            project_apply_path: "{{ vault_files }}/apply"
+
+        - name: Read the robot accounts
+          ramanavelineni.harbor.robot_account_info:
+            project: "{{ item }}"
+          loop: "{{ vault_applied }}"
+          register: vault_read_robots
+
+        # The robot secrets are variables of the vault files, so the role
+        # could only apply the projects after it had loaded both, the
+        # encrypted one included. Had it read a vault file as part of its
+        # project, it would have refused the variable as an unknown option.
+        - name: The projects and their robot accounts exist
+          ansible.builtin.assert:
+            that:
+              - project_apply_changed
+              - project_apply_projects | sort == vault_applied
+              - vault_read_robots.results | map(attribute='robot_accounts') | map('map', attribute='name') | map('list') | list
+                == [['roletest-ci'], ['roletest-ci']]
+            fail_msg: >-
+              changed={{ project_apply_changed }}, applied: {{ project_apply_projects }},
+              robots: {{ vault_read_robots.results | map(attribute='robot_accounts') | map('map', attribute='name')
+                         | map('list') | list }}
+            quiet: true
+
+        - name: Apply the projects with vault files again
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.project_apply
+          vars:
+            project_apply_path: "{{ vault_files }}/apply"
+
+        - name: The second run changes nothing
+          ansible.builtin.assert:
+            that: not project_apply_changed
+            fail_msg: project_apply reported a change on its second run
+            quiet: true
+
+        - name: Vault files that are turned off are read as the project
+          block:
+            - name: Apply the projects with project_apply_vault_files empty
+              ansible.builtin.include_role:
+                name: ramanavelineni.harbor.project_apply
+              vars:
+                project_apply_path: "{{ vault_files }}/apply"
+                project_apply_vault_files: []
+
+            - name: The role should have failed
+              ansible.builtin.fail:
+                msg: project_apply skipped a vault file although project_apply_vault_files is empty
+          rescue:
+            - name: The role read the vault file as the project
+              ansible.builtin.assert:
+                that: "'roletest-vault-plain: unknown option vault_roletest_vault_plain_ci_secret' in ansible_failed_result.msg"
+                fail_msg: "{{ ansible_failed_result.msg }}"
+                quiet: true
+
+        # ---- refusals ------------------------------------------------------
+
+        - name: Two vault files in one directory fail
+          block:
+            - name: Apply a project with vault.yaml and vault.yml
+              ansible.builtin.include_role:
+                name: ramanavelineni.harbor.project_apply
+              vars:
+                project_apply_path: "{{ vault_files }}/twice"
+
+            - name: The role should have failed
+              ansible.builtin.fail:
+                msg: project_apply accepted a project directory with two vault files
+          rescue:
+            - name: The role failed and named the files
+              ansible.builtin.assert:
+                that: "'roletest-vault-twice (vault.yaml, vault.yml)' in ansible_failed_result.msg"
+                fail_msg: "{{ ansible_failed_result.msg }}"
+                quiet: true
+
+        - name: Read the refused projects
+          ramanavelineni.harbor.project_info:
+            name: "{{ item }}"
+          loop:
+            - roletest-vault-twice
+          register: vault_read
+
+        - name: Nothing was created for the refused projects
+          ansible.builtin.assert:
+            that: vault_read.results | map(attribute='projects') | flatten | length == 0
+            fail_msg: >-
+              Found {{ vault_read.results | map(attribute='projects') | flatten | map(attribute='name') | join(', ') }}
+              although the role refused them
+            quiet: true
+
+      always:
+        - name: Remove the projects
+          ramanavelineni.harbor.project:
+            name: "{{ item }}"
+            state: absent
+            confirm_delete: true
+          loop: "{{ vault_all }}"

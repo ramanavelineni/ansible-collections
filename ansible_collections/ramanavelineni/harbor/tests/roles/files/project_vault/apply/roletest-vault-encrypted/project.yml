@@ -1,0 +1,15 @@
+---
+# A project directory with a vault file encrypted with ansible-vault
+# (vault.yaml). Its password is files/vault-password, which the role-test
+# runner passes to ansible-playbook. The robot account's secret comes from it.
+name: roletest-vault-encrypted
+public: false
+
+robot_account:
+  roletest-ci:
+    duration: 30
+    permissions:
+      - access:
+          - {resource: repository, action: pull}
+    secret: "{{ vault_roletest_vault_encrypted_ci_secret }}"
+    update_secret: on_create

@@ -120,7 +120,10 @@ HARBOR_URL=http://127.0.0.1:8015 HARBOR_PASSWORD=... make role-test COLLECTION=h
 ```
 
 Every playbook in `tests/roles/` is run; `ROLE_TEST_PLAYBOOK=apply` runs only
-`apply.yml`. A new playbook also needs its name in the matrix of its job in
+`apply.yml`. A collection's `tests/roles/files/vault-password` is passed to
+`ansible-playbook` with `--vault-password-file`: it is the test-only password
+of the test files encrypted with `ansible-vault`, and protects nothing. A new
+playbook also needs its name in the matrix of its job in
 `.github/workflows/ci.yml` (`roles` for semaphoreui, `harbor-roles` for
 harbor), or CI never runs it.
 Each has to stand alone: it only touches objects named `roletest-...`, and

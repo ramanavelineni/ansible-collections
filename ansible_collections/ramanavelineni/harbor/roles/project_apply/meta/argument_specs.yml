@@ -16,10 +16,17 @@ argument_specs:
         retention, tag immutability, webhooks. Then the entries marked C(state=absent) are deleted in the
         reverse order. What a project does not mention is left alone.
       - A project with C(state=absent) needs C(confirm_delete=true) and nothing else described in it.
-      - All projects are read and checked before the first one is applied. An option a module does not
-        have, a project described twice (a file and a directory, C(.yml) and C(.yaml), or two files with
-        the same C(name)), an entry declared twice, and a protected project all fail before anything is
-        changed.
+      - A project directory may hold a vault file, named as in O(project_apply_vault_files). It is not part of
+        the project. It is loaded as variables with C(ansible.builtin.include_vars), which decrypts a file
+        encrypted with C(ansible-vault), so that the project's other files can refer to them. A robot account's
+        C(secret) can then be C({{ vault_webshop_robot_ci_secret }}). The variables stay defined for the rest of
+        the play. A single-file project has no vault file, and a file named C(vault.yaml) directly in
+        O(project_apply_path) is read as a project like any other file.
+      - All projects are read and checked before the first one is applied, and the vault files of all of them
+        are loaded before the first project is read. An option a module does not have, a project described
+        twice (a file and a directory, C(.yml) and C(.yaml), or two files with the same C(name)), an entry
+        declared twice, a protected project, and a project directory with more than one vault file all fail
+        before anything is changed.
       - A proxy-cache project names a registry endpoint in C(proxy_registry). The role does not create it;
         it must exist first.
       - The connection options are not variables of this role. Set them once with C(module_defaults) for the
@@ -50,10 +57,25 @@ argument_specs:
         type: list
         elements: str
         default: []
+      project_apply_vault_files:
+        description:
+          - Names of the files in a project directory that are loaded as variables instead of being read as part
+            of the project. A file encrypted with C(ansible-vault) is decrypted with the vault password the play
+            was started with.
+          - The variables are ordinary variables at C(include_vars) precedence. The files are loaded in sorted path
+            order, so when two projects define the same variable the later one wins; give each project names of its
+            own.
+          - V([]) turns this off, and every C(.yml) and C(.yaml) file of a directory is read as the project.
+        type: list
+        elements: str
+        default:
+          - vault.yaml
+          - vault.yml
       project_apply_no_log:
         description:
-          - Hide the output of the tasks that carry secrets (robot accounts and webhooks, and the loaded
-            projects).
-          - Set it to V(false) only to find a mistake in a project description.
+          - Hide the output of the tasks that carry secrets (the vault files, robot accounts and webhooks, and
+            the loaded projects).
+          - Set it to V(false) only to find a mistake in a project description. With C(-v), the values of the vault
+            files are then shown too.
         type: bool
         default: true

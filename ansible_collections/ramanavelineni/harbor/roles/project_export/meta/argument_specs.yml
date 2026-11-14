@@ -61,7 +61,10 @@ argument_specs:
         description:
           - File the variables that stand for secrets are listed in, each empty, with a comment that says what it is
             the secret of.
-          - Empty means C(<dest>/<name>.vault.example).
+          - Empty means C(<dest>/<name>.vault.example) with the V(file) layout, and
+            C(<dest>/<name>/vault.yaml.example), inside the project's directory, with the V(directory) layout.
+            Fill that one in, rename it to C(vault.yaml) and encrypt it with C(ansible-vault). C(project_apply)
+            then loads it as the project's vault file.
           - The role writes this file only when it does not exist yet. A file that is there is never replaced, also
             not with O(project_export_overwrite). Remove it to get the list again.
           - Inside the directory C(project_apply) reads, its name must not end in C(.yml) or C(.yaml), or it would be

@@ -1,0 +1,14 @@
+---
+minor_changes:
+  - project_apply role - a project directory can hold a vault file, ``vault.yaml`` or ``vault.yml``. The role loads
+    it as variables, decrypting it when it is encrypted with ``ansible-vault``, instead of reading it as part of the
+    project, so the project's other files can refer to its variables, such as a robot account's secret. The vault
+    files of all projects are loaded before the first project is read, in sorted path order, as ordinary
+    variables at ``include_vars`` precedence, so when two projects define the same variable the later one wins.
+    The role fails before it changes anything when a directory has both ``vault.yaml`` and ``vault.yml``. The new
+    variable ``project_apply_vault_files`` sets the file names, and ``[]`` turns this off.
+  - project_export role - with ``project_export_layout=directory`` the list of secrets now goes into the project's
+    directory as ``<name>/vault.yaml.example`` instead of ``<name>.vault.example`` beside it. Filled in, renamed to
+    ``vault.yaml`` and encrypted, it is the vault file ``project_apply`` loads. The ``file`` layout keeps
+    ``<name>.vault.example``, and ``project_export_vault_file`` still sets any other path. A ``<name>.vault.example``
+    written by an earlier export is left where it is; the next directory export writes the new file as well.

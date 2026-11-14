@@ -7,7 +7,10 @@
 # A project made with project_apply is exported, the vault variables the
 # export names are given the values the project was made with, and the export
 # is applied as a drift check: nothing may differ. That is the promise of the
-# export, that it describes the project as it is. Everything it makes is named
+# export, that it describes the project as it is. The same goes for the
+# directory layout: once with the list of secrets left as vault.yaml.example,
+# which project_apply must not read, and once with it filled in and renamed
+# vault.yaml, which project_apply loads. Everything it makes is named
 # roletest-export… and is removed before it starts and when it ends, also when
 # a check fails. Throwaway servers only.
 - name: Test that an exported project applies without a change
@@ -76,6 +79,80 @@
             vault_roletest_export_webhook_ci_notify_auth_header: "{{ export_webhook_header }}"
 
         - name: Nothing differed
+          ansible.builtin.assert:
+            that:
+              - not project_apply_changed
+              - project_apply_projects == ['roletest-export']
+            quiet: true
+
+        # ---- the directory layout ------------------------------------------
+
+        - name: Export the project as a directory
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.project_export
+          vars:
+            project_export_project: roletest-export
+            project_export_dest: "{{ export_dir.path }}/directory"
+            project_export_layout: directory
+
+        - name: Read the variables the directory export needs
+          ansible.builtin.set_fact:
+            export_needed: "{{ lookup('ansible.builtin.file', export_project_dir ~ '/vault.yaml.example') | from_yaml }}"
+          vars:
+            export_project_dir: "{{ export_dir.path }}/directory/roletest-export"
+
+        - name: The list of secrets in the directory names the two secrets
+          ansible.builtin.assert:
+            that:
+              - export_needed | dict2items | map(attribute='key') | sort
+                == ['vault_roletest_export_robot_ci_secret', 'vault_roletest_export_webhook_ci_notify_auth_header']
+            fail_msg: "{{ export_needed | to_json }}"
+            quiet: true
+
+        # vault.yaml.example is neither a project file nor a vault file: read
+        # as a project file, its variables would be unknown options.
+        - name: Apply the directory export as a drift check, with vault.yaml.example in it
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.project_apply
+          vars:
+            project_apply_path: "{{ export_dir.path }}/directory"
+            project_apply_drift_check: true
+            vault_roletest_export_robot_ci_secret: "{{ export_robot_secret }}"
+            vault_roletest_export_webhook_ci_notify_auth_header: "{{ export_webhook_header }}"
+
+        - name: Nothing differed in the directory export
+          ansible.builtin.assert:
+            that:
+              - not project_apply_changed
+              - project_apply_projects == ['roletest-export']
+            quiet: true
+
+        # What the README of project_export asks for, without the encryption,
+        # which project_vault.yml covers.
+        - name: Fill in the list of secrets and rename it to vault.yaml
+          ansible.builtin.copy:
+            dest: "{{ export_dir.path }}/directory/roletest-export/vault.yaml"
+            mode: "0600"
+            content: |
+              ---
+              vault_roletest_export_robot_ci_secret: {{ export_robot_secret | to_json }}
+              vault_roletest_export_webhook_ci_notify_auth_header: {{ export_webhook_header | to_json }}
+
+        - name: Remove the list of secrets
+          ansible.builtin.file:
+            path: "{{ export_dir.path }}/directory/roletest-export/vault.yaml.example"
+            state: absent
+
+        # No vault variables are passed this time: they can only come from
+        # vault.yaml.
+        - name: Apply the directory export as a drift check, with its vault.yaml
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.project_apply
+          vars:
+            project_apply_path: "{{ export_dir.path }}/directory"
+            project_apply_drift_check: true
+
+        - name: Nothing differed with the vault file
           ansible.builtin.assert:
             that:
               - not project_apply_changed

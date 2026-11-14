@@ -31,9 +31,13 @@
     __project_export_name: >-
       {{ (project_export_file_name | string) if project_export_file_name | string | length > 0
          else __project_export_found.name }}
+    # In the directory layout the list goes into the project's directory, as
+    # vault.yaml.example: project_apply reads only .yml and .yaml files, and
+    # loads the file as the project's vault file once it is renamed vault.yaml.
     __project_export_vault_path: >-
       {{ (project_export_vault_file | string) if project_export_vault_file | string | length > 0
-         else (project_export_dest ~ '/' ~ __project_export_name ~ '.vault.example') }}
+         else (project_export_dest ~ '/' ~ __project_export_name
+               ~ ('/vault.yaml.example' if project_export_layout == 'directory' else '.vault.example')) }}
     # What the _info modules returned, under the names the filters know.
     __project_export_info:
       project: "{{ __project_export_found }}"

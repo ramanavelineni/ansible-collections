@@ -7,7 +7,8 @@
 # A project made with project_apply (files/project_export/source/) is exported
 # as one file and as a directory. The test checks what is written, that a
 # second export changes nothing, that a file that differs is only replaced
-# with project_export_overwrite, and that the vault file is never replaced.
+# with project_export_overwrite, that the vault file is never replaced, and
+# that the directory layout puts the vault file into the project's directory.
 # Everything it makes is named roletest-export… and is removed before it
 # starts and when it ends, also when a check fails. Throwaway servers only.
 - name: Test the role project_export
@@ -173,19 +174,21 @@
             project_export_dest: "{{ export_dir.path }}"
             project_export_layout: directory
             project_export_file_name: as-directory
-            project_export_vault_file: "{{ export_dir.path }}/as-directory.vault.example"
 
         - name: Find the files of the directory
           ansible.builtin.find:
             paths: "{{ export_dir.path }}/as-directory"
           register: export_parts
 
-        - name: The directory has the project and one file per section
+        # With the directory layout the list of secrets goes into the
+        # project's directory, under a name project_apply does not read.
+        - name: The directory has the project, one file per section and the list of secrets
           ansible.builtin.assert:
             that:
               - export_parts.files | map(attribute='path') | map('basename') | sort
                 == ['project.yml', 'project_member.yml', 'robot_account.yml', 'tag_immutability.yml',
-                    'tag_retention.yml', 'webhook.yml']
+                    'tag_retention.yml', 'vault.yaml.example', 'webhook.yml']
+              - "'vault_roletest_export_robot_ci_secret: \"\"' in lookup('ansible.builtin.file', export_dir.path ~ '/as-directory/vault.yaml.example')"
             fail_msg: "{{ export_parts.files | map(attribute='path') | join(', ') }}"
             quiet: true
 

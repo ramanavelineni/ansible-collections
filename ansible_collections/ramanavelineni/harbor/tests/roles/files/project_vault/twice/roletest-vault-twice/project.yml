@@ -1,0 +1,4 @@
+---
+# This directory has two vault files, vault.yaml and vault.yml, so the role
+# refuses it before it changes anything.
+name: roletest-vault-twice

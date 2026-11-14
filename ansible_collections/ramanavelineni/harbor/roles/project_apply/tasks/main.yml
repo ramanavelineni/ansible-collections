@@ -54,6 +54,58 @@
       {%- endfor -%}
       {{ bad }}
 
+# A project directory may hold a vault file (project_apply_vault_files): the
+# variables its other files refer to, such as robot secrets. It is loaded as
+# variables, not read as part of the project. The vault files of all projects
+# are loaded before the first project is read, so a project may use its
+# variables anywhere. find with no patterns would match every file, hence the
+# condition.
+- name: Find the vault files of the project directories
+  ansible.builtin.find:
+    paths: "{{ __project_apply_dirs.files | map(attribute='path') | list }}"
+    patterns: "{{ project_apply_vault_files }}"
+  register: __project_apply_vault_found
+  when:
+    - project_apply_vault_files | length > 0
+    - __project_apply_dirs.files | length > 0
+
+- name: Note the vault files
+  ansible.builtin.set_fact:
+    __project_apply_vault_paths: "{{ __project_apply_vault_found.files | default([]) | map(attribute='path') | sort }}"
+
+- name: Check that no project has more than one vault file
+  ansible.builtin.assert:
+    that: __project_apply_vault_twice | length == 0
+    fail_msg: >-
+      {{ project_apply_path }} has more than one vault file in a project directory:
+      {{ __project_apply_vault_twice | join(', ') }}. Keep one. Nothing was changed.
+    quiet: true
+  vars:
+    __project_apply_vault_twice: >-
+      {%- set found = {} -%}
+      {%- for path in __project_apply_vault_paths -%}
+      {%-   set project = path | dirname | relpath(project_apply_path) -%}
+      {%-   set _ = found.update({project: found[project] | default([]) + [path | basename]}) -%}
+      {%- endfor -%}
+      {%- set bad = [] -%}
+      {%- for project in found | list | sort if found[project] | length > 1 -%}
+      {%-   set _ = bad.append(project ~ ' (' ~ (found[project] | join(', ')) ~ ')') -%}
+      {%- endfor -%}
+      {{ bad }}
+
+# include_vars decrypts a file encrypted with ansible-vault. The variables
+# are ordinary variables at include_vars precedence and stay defined for the
+# rest of the play. The files are loaded in sorted path order, so when two
+# projects define the same variable, the later one wins.
+- name: Load the vault files
+  ansible.builtin.include_vars:
+    file: "{{ item }}"
+  loop: "{{ __project_apply_vault_paths }}"
+  loop_control:
+    label: "{{ item | relpath(project_apply_path) }}"
+  # The result holds the values of the vault files.
+  no_log: "{{ project_apply_no_log | bool }}"
+
 - name: Read each project
   ansible.builtin.include_tasks: load.yml
   loop: "{{ (__project_apply_files.files + __project_apply_dirs.files) | map(attribute='path') | sort }}"

@@ -1,0 +1,4 @@
+---
+# Loaded as variables, not read as part of the project. A test value, not a
+# secret.
+vault_roletest_vault_plain_ci_secret: Roletest-vault-1

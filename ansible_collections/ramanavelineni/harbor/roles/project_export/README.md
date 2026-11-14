@@ -72,6 +72,8 @@ expiry time, the project's retention id) are left out too.
 ```
 
 This writes `config/projects/apps.yml` and `config/projects/apps.vault.example`.
+With `project_export_layout: directory` it writes `config/projects/apps/`,
+with the list of secrets in `config/projects/apps/vault.yaml.example`.
 The connection options are not role variables: set them with `module_defaults`
 as above, or in the environment (`HARBOR_URL`, `HARBOR_USERNAME`,
 `HARBOR_PASSWORD`).
@@ -88,7 +90,7 @@ normally runs on `localhost`.
 | `project_export_layout` | `file` | `file`: one file, `<dest>/<name>.yml`. `directory`: `<dest>/<name>/` with `project.yml` and one file per section that has objects |
 | `project_export_file_name` | the project's name | Name of the file or directory, without `.yml` |
 | `project_export_vault_prefix` | `vault` | What the names of the variables that stand for secrets start with |
-| `project_export_vault_file` | `<dest>/<name>.vault.example` | File that lists those variables. Written only when it does not exist yet |
+| `project_export_vault_file` | `<dest>/<name>.vault.example`, or `<dest>/<name>/vault.yaml.example` with the `directory` layout | File that lists those variables. Written only when it does not exist yet |
 | `project_export_overwrite` | `false` | Whether a project file that exists and differs in content may be replaced. Never the vault file |
 | `project_export_no_log` | `true` | Hide the result of reading the webhooks, which holds their addresses. Turn it off to see why that read failed |
 | `project_export_file_mode` | `0644` | Mode of the files |
@@ -117,11 +119,21 @@ comment that says what it is the secret of:
 vault_apps_robot_ci_secret: ""
 ```
 
-Give each its value and keep the result in an Ansible Vault file that the play
-applying the project loads. A robot secret needs at least 8 characters with
-upper and lower case letters and a digit. Inside the directory
-`project_apply` reads, the name of this file must not end in `.yml` or
-`.yaml`, or it would be taken for a project. The default name does not.
+Give each its value and keep the result in an Ansible Vault file. A robot
+secret needs at least 8 characters with upper and lower case letters and a
+digit.
+
+- With the `directory` layout the file is `<name>/vault.yaml.example`, in the
+  project's directory. Fill it in, rename it to `vault.yaml` and encrypt it
+  with `ansible-vault encrypt`. `project_apply` loads it as the project's vault
+  file (see "Vault files" in its README).
+- With the `file` layout the file is `<name>.vault.example`, beside the project
+  file. Load it in the play that applies the project, for example with
+  `vars_files`, because a single-file project has no vault file.
+
+Inside the directory `project_apply` reads, the name of the example file must
+not end in `.yml` or `.yaml`, or it would be read as a project. The default
+names do not.
 
 The role writes this file only when it does not exist yet. It never replaces
 it, also not with `project_export_overwrite`, because it may hold the values
@@ -170,8 +182,11 @@ administrator).
 
 | Layout | Files |
 |---|---|
-| `file` | `<dest>/<name>.yml` and the vault file |
-| `directory` | `<dest>/<name>/project.yml`, one `<section>.yml` per section with objects, and the vault file |
+| `file` | `<dest>/<name>.yml` and the vault file, `<dest>/<name>.vault.example` |
+| `directory` | `<dest>/<name>/project.yml`, one `<section>.yml` per section with objects, and the vault file, `<dest>/<name>/vault.yaml.example` |
+
+An explicit `project_export_vault_file` replaces the vault file's path in both
+layouts.
 
 The same project always gives the same files, so a second run reports no
 change. With the `directory` layout, the file of a section that has no objects

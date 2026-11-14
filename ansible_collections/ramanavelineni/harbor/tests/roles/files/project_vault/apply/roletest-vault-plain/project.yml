@@ -1,0 +1,14 @@
+---
+# A project directory with a vault file that is not encrypted (vault.yml).
+# The robot account's secret comes from it.
+name: roletest-vault-plain
+public: false
+
+robot_account:
+  roletest-ci:
+    duration: 30
+    permissions:
+      - access:
+          - {resource: repository, action: pull}
+    secret: "{{ vault_roletest_vault_plain_ci_secret }}"
+    update_secret: on_create
