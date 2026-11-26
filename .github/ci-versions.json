@@ -1,0 +1,7 @@
+{
+  "ansible": [
+    {"version": "2.20", "python_oldest": "3.9", "python_newest": "3.14"},
+    {"version": "2.21", "python_oldest": "3.9", "python_newest": "3.14"},
+    {"version": "2.22", "python_oldest": "3.9", "python_newest": "3.15"}
+  ]
+}

@@ -52,10 +52,8 @@ def tested_versions(collection):
 
 
 def ci_ansible_versions():
-    """The ansible-core versions the sanity job goes through."""
-    job = read(os.path.join(ROOT, '.github', 'workflows', 'ci.yml')).split('\n  sanity:\n', 1)[1]
-    line = re.search(r'^\s+ansible: \[([^\]]*)\]\s*$', job, re.M)
-    return re.findall(r'"([0-9]+\.[0-9]+)"', line.group(1))
+    """The ansible-core versions CI tests (.github/ci-versions.json)."""
+    return [entry['version'] for entry in json.loads(read(os.path.join(ROOT, '.github', 'ci-versions.json')))['ansible']]
 
 
 class TestRoleTestVersions(unittest.TestCase):

@@ -26,7 +26,7 @@ name: CI
 # ansible-lint, the sanity ignore files and the module documentation. Each
 # runs whatever the one before it found.
 #
-# "Units (..., stable-2.22)" also measures how much of the plugin code the unit
+# "Units (..., stable-<newest>)" also measures how much of the plugin code the unit
 # tests cover and fails under the floor in .github/scripts/coverage-floor.sh.
 #
 # Once a week everything runs for both collections, whatever changed, so a new
@@ -80,6 +80,11 @@ jobs:
       tools: ${{ steps.detect.outputs.tools }}
       semaphoreui_roles: ${{ steps.roles.outputs.semaphoreui }}
       harbor_roles: ${{ steps.roles.outputs.harbor }}
+      ansible_all: ${{ steps.ansible.outputs.ansible_all }}
+      ansible_units: ${{ steps.ansible.outputs.ansible_units }}
+      ansible_units_python: ${{ steps.ansible.outputs.ansible_units_python }}
+      ansible_newest: ${{ steps.ansible.outputs.ansible_newest }}
+      ansible_install: ${{ steps.ansible.outputs.ansible_install }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -127,6 +132,14 @@ jobs:
           for name in semaphoreui harbor; do
             echo "${name}=$(.github/scripts/role-test-matrix.py "${name}" "${EVENT}")" | tee -a "${GITHUB_OUTPUT}"
           done
+      # The ansible-core versions of the jobs below: .github/ci-versions.json,
+      # through the script (which says which job gets which).
+      - name: ansible-core versions
+        id: ansible
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+        run: .github/scripts/ci-versions.py "${EVENT}" | tee -a "${GITHUB_OUTPUT}"
 
   # ansible-test sanity, one job per collection and supported ansible-core,
   # so the versions run side by side instead of one after the other.
@@ -139,7 +152,7 @@ jobs:
       fail-fast: false
       matrix:
         collection: ${{ fromJSON(needs.changes.outputs.collections) }}
-        ansible: ["2.20", "2.21", "2.22"]
+        ansible: ${{ fromJSON(needs.changes.outputs.ansible_all) }}
     defaults:
       run:
         working-directory: ansible_collections/ramanavelineni/${{ matrix.collection }}
@@ -168,10 +181,9 @@ jobs:
       fail-fast: false
       matrix:
         collection: ${{ fromJSON(needs.changes.outputs.collections) }}
-        ansible: ["2.20", "2.21"]
-        include:
-          - {ansible: "2.20", oldest: "3.9", newest: "3.14"}
-          - {ansible: "2.21", oldest: "3.9", newest: "3.14"}
+        ansible: ${{ fromJSON(needs.changes.outputs.ansible_units) }}
+        # Adds each version's oldest and newest Python to its jobs.
+        include: ${{ fromJSON(needs.changes.outputs.ansible_units_python) }}
     defaults:
       run:
         working-directory: ansible_collections/ramanavelineni/${{ matrix.collection }}
@@ -200,7 +212,7 @@ jobs:
   # container, then the floor for the plugin code (see the script). Nothing is
   # sent anywhere.
   units-coverage:
-    name: Units (${{ matrix.collection }}, stable-2.22)
+    name: Units (${{ matrix.collection }}, stable-${{ needs.changes.outputs.ansible_newest }})
     needs: changes
     if: needs.changes.outputs.collections != '[]'
     runs-on: ubuntu-latest
@@ -218,7 +230,7 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.13"
-      - run: pip install "ansible-core~=2.22.0"
+      - run: pip install "ansible-core~=${{ needs.changes.outputs.ansible_newest }}.0"
       # A pull request measures coverage on one Python, the one the floor is
       # reported with; every other run on all of them.
       - name: Unit tests with coverage
@@ -248,7 +260,7 @@ jobs:
       fail-fast: false
       matrix:
         collection: ${{ fromJSON(needs.changes.outputs.collections) }}
-        ansible: ${{ fromJSON(github.event_name == 'pull_request' && '["2.20"]' || '["2.20", "2.22"]') }}
+        ansible: ${{ fromJSON(needs.changes.outputs.ansible_install) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -288,7 +300,7 @@ jobs:
         with:
           python-version: "3.13"
       - run: >-
-          pip install "ansible-core~=2.22.0" antsibull-changelog==0.35.1
+          pip install "ansible-core~=${{ needs.changes.outputs.ansible_newest }}.0" antsibull-changelog==0.35.1
           ansible-lint==26.9.0 antsibull-docs==2.27.0
       - name: Changelog fragments
         run: antsibull-changelog lint
