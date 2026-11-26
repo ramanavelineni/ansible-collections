@@ -1,0 +1,14 @@
+{
+  "semaphoreui": {
+    "versions": [
+      {"semaphore": "v2.18.31", "ansible": "2.20"},
+      {"semaphore": "v2.19.17", "ansible": "2.22"}
+    ]
+  },
+  "harbor": {
+    "versions": [
+      {"harbor": "v2.14.6", "ansible": "2.20"},
+      {"harbor": "v2.15.5", "ansible": "2.22"}
+    ]
+  }
+}

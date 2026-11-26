@@ -1,5 +1,5 @@
 {
-  "recorded_from": "v2.15.4-d8841742",
+  "recorded_from": "v2.15.5-8c17ef6e",
   "responses": {
     "project_create": {
       "body": null,
@@ -46,7 +46,7 @@
     },
     "project_get": {
       "body": {
-        "creation_time": "2026-11-09T05:39:53.932Z",
+        "creation_time": "2026-11-26T04:49:03.557Z",
         "current_user_role_id": 1,
         "current_user_role_ids": [
           1
@@ -67,14 +67,14 @@
         "owner_name": "admin",
         "project_id": 2,
         "repo_count": 0,
-        "update_time": "2026-11-09T05:39:53.932Z"
+        "update_time": "2026-11-26T04:49:03.557Z"
       },
       "headers": {},
       "status": 200
     },
     "project_get_proxy": {
       "body": {
-        "creation_time": "2026-11-09T05:40:08.024Z",
+        "creation_time": "2026-11-26T04:49:16.521Z",
         "current_user_role_id": 1,
         "current_user_role_ids": [
           1
@@ -96,14 +96,14 @@
         "project_id": 4,
         "registry_id": 1,
         "repo_count": 0,
-        "update_time": "2026-11-09T05:40:08.024Z"
+        "update_time": "2026-11-26T04:49:16.521Z"
       },
       "headers": {},
       "status": 200
     },
     "project_get_updated": {
       "body": {
-        "creation_time": "2026-11-09T05:39:53.932Z",
+        "creation_time": "2026-11-26T04:49:03.557Z",
         "current_user_role_id": 1,
         "current_user_role_ids": [
           1
@@ -125,7 +125,7 @@
         "owner_name": "admin",
         "project_id": 2,
         "repo_count": 0,
-        "update_time": "2026-11-09T05:39:53.932Z"
+        "update_time": "2026-11-26T04:49:03.557Z"
       },
       "headers": {},
       "status": 200
@@ -138,7 +138,7 @@
     "projects_before": {
       "body": [
         {
-          "creation_time": "2026-11-09T05:39:31.823Z",
+          "creation_time": "2026-11-26T04:48:18.798Z",
           "current_user_role_id": 1,
           "current_user_role_ids": [
             1
@@ -158,7 +158,7 @@
           "owner_name": "admin",
           "project_id": 1,
           "repo_count": 0,
-          "update_time": "2026-11-09T05:39:31.823Z"
+          "update_time": "2026-11-26T04:48:18.798Z"
         }
       ],
       "headers": {
@@ -169,7 +169,7 @@
     "projects_with_created": {
       "body": [
         {
-          "creation_time": "2026-11-09T05:39:53.932Z",
+          "creation_time": "2026-11-26T04:49:03.557Z",
           "current_user_role_id": 1,
           "current_user_role_ids": [
             1
@@ -190,10 +190,10 @@
           "owner_name": "admin",
           "project_id": 2,
           "repo_count": 0,
-          "update_time": "2026-11-09T05:39:53.932Z"
+          "update_time": "2026-11-26T04:49:03.557Z"
         },
         {
-          "creation_time": "2026-11-09T05:39:31.823Z",
+          "creation_time": "2026-11-26T04:48:18.798Z",
           "current_user_role_id": 1,
           "current_user_role_ids": [
             1
@@ -213,7 +213,7 @@
           "owner_name": "admin",
           "project_id": 1,
           "repo_count": 0,
-          "update_time": "2026-11-09T05:39:31.823Z"
+          "update_time": "2026-11-26T04:48:18.798Z"
         }
       ],
       "headers": {
@@ -224,7 +224,7 @@
     "projects_with_updated": {
       "body": [
         {
-          "creation_time": "2026-11-09T05:39:53.932Z",
+          "creation_time": "2026-11-26T04:49:03.557Z",
           "current_user_role_id": 1,
           "current_user_role_ids": [
             1
@@ -246,10 +246,10 @@
           "owner_name": "admin",
           "project_id": 2,
           "repo_count": 0,
-          "update_time": "2026-11-09T05:39:53.932Z"
+          "update_time": "2026-11-26T04:49:03.557Z"
         },
         {
-          "creation_time": "2026-11-09T05:39:31.823Z",
+          "creation_time": "2026-11-26T04:48:18.798Z",
           "current_user_role_id": 1,
           "current_user_role_ids": [
             1
@@ -269,7 +269,7 @@
           "owner_name": "admin",
           "project_id": 1,
           "repo_count": 0,
-          "update_time": "2026-11-09T05:39:31.823Z"
+          "update_time": "2026-11-26T04:48:18.798Z"
         }
       ],
       "headers": {
@@ -285,7 +285,7 @@
     "quotas_all": {
       "body": [
         {
-          "creation_time": "2026-11-09T05:39:53.946Z",
+          "creation_time": "2026-11-26T04:49:03.565Z",
           "hard": {
             "storage": 5368709120
           },
@@ -295,13 +295,13 @@
             "name": "fixtures-core",
             "owner_name": ""
           },
-          "update_time": "2026-11-09T05:39:53.946Z",
+          "update_time": "2026-11-26T04:49:03.565Z",
           "used": {
             "storage": 0
           }
         },
         {
-          "creation_time": "2026-11-09T05:39:32.274Z",
+          "creation_time": "2026-11-26T04:48:19.111Z",
           "hard": {
             "storage": -1
           },
@@ -311,7 +311,7 @@
             "name": "library",
             "owner_name": ""
           },
-          "update_time": "2026-11-09T05:39:32.274Z",
+          "update_time": "2026-11-26T04:48:19.111Z",
           "used": {
             "storage": 0
           }
@@ -325,7 +325,7 @@
     "quotas_created": {
       "body": [
         {
-          "creation_time": "2026-11-09T05:39:53.946Z",
+          "creation_time": "2026-11-26T04:49:03.565Z",
           "hard": {
             "storage": 5368709120
           },
@@ -335,7 +335,7 @@
             "name": "fixtures-core",
             "owner_name": ""
           },
-          "update_time": "2026-11-09T05:39:53.946Z",
+          "update_time": "2026-11-26T04:49:03.565Z",
           "used": {
             "storage": 0
           }
@@ -349,7 +349,7 @@
     "quotas_created_updated": {
       "body": [
         {
-          "creation_time": "2026-11-09T05:39:53.946Z",
+          "creation_time": "2026-11-26T04:49:03.565Z",
           "hard": {
             "storage": -1
           },
@@ -359,7 +359,7 @@
             "name": "fixtures-core",
             "owner_name": ""
           },
-          "update_time": "2026-11-09T05:39:53.946Z",
+          "update_time": "2026-11-26T04:49:03.565Z",
           "used": {
             "storage": 0
           }
@@ -380,13 +380,13 @@
     "registries_one": {
       "body": [
         {
-          "creation_time": "2026-11-09T05:40:06.043Z",
+          "creation_time": "2026-11-26T04:49:14.666Z",
           "credential": {},
           "id": 1,
           "name": "fixtures-core-hub",
           "status": "healthy",
           "type": "docker-hub",
-          "update_time": "2026-11-09T05:40:06.044Z",
+          "update_time": "2026-11-26T04:49:14.666Z",
           "url": "https://hub.docker.com"
         }
       ],
@@ -399,9 +399,9 @@
       "body": {
         "auth_mode": "db_auth",
         "banner_message": "",
-        "current_time": "2026-11-09T05:39:46.527Z",
-        "external_url": "http://harbor-v2154.lab:8080",
-        "harbor_version": "v2.15.4-d8841742",
+        "current_time": "2026-11-26T04:48:56.318Z",
+        "external_url": "http://harbor-v2155.lab:8080",
+        "harbor_version": "v2.15.5-8c17ef6e",
         "has_ca_root": false,
         "notification_enable": true,
         "oidc_provider_name": "",
@@ -409,7 +409,7 @@
         "project_creation_restriction": "everyone",
         "read_only": false,
         "registry_storage_provider_name": "filesystem",
-        "registry_url": "harbor-v2154.lab:8080",
+        "registry_url": "harbor-v2155.lab:8080",
         "self_registration": false
       },
       "headers": {},

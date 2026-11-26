@@ -1,6 +1,6 @@
 services:
   registry:
-    image: goharbor/registry-photon:v2.15.4
+    image: goharbor/registry-photon:v2.15.5
     restart: always
     cap_drop:
       - ALL
@@ -9,10 +9,10 @@ services:
       - SETGID
       - SETUID
     volumes:
-      - /var/home/core/harbor-lab/v2.15.4/data/registry:/storage:z
+      - /var/home/core/harbor-lab/v2.15.5/data/registry:/storage:z
       - ./common/config/registry/:/etc/registry/:z
       - type: bind
-        source: /var/home/core/harbor-lab/v2.15.4/data/secret/registry/root.crt
+        source: /var/home/core/harbor-lab/v2.15.5/data/secret/registry/root.crt
         target: /etc/registry/root.crt
       - type: bind
         source: ./common/config/shared/trust-certificates
@@ -22,7 +22,7 @@ services:
     security_opt:
       - label=disable
   registryctl:
-    image: goharbor/harbor-registryctl:v2.15.4
+    image: goharbor/harbor-registryctl:v2.15.5
     env_file:
       - ./common/config/registryctl/env
     restart: always
@@ -33,7 +33,7 @@ services:
       - SETGID
       - SETUID
     volumes:
-      - /var/home/core/harbor-lab/v2.15.4/data/registry:/storage:z
+      - /var/home/core/harbor-lab/v2.15.5/data/registry:/storage:z
       - ./common/config/registry/:/etc/registry/:z
       - type: bind
         source: ./common/config/registryctl/config.yml
@@ -46,7 +46,7 @@ services:
     security_opt:
       - label=disable
   postgresql:
-    image: goharbor/harbor-db:v2.15.4
+    image: goharbor/harbor-db:v2.15.5
     restart: always
     cap_drop:
       - ALL
@@ -56,7 +56,7 @@ services:
       - SETGID
       - SETUID
     volumes:
-      - /var/home/core/harbor-lab/v2.15.4/data/database:/var/lib/postgresql/data:z
+      - /var/home/core/harbor-lab/v2.15.5/data/database:/var/lib/postgresql/data:z
     networks:
       harbor:
     env_file:
@@ -65,7 +65,7 @@ services:
     security_opt:
       - label=disable
   core:
-    image: goharbor/harbor-core:v2.15.4
+    image: goharbor/harbor-core:v2.15.5
     env_file:
       - ./common/config/core/env
     restart: always
@@ -75,17 +75,17 @@ services:
       - SETGID
       - SETUID
     volumes:
-      - /var/home/core/harbor-lab/v2.15.4/data/ca_download/:/etc/core/ca/:z
-      - /var/home/core/harbor-lab/v2.15.4/data/:/data/:z
+      - /var/home/core/harbor-lab/v2.15.5/data/ca_download/:/etc/core/ca/:z
+      - /var/home/core/harbor-lab/v2.15.5/data/:/data/:z
       - ./common/config/core/certificates/:/etc/core/certificates/:z
       - type: bind
         source: ./common/config/core/app.conf
         target: /etc/core/app.conf
       - type: bind
-        source: /var/home/core/harbor-lab/v2.15.4/data/secret/core/private_key.pem
+        source: /var/home/core/harbor-lab/v2.15.5/data/secret/core/private_key.pem
         target: /etc/core/private_key.pem
       - type: bind
-        source: /var/home/core/harbor-lab/v2.15.4/data/secret/keys/secretkey
+        source: /var/home/core/harbor-lab/v2.15.5/data/secret/keys/secretkey
         target: /etc/core/key
       - type: bind
         source: ./common/config/shared/trust-certificates
@@ -99,7 +99,7 @@ services:
     security_opt:
       - label=disable
   portal:
-    image: goharbor/harbor-portal:v2.15.4
+    image: goharbor/harbor-portal:v2.15.5
     restart: always
     cap_drop:
       - ALL
@@ -117,7 +117,7 @@ services:
     security_opt:
       - label=disable
   jobservice:
-    image: goharbor/harbor-jobservice:v2.15.4
+    image: goharbor/harbor-jobservice:v2.15.5
     env_file:
       - ./common/config/jobservice/env
     restart: always
@@ -128,7 +128,7 @@ services:
       - SETGID
       - SETUID
     volumes:
-      - /var/home/core/harbor-lab/v2.15.4/data/job_logs:/var/log/jobs:z
+      - /var/home/core/harbor-lab/v2.15.5/data/job_logs:/var/log/jobs:z
       - type: bind
         source: ./common/config/jobservice/config.yml
         target: /etc/jobservice/config.yml
@@ -145,7 +145,7 @@ services:
     image: docker.io/valkey/valkey:8-alpine
     restart: always
     volumes:
-      - /var/home/core/harbor-lab/v2.15.4/data/redis:/var/lib/redis
+      - /var/home/core/harbor-lab/v2.15.5/data/redis:/var/lib/redis
     networks:
       harbor:
     security_opt:
@@ -155,7 +155,7 @@ services:
       - --dir
       - /var/lib/redis
   proxy:
-    image: goharbor/nginx-photon:v2.15.4
+    image: goharbor/nginx-photon:v2.15.5
     restart: always
     cap_drop:
       - ALL

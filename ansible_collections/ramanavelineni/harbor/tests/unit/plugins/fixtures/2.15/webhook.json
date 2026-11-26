@@ -1,10 +1,10 @@
 {
-  "recorded_from": "v2.15.4-d8841742",
+  "recorded_from": "v2.15.5-8c17ef6e",
   "responses": {
     "webhook_create": {
       "body": null,
       "headers": {
-        "location": "/api/v2.0/projects/7/webhook/policies/1"
+        "location": "/api/v2.0/projects/9/webhook/policies/4"
       },
       "status": 201
     },
@@ -32,6 +32,13 @@
       "headers": {},
       "status": 409
     },
+    "webhook_create_mixed": {
+      "body": null,
+      "headers": {
+        "location": "/api/v2.0/projects/9/webhook/policies/6"
+      },
+      "status": 201
+    },
     "webhook_delete": {
       "body": null,
       "headers": {},
@@ -42,7 +49,7 @@
         "errors": [
           {
             "code": "NOT_FOUND",
-            "message": "notificationPolicy 1 not found"
+            "message": "notificationPolicy 4 not found"
           }
         ]
       },
@@ -82,16 +89,16 @@
     },
     "webhook_get": {
       "body": {
-        "creation_time": "2026-11-09T05:42:28.379Z",
+        "creation_time": "2026-11-26T04:53:41.494Z",
         "description": "recorded",
         "enabled": true,
         "event_types": [
           "DELETE_ARTIFACT",
           "PUSH_ARTIFACT"
         ],
-        "id": 1,
+        "id": 4,
         "name": "ci-notify",
-        "project_id": 7,
+        "project_id": 9,
         "targets": [
           {
             "address": "http://127.0.0.1:9/hook",
@@ -100,7 +107,32 @@
             "type": "http"
           }
         ],
-        "update_time": "2026-11-09T05:42:28.379Z"
+        "update_time": "2026-11-26T04:53:41.494Z"
+      },
+      "headers": {},
+      "status": 200
+    },
+    "webhook_get_mixed": {
+      "body": {
+        "creation_time": "2026-11-26T04:53:47.937Z",
+        "description": "recorded",
+        "enabled": true,
+        "event_types": [
+          "DELETE_ARTIFACT",
+          "PUSH_ARTIFACT"
+        ],
+        "id": 6,
+        "name": "mixed-case",
+        "project_id": 9,
+        "targets": [
+          {
+            "address": "http://localhost:9/Hook",
+            "auth_header": "Bearer not-a-real-token",
+            "payload_format": "Default",
+            "type": "http"
+          }
+        ],
+        "update_time": "2026-11-26T04:53:47.937Z"
       },
       "headers": {},
       "status": 200
@@ -114,9 +146,9 @@
           "DELETE_ARTIFACT",
           "PUSH_ARTIFACT"
         ],
-        "id": 1,
+        "id": 4,
         "name": "ci-notify",
-        "project_id": 7,
+        "project_id": 9,
         "targets": [
           {
             "address": "http://127.0.0.1:9/hook",
@@ -125,7 +157,7 @@
             "type": "http"
           }
         ],
-        "update_time": "2026-11-09T05:42:28.379Z"
+        "update_time": "2026-11-26T04:53:41.494Z"
       },
       "headers": {},
       "status": 200
@@ -137,19 +169,19 @@
       },
       "status": 200
     },
-    "webhook_list_one": {
+    "webhook_list_mixed": {
       "body": [
         {
-          "creation_time": "2026-11-09T05:42:28.379Z",
+          "creation_time": "0001-01-01T00:00:00.000Z",
           "description": "recorded",
-          "enabled": true,
+          "enabled": false,
           "event_types": [
             "DELETE_ARTIFACT",
             "PUSH_ARTIFACT"
           ],
-          "id": 1,
+          "id": 4,
           "name": "ci-notify",
-          "project_id": 7,
+          "project_id": 9,
           "targets": [
             {
               "address": "http://127.0.0.1:9/hook",
@@ -158,7 +190,57 @@
               "type": "http"
             }
           ],
-          "update_time": "2026-11-09T05:42:28.379Z"
+          "update_time": "2026-11-26T04:53:41.494Z"
+        },
+        {
+          "creation_time": "2026-11-26T04:53:47.937Z",
+          "description": "recorded",
+          "enabled": true,
+          "event_types": [
+            "DELETE_ARTIFACT",
+            "PUSH_ARTIFACT"
+          ],
+          "id": 6,
+          "name": "mixed-case",
+          "project_id": 9,
+          "targets": [
+            {
+              "address": "http://localhost:9/Hook",
+              "auth_header": "Bearer not-a-real-token",
+              "payload_format": "Default",
+              "type": "http"
+            }
+          ],
+          "update_time": "2026-11-26T04:53:47.937Z"
+        }
+      ],
+      "headers": {
+        "x-total-count": "2"
+      },
+      "status": 200
+    },
+    "webhook_list_one": {
+      "body": [
+        {
+          "creation_time": "2026-11-26T04:53:41.494Z",
+          "description": "recorded",
+          "enabled": true,
+          "event_types": [
+            "DELETE_ARTIFACT",
+            "PUSH_ARTIFACT"
+          ],
+          "id": 4,
+          "name": "ci-notify",
+          "project_id": 9,
+          "targets": [
+            {
+              "address": "http://127.0.0.1:9/hook",
+              "auth_header": "Bearer not-a-real-token",
+              "payload_format": "Default",
+              "type": "http"
+            }
+          ],
+          "update_time": "2026-11-26T04:53:41.494Z"
         }
       ],
       "headers": {
@@ -176,9 +258,9 @@
             "DELETE_ARTIFACT",
             "PUSH_ARTIFACT"
           ],
-          "id": 1,
+          "id": 4,
           "name": "ci-notify",
-          "project_id": 7,
+          "project_id": 9,
           "targets": [
             {
               "address": "http://127.0.0.1:9/hook",
@@ -191,7 +273,7 @@
               "type": "slack"
             }
           ],
-          "update_time": "2026-11-09T05:42:28.379Z"
+          "update_time": "2026-11-26T04:53:41.494Z"
         }
       ],
       "headers": {
@@ -202,16 +284,16 @@
     "webhook_projects": {
       "body": [
         {
-          "creation_time": "2026-11-09T05:42:24.539Z",
+          "creation_time": "2026-11-26T04:53:37.797Z",
           "current_user_role_id": 1,
           "current_user_role_ids": [
             1
           ],
           "cve_allowlist": {
             "creation_time": "0001-01-01T00:00:00.000Z",
-            "id": 6,
+            "id": 8,
             "items": [],
-            "project_id": 7,
+            "project_id": 9,
             "update_time": "0001-01-01T00:00:00.000Z"
           },
           "metadata": {
@@ -220,9 +302,9 @@
           "name": "fixtures-webhook",
           "owner_id": 1,
           "owner_name": "admin",
-          "project_id": 7,
+          "project_id": 9,
           "repo_count": 0,
-          "update_time": "2026-11-09T05:42:24.539Z"
+          "update_time": "2026-11-26T04:53:37.797Z"
         }
       ],
       "headers": {

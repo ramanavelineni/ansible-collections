@@ -5,8 +5,8 @@
 # Starts a throwaway Harbor for tools/record_harbor_fixtures.py and takes it
 # away again. One Harbor per tested version, each on its own port:
 #
-#   tools/harbor_up.sh up v2.15.4 8015
-#   tools/harbor_up.sh down v2.15.4
+#   tools/harbor_up.sh up v2.15.5 8015
+#   tools/harbor_up.sh down v2.15.5
 #
 # It does what the Harbor servers the committed fixtures were recorded from
 # were set up with, under rootless podman:
@@ -25,8 +25,8 @@
 # (macOS), inside the machine, because the data must not sit on the shared
 # host file system:
 #
-#   podman machine ssh 'bash -s -- up v2.15.4 8015' < tools/harbor_up.sh
-#   HARBOR_PASSWORD="$(podman machine ssh cat harbor-lab/v2.15.4/admin_password)" \
+#   podman machine ssh 'bash -s -- up v2.15.5 8015' < tools/harbor_up.sh
+#   HARBOR_PASSWORD="$(podman machine ssh cat harbor-lab/v2.15.5/admin_password)" \
 #       tools/record_harbor_fixtures.py http://127.0.0.1:8015
 #
 # A port published in the machine on 127.0.0.1 is reachable on the host, so
@@ -43,11 +43,12 @@
 #
 # What it was checked with. The two edits this script makes itself are tested
 # without a server (tools/tests/test_harbor_up.py): the edited harbor.yml, and
-# the adjusted docker-compose.yml, which for 2.14.6 and 2.15.4 equals the
+# the adjusted docker-compose.yml, which for 2.14.6 and 2.15.5 equals the
 # compose file of the servers the fixtures were recorded from. "up" and "down"
 # were run in a podman machine on macOS (rootless podman, no compose command,
-# so compose came from the docker CLI image) with Harbor v2.14.6 and v2.15.4,
-# and the harbor collection's live suite passed against both servers,
+# so compose came from the docker CLI image) with Harbor v2.14.6, v2.15.4 and
+# v2.15.5 (on Apple silicon, its amd64 images pulled first and emulated; see
+# CONTRIBUTING.md), and the harbor collection's live suite passed against each,
 # including the registry endpoint that points at http://proxy:8080. Not run
 # so far: docker as the engine, a compose command installed on the machine,
 # and Linux without a podman machine.
@@ -58,8 +59,8 @@ usage() {
   cat >&2 <<'EOF'
 usage: harbor_up.sh up <version> [port]     start a throwaway Harbor (port default 8015)
        harbor_up.sh down <version>          stop it and remove its directory
-<version> is a Harbor release tag such as v2.15.4.
-With a podman machine: podman machine ssh 'bash -s -- up v2.15.4 8015' < tools/harbor_up.sh
+<version> is a Harbor release tag such as v2.15.5.
+With a podman machine: podman machine ssh 'bash -s -- up v2.15.5 8015' < tools/harbor_up.sh
 EOF
   exit 2
 }

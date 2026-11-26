@@ -122,10 +122,11 @@ HARBOR_URL=http://127.0.0.1:8015 HARBOR_PASSWORD=... make role-test COLLECTION=h
 Every playbook in `tests/roles/` is run; `ROLE_TEST_PLAYBOOK=apply` runs only
 `apply.yml`. A collection's `tests/roles/files/vault-password` is passed to
 `ansible-playbook` with `--vault-password-file`: it is the test-only password
-of the test files encrypted with `ansible-vault`, and protects nothing. A new
-playbook also needs its name in the matrix of its job in
-`.github/workflows/ci.yml` (`roles` for semaphoreui, `harbor-roles` for
-harbor), or CI never runs it.
+of the test files encrypted with `ansible-vault`, and protects nothing. CI
+finds the playbooks the same way (`.github/scripts/role-test-matrix.py`), so a
+new one runs without a change to the workflow. The server versions those jobs
+run against, each with the ansible-core it runs with, are in
+`.github/role-tests.json`, oldest first; a pull request runs the newest only.
 Each has to stand alone: it only touches objects named `roletest-...`, and
 removes them before it starts and when it ends. Throwaway servers only.
 
@@ -203,8 +204,8 @@ it writes adjusted for rootless podman (the script says what is adjusted and
 why).
 
 ```sh
-tools/harbor_up.sh up v2.15.4 8015      # then: user admin, password in ~/harbor-lab/v2.15.4/admin_password
-tools/harbor_up.sh down v2.15.4         # stops it and removes ~/harbor-lab/v2.15.4
+tools/harbor_up.sh up v2.15.5 8015      # then: user admin, password in ~/harbor-lab/v2.15.5/admin_password
+tools/harbor_up.sh down v2.15.5         # stops it and removes ~/harbor-lab/v2.15.5
 ```
 
 Run it where the containers run. With a podman machine (macOS) that is inside
@@ -212,10 +213,10 @@ the machine; the published port is reachable on the host, so the recorder
 still runs on the host:
 
 ```sh
-podman machine ssh 'bash -s -- up v2.15.4 8015' < tools/harbor_up.sh
-HARBOR_PASSWORD="$(podman machine ssh cat harbor-lab/v2.15.4/admin_password)" \
+podman machine ssh 'bash -s -- up v2.15.5 8015' < tools/harbor_up.sh
+HARBOR_PASSWORD="$(podman machine ssh cat harbor-lab/v2.15.5/admin_password)" \
     tools/record_harbor_fixtures.py http://127.0.0.1:8015
-podman machine ssh 'bash -s -- down v2.15.4' < tools/harbor_up.sh
+podman machine ssh 'bash -s -- down v2.15.5' < tools/harbor_up.sh
 ```
 
 It needs podman or docker and a compose command (`podman compose` with a
@@ -226,14 +227,22 @@ the docker CLI image against podman's API socket.
 The compose project is named after the version, so one Harbor per version:
 `up` refuses when containers of that project exist already.
 
+A Harbor release without arm64 images (2.15 and older) runs emulated on an
+arm64 machine, such as a podman machine on Apple silicon. Pull its images for
+amd64 first, so that `prepare` and compose find them:
+
+```sh
+podman machine ssh 'for i in prepare harbor-log registry-photon harbor-registryctl harbor-db harbor-core harbor-portal harbor-jobservice valkey-photon nginx-photon; do podman pull --arch amd64 docker.io/goharbor/$i:v2.15.5; done'
+```
+
 **What it was checked with.** The two edits the script makes itself are tested
 by `make tools-test`: its `harbor.yml`, and its compose file, which for 2.14.6
-and 2.15.4 equals the compose file of the servers the fixtures were recorded
+and 2.15.5 equals the compose file of the servers the fixtures were recorded
 from. `up` and `down` were run in a podman machine on macOS with Harbor
-v2.14.6 and v2.15.4, and the harbor live suite passed against both servers,
-including the registry endpoint at `http://proxy:8080`. Not run so far: docker as the
-engine, a compose command installed on the machine, and Linux without a
-podman machine.
+v2.14.6, v2.15.4 and v2.15.5 (on Apple silicon, emulated), and the
+harbor live suite passed against each server, including the registry endpoint
+at `http://proxy:8080`. Not run so far: docker as the engine, a compose command
+installed on the machine, and Linux without a podman machine.
 
 ### Recording
 
@@ -284,7 +293,13 @@ The rules:
    "Supported" tables in the root `README.md`, the badge and the "Needs"
    line in the collection's `README.md`, and "Supported versions" in
    `PLAN.md`.
-5. Add a changelog fragment (`minor_changes`) that names the new version.
+5. Add the release to `.github/role-tests.json`, so the role tests run
+   against it, and for Harbor the installer's SHA-256 to
+   `.github/scripts/harbor-ci-up.sh`. A newer patch release of a tested
+   version only takes these two steps. `make tools-test` fails when the file
+   and `TESTED_VERSIONS` disagree, or a Harbor version has no checksum. No
+   workflow file changes, so a token without the `workflow` scope can push it.
+6. Add a changelog fragment (`minor_changes`) that names the new version.
 
 Dropping a version is the same list backwards, with the fixture directory
 removed. The `tests/sanity/ignore-*.txt` files don't come into it: they

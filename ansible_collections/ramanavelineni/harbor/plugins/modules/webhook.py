@@ -68,6 +68,12 @@ options:
   address:
     description:
       - The endpoint URL the notifications are sent to. Required to create a webhook.
+      - Compared the way Harbor reads it, so V(https://CI.example.com/hooks/) and the address
+        V(https://ci.example.com/hooks) that Harbor 2.15.5 stores for it are the same address. The case of the
+        host name and a trailing slash do not count.
+      - Harbor 2.15.5 drops a user name and password from the address when it stores it, so the module warns
+        about one; send credentials with O(auth_header) instead. Where Harbor stored them (2.14, 2.16), they are
+        compared like the rest of the address.
     type: str
   auth_header:
     description:
@@ -233,10 +239,57 @@ def check_event_types(module, client, project_id, wanted):
     module.warn(message)
 
 
+def split_address(address):
+    """(scheme, user info, host, rest) of an endpoint URL, read the way Harbor reads one.
+
+    Harbor's utils.ParseEndpoint trims spaces and trailing slashes and adds
+    http:// when there is no scheme. The host part ends at the first / or ?.
+    """
+    value = (address or '').strip(' ').rstrip('/')
+    if '://' not in value:
+        value = 'http://' + value
+    scheme, rest = value.split('://', 1)
+    end = min([i for i in (rest.find('/'), rest.find('?')) if i >= 0] or [len(rest)])
+    authority, tail = rest[:end], rest[end:]
+    userinfo, dummy, host = authority.rpartition('@')
+    return scheme.lower(), userinfo, host, tail
+
+
+def normalized_address(address):
+    """An endpoint URL as Harbor 2.15.5 stores it: host lowercased, user and password dropped.
+
+    Harbor 2.15.5 writes this form back (handler/webhook.go,
+    normalizeTargetAddress); 2.15.4 and 2.16.0 store the address as sent.
+    Harbor treats two addresses with the same form as one endpoint, so the
+    module compares this form.
+    """
+    if not address:
+        return ''
+    scheme, dummy, host, tail = split_address(address)
+    return '%s://%s%s' % (scheme, host.lower(), tail)
+
+
+def has_userinfo(address):
+    return bool(address) and bool(split_address(address)[1])
+
+
+def same_address(declared, stored):
+    """Whether Harbor sends to `stored` what the task means by `declared`.
+
+    A user and password count only where Harbor kept the ones it was sent:
+    2.14.6 and 2.16.0 store them as sent, 2.15.5 drops them.
+    """
+    if normalized_address(declared) != normalized_address(stored):
+        return False
+    stored_userinfo = split_address(stored)[1] if stored else ''
+    return not stored_userinfo or stored_userinfo == split_address(declared)[1]
+
+
 def comparable(targets):
     """Targets with Harbor's omitted defaults filled in, so equal ones compare equal."""
-    return [dict(type=t.get('type') or 'http', address=t.get('address') or '', auth_header=t.get('auth_header') or '',
-                 skip_cert_verify=bool(t.get('skip_cert_verify', False)), payload_format=t.get('payload_format') or '')
+    return [dict(type=t.get('type') or 'http', address=normalized_address(t.get('address')),
+                 auth_header=t.get('auth_header') or '', skip_cert_verify=bool(t.get('skip_cert_verify', False)),
+                 payload_format=t.get('payload_format') or '')
             for t in targets]
 
 
@@ -246,7 +299,9 @@ def build_target(current, params):
     if params['notify_type'] is not None:
         target['type'] = params['notify_type']
     target.setdefault('type', 'http')
-    if params['address'] is not None:
+    # An address Harbor reads as the stored one keeps the stored spelling, so
+    # it is no change (Harbor 2.15.5 stores a normalized form).
+    if params['address'] is not None and not same_address(params['address'], target.get('address')):
         target['address'] = params['address']
     if params['auth_header'] is not None:
         if params['auth_header']:
@@ -288,6 +343,10 @@ def ensure(module, client):
 
     if params['event_types']:
         check_event_types(module, client, project_id, params['event_types'])
+    if has_userinfo(params['address']):
+        # The address itself is not repeated: the password is in it.
+        module.warn('The address of webhook %r has a user name or password in it. Harbor 2.15.5 drops them when it '
+                    'stores the address; send credentials with auth_header instead.' % params['name'])
 
     targets = list((current or {}).get('targets') or [])
     if any(params[o] is not None for o in TARGET_OPTIONS):
@@ -334,7 +393,8 @@ def ensure(module, client):
         predicted = after
         stored = client.get('%s/%d' % (base, current['id']))
         after = view(stored, params['project'])
-        differing = [k for k in after if after[k] != predicted[k]]
+        differing = [k for k in after if after[k] != predicted[k]
+                     and not (k == 'address' and same_address(predicted[k], after[k]))]
         if not differing and comparable(stored.get('targets') or []) != comparable(body['targets']):
             # Only the auth header is compared outside the view. Its name, never its value.
             differing = ['auth_header']
