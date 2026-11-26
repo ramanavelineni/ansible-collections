@@ -31,9 +31,9 @@ if [ "${1:-}" = only ]; then
 fi
 
 # A change here can break any job, or is CI's own configuration: the release
-# workflow and Dependabot's settings get a run too, so a pull request that
-# touches only them is not passed without one.
-SHARED='^(\.github/workflows/(ci|release)\.yml$|\.github/dependabot\.yml$|\.github/scripts/|Makefile$)'
+# workflow, the role-test versions and Dependabot's settings get a run too, so
+# a pull request that touches only them is not passed without one.
+SHARED='^(\.github/workflows/(ci|release)\.yml$|\.github/role-tests\.json$|\.github/dependabot\.yml$|\.github/scripts/|Makefile$)'
 # The files that the helper-drift tests in tools/tests compare between the
 # collections: a change to one copy has to run them.
 DRIFT='^ansible_collections/ramanavelineni/[^/]+/(tests/unit/plugins/(utils|conftest)\.py|plugins/module_utils/transport\.py)$'

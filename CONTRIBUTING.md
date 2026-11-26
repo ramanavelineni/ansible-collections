@@ -122,10 +122,11 @@ HARBOR_URL=http://127.0.0.1:8015 HARBOR_PASSWORD=... make role-test COLLECTION=h
 Every playbook in `tests/roles/` is run; `ROLE_TEST_PLAYBOOK=apply` runs only
 `apply.yml`. A collection's `tests/roles/files/vault-password` is passed to
 `ansible-playbook` with `--vault-password-file`: it is the test-only password
-of the test files encrypted with `ansible-vault`, and protects nothing. A new
-playbook also needs its name in the matrix of its job in
-`.github/workflows/ci.yml` (`roles` for semaphoreui, `harbor-roles` for
-harbor), or CI never runs it.
+of the test files encrypted with `ansible-vault`, and protects nothing. CI
+finds the playbooks the same way (`.github/scripts/role-test-matrix.py`), so a
+new one runs without a change to the workflow. The server versions those jobs
+run against, each with the ansible-core it runs with, are in
+`.github/role-tests.json`, oldest first; a pull request runs the newest only.
 Each has to stand alone: it only touches objects named `roletest-...`, and
 removes them before it starts and when it ends. Throwaway servers only.
 
@@ -292,7 +293,13 @@ The rules:
    "Supported" tables in the root `README.md`, the badge and the "Needs"
    line in the collection's `README.md`, and "Supported versions" in
    `PLAN.md`.
-5. Add a changelog fragment (`minor_changes`) that names the new version.
+5. Add the release to `.github/role-tests.json`, so the role tests run
+   against it, and for Harbor the installer's SHA-256 to
+   `.github/scripts/harbor-ci-up.sh`. A newer patch release of a tested
+   version only takes these two steps. `make tools-test` fails when the file
+   and `TESTED_VERSIONS` disagree, or a Harbor version has no checksum. No
+   workflow file changes, so a token without the `workflow` scope can push it.
+6. Add a changelog fragment (`minor_changes`) that names the new version.
 
 Dropping a version is the same list backwards, with the fixture directory
 removed. The `tests/sanity/ignore-*.txt` files don't come into it: they
