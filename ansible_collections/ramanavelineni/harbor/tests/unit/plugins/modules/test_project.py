@@ -484,3 +484,139 @@ def test_non_admin_update_survives_a_refused_quota_read_after_the_write(server, 
     result = run_module(project.main, dict(name='fixtures-core', quota_gb=-1))
     assert result['changed'] is True
     assert result['project']['quota_gb'] == -1
+
+
+# -- proxy-cache options of Harbor 2.16 ---------------------------------------
+
+def on_2_15(server):
+    return server.version == '2.15'
+
+
+def proxy_project(server, fixture='project_get_proxy'):
+    """An existing proxy-cache project: the recorded one, as the only project listed."""
+    listing = server.response('projects_with_created')
+    proxy = server.response(fixture)['body']
+    listing['body'] = [proxy]
+    server.route('GET', '/projects', listing)
+    server.route('GET', '/registries', 'registries_one')
+    server.route('GET', '/quotas', 'quotas_created')
+    return proxy
+
+
+FILTER = dict(proxy_cache_filter_kind='regex', proxy_cache_filter_pattern='^library/.*', proxy_referrer_api=True)
+
+
+def test_proxy_filter_is_set_on_a_proxy_project(server, run_module):
+    proxy = proxy_project(server)
+    path = '/projects/%d' % proxy['project_id']
+    server.route('PUT', path, 'project_update_proxy_filter')
+    server.route('GET', path, 'project_get_proxy_filtered')
+    result = run_module(project.main, dict(name=proxy['name'], metadata=FILTER))
+    if on_2_15(server):
+        # 2.15 drops the keys (recorded), so the module refuses them first.
+        assert result['failed'] is True and 'needs Harbor 2.16' in result['msg']
+        assert server.calls('PUT') == []
+        return
+    assert result['changed'] is True
+    assert server.calls('PUT', path)[0]['body'] == dict(metadata=dict(
+        proxy_cache_filter_kind='regex', proxy_cache_filter_pattern='^library/.*', proxy_referrer_api='true'))
+    assert result['project']['metadata']['proxy_cache_filter_pattern'] == '^library/.*'
+    assert not result.get('warnings')
+
+
+def test_stored_proxy_filter_is_no_change(server, run_module):
+    if on_2_15(server):
+        pytest.skip('2.15 does not store the proxy-cache filter (see the test above)')
+    proxy = proxy_project(server, 'project_get_proxy_filtered')
+    result = run_module(project.main, dict(name=proxy['name'], metadata=FILTER))
+    assert result['changed'] is False
+    assert server.calls('PUT') == []
+
+
+def test_proxy_only_keys_fail_on_a_project_that_is_no_proxy(server, run_module):
+    existing(server)
+    result = run_module(project.main, dict(name='fixtures-core', metadata=dict(proxy_referrer_api=True)))
+    assert result['failed'] is True
+    if on_2_15(server):
+        assert 'needs Harbor 2.16' in result['msg']
+    else:
+        assert 'only applies to a proxy-cache project' in result['msg']
+    assert server.calls('PUT') == []
+
+
+@pytest.mark.parametrize('metadata, message', [
+    (dict(proxy_cache_filter_kind='glob'), 'metadata.proxy_cache_filter_kind must be one of , doublestar, regex'),
+    (dict(proxy_cache_filter_pattern=5), 'metadata.proxy_cache_filter_pattern must be a string'),
+    (dict(proxy_referrer_api='yes please'), 'metadata.proxy_referrer_api must be a boolean'),
+])
+def test_proxy_filter_values_are_checked_first(server, run_module, metadata, message):
+    # Harbor answers 400 for an unknown kind (recorded on 2.16) but stores any
+    # proxy_referrer_api text.
+    result = run_module(project.main, dict(name='x', metadata=metadata))
+    assert result['failed'] is True
+    assert message in result['msg']
+    assert server.calls('PUT') == [] and server.calls('POST') == []
+
+
+def test_recorded_unknown_filter_kind_is_refused_by_harbor(server):
+    answer = server.fixtures['project_update_proxy_bad_kind']
+    assert answer['status'] == (200 if on_2_15(server) else 400)
+
+
+def creating_proxy_with_days(server):
+    created = server.fixtures['project_create_proxy_days']
+    new_id = int(created['headers']['location'].rsplit('/', 1)[-1])
+    server.route('GET', '/projects', 'projects_before')
+    server.route('GET', '/registries', 'registries_one')
+    server.route('POST', '/projects', 'project_create_proxy_days')
+    server.route('GET', '/projects/%d' % new_id, 'project_get_proxy_days')
+    server.route('GET', '/quotas', 'quotas_created')
+    return server.fixtures['registries_one']['body'][0]['name']
+
+
+def test_retention_days_goes_out_with_a_new_proxy_project(server, run_module):
+    registry_name = creating_proxy_with_days(server)
+    result = run_module(project.main, dict(name='fixtures-core-proxy-days', proxy_registry=registry_name,
+                                           retention_days=3))
+    if on_2_15(server):
+        # 2.15 ignores the field and keeps 7 days (recorded), so the module refuses it.
+        assert result['failed'] is True and 'retention_days needs Harbor 2.16' in result['msg']
+        assert server.calls('POST') == []
+        return
+    assert result['changed'] is True
+    body = server.calls('POST', '/projects')[0]['body']
+    assert body['retention_days'] == 3 and body['registry_id'] == server.fixtures['registries_one']['body'][0]['id']
+
+
+def test_recorded_retention_days_end_up_in_the_retention_rule(server):
+    rule = server.fixtures['project_proxy_days_retention']['body']['rules'][0]
+    assert rule['params']['nDaysSinceLastPull'] == (7 if on_2_15(server) else 3)
+
+
+def test_retention_days_fail_for_a_new_project_that_is_no_proxy(server, run_module):
+    creating(server)
+    result = run_module(project.main, dict(name='fixtures-core', retention_days=3))
+    assert result['failed'] is True
+    if on_2_15(server):
+        assert 'retention_days needs Harbor 2.16' in result['msg']
+    else:
+        # What Harbor answers too (recorded), only before anything is created.
+        assert 'only applies to a new proxy-cache project' in result['msg']
+        assert server.fixtures['project_create_days_not_proxy']['status'] == 400
+    assert server.calls('POST') == []
+
+
+@pytest.mark.parametrize('days', [-1, 18251])
+def test_retention_days_range(server, run_module, days):
+    registry_name = creating_proxy_with_days(server)
+    result = run_module(project.main, dict(name='fixtures-core-proxy-days', proxy_registry=registry_name,
+                                           retention_days=days))
+    assert result['failed'] is True and 'retention_days must be between 0 and 18250' in result['msg']
+    assert server.calls('POST') == []
+
+
+def test_retention_days_are_left_alone_for_an_existing_project(server, run_module):
+    proxy = proxy_project(server)
+    result = run_module(project.main, dict(name=proxy['name'], retention_days=3))
+    assert result['changed'] is False
+    assert server.calls('PUT') == []

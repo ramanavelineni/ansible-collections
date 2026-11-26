@@ -3,6 +3,8 @@
 
 """project and project_info against a real Harbor."""
 
+import pytest
+
 from ansible_collections.ramanavelineni.harbor.plugins.modules import project, project_info
 from ansible_collections.ramanavelineni.harbor.tests.live.conftest import PREFIX, changed
 
@@ -79,3 +81,37 @@ def test_project_info_lists_the_built_in_project(run):
     found = run(project_info.main, dict())
     assert not found.get('failed'), found.get('msg')
     assert 'library' in [p['name'] for p in found['projects']]
+
+
+def test_proxy_cache_options_of_2_16(api, run):
+    """retention_days and the proxy-cache filter keys on a new proxy-cache project (Harbor 2.16)."""
+    if api.minor < (2, 16):
+        pytest.skip('Harbor %s has no proxy-cache filter and no retention_days' % api.version)
+    endpoint = PREFIX + 'proxy-endpoint'
+    name = PREFIX + 'proxy-days'
+    status, dummy, dummy = api.call('POST', '/registries', dict(
+        name=endpoint, type='docker-registry', url='http://proxy:8080', insecure=True))
+    assert status == 201
+    try:
+        wanted = dict(name=name, proxy_registry=endpoint, retention_days=3,
+                      metadata=dict(proxy_cache_filter_kind='doublestar', proxy_cache_filter_pattern='library/**',
+                                    proxy_referrer_api=True))
+        created = run(project.main, wanted)
+        assert changed(created) is True
+        assert created['project']['metadata']['proxy_cache_filter_pattern'] == 'library/**'
+        assert created['project']['metadata']['proxy_referrer_api'] == 'true'
+        retention_id = created['project']['metadata']['retention_id']
+        rule = api.ok('GET', '/retentions/%s' % retention_id)[0]['rules'][0]
+        assert rule['params']['nDaysSinceLastPull'] == 3
+        # retention_days is not compared afterwards; the rest is stored as sent.
+        assert changed(run(project.main, dict(wanted, retention_days=9))) is False
+
+        refused = run(project.main, dict(name=PREFIX + 'plain', metadata=dict(proxy_referrer_api=True)))
+        assert refused.get('failed') is True and 'only applies to a proxy-cache project' in refused['msg']
+        assert api.projects(PREFIX + 'plain') == []
+    finally:
+        for leftover in api.projects(name):
+            api.delete_project(leftover)
+        for registry in api.listing('/registries'):
+            if registry['name'] == endpoint:
+                api.ok('DELETE', '/registries/%d' % registry['id'])

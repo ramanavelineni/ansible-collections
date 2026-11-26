@@ -4,7 +4,7 @@
     "project_create": {
       "body": null,
       "headers": {
-        "location": "/api/v2.0/projects/2"
+        "location": "/api/v2.0/projects/36"
       },
       "status": 201
     },
@@ -20,10 +20,24 @@
       "headers": {},
       "status": 409
     },
+    "project_create_days_not_proxy": {
+      "body": null,
+      "headers": {
+        "location": "/api/v2.0/projects/40"
+      },
+      "status": 201
+    },
     "project_create_proxy": {
       "body": null,
       "headers": {
-        "location": "/api/v2.0/projects/4"
+        "location": "/api/v2.0/projects/38"
+      },
+      "status": 201
+    },
+    "project_create_proxy_days": {
+      "body": null,
+      "headers": {
+        "location": "/api/v2.0/projects/39"
       },
       "status": 201
     },
@@ -37,7 +51,7 @@
         "errors": [
           {
             "code": "NOT_FOUND",
-            "message": "project 2 not found"
+            "message": "project 36 not found"
           }
         ]
       },
@@ -46,16 +60,16 @@
     },
     "project_get": {
       "body": {
-        "creation_time": "2026-11-26T04:49:03.557Z",
+        "creation_time": "2026-11-26T05:20:27.145Z",
         "current_user_role_id": 1,
         "current_user_role_ids": [
           1
         ],
         "cve_allowlist": {
           "creation_time": "0001-01-01T00:00:00.000Z",
-          "id": 2,
+          "id": 35,
           "items": [],
-          "project_id": 2,
+          "project_id": 36,
           "update_time": "0001-01-01T00:00:00.000Z"
         },
         "metadata": {
@@ -65,54 +79,112 @@
         "name": "fixtures-core",
         "owner_id": 1,
         "owner_name": "admin",
-        "project_id": 2,
+        "project_id": 36,
         "repo_count": 0,
-        "update_time": "2026-11-26T04:49:03.557Z"
+        "update_time": "2026-11-26T05:20:27.145Z"
       },
       "headers": {},
       "status": 200
     },
     "project_get_proxy": {
       "body": {
-        "creation_time": "2026-11-26T04:49:16.521Z",
+        "creation_time": "2026-11-26T05:20:40.602Z",
         "current_user_role_id": 1,
         "current_user_role_ids": [
           1
         ],
         "cve_allowlist": {
           "creation_time": "0001-01-01T00:00:00.000Z",
-          "id": 3,
+          "id": 36,
           "items": [],
-          "project_id": 4,
+          "project_id": 38,
           "update_time": "0001-01-01T00:00:00.000Z"
         },
         "metadata": {
           "public": "true",
-          "retention_id": "1"
+          "retention_id": "5"
         },
         "name": "fixtures-core-proxy",
         "owner_id": 1,
         "owner_name": "admin",
-        "project_id": 4,
-        "registry_id": 1,
+        "project_id": 38,
+        "registry_id": 10,
         "repo_count": 0,
-        "update_time": "2026-11-26T04:49:16.521Z"
+        "update_time": "2026-11-26T05:20:40.602Z"
+      },
+      "headers": {},
+      "status": 200
+    },
+    "project_get_proxy_days": {
+      "body": {
+        "creation_time": "2026-11-26T05:20:46.489Z",
+        "current_user_role_id": 1,
+        "current_user_role_ids": [
+          1
+        ],
+        "cve_allowlist": {
+          "creation_time": "0001-01-01T00:00:00.000Z",
+          "id": 37,
+          "items": [],
+          "project_id": 39,
+          "update_time": "0001-01-01T00:00:00.000Z"
+        },
+        "metadata": {
+          "public": "false",
+          "retention_id": "6"
+        },
+        "name": "fixtures-core-proxy-days",
+        "owner_id": 1,
+        "owner_name": "admin",
+        "project_id": 39,
+        "registry_id": 10,
+        "repo_count": 0,
+        "update_time": "2026-11-26T05:20:46.489Z"
+      },
+      "headers": {},
+      "status": 200
+    },
+    "project_get_proxy_filtered": {
+      "body": {
+        "creation_time": "2026-11-26T05:20:40.602Z",
+        "current_user_role_id": 1,
+        "current_user_role_ids": [
+          1
+        ],
+        "cve_allowlist": {
+          "creation_time": "0001-01-01T00:00:00.000Z",
+          "id": 36,
+          "items": [],
+          "project_id": 38,
+          "update_time": "0001-01-01T00:00:00.000Z"
+        },
+        "metadata": {
+          "public": "true",
+          "retention_id": "5"
+        },
+        "name": "fixtures-core-proxy",
+        "owner_id": 1,
+        "owner_name": "admin",
+        "project_id": 38,
+        "registry_id": 10,
+        "repo_count": 0,
+        "update_time": "2026-11-26T05:20:40.602Z"
       },
       "headers": {},
       "status": 200
     },
     "project_get_updated": {
       "body": {
-        "creation_time": "2026-11-26T04:49:03.557Z",
+        "creation_time": "2026-11-26T05:20:27.145Z",
         "current_user_role_id": 1,
         "current_user_role_ids": [
           1
         ],
         "cve_allowlist": {
           "creation_time": "0001-01-01T00:00:00.000Z",
-          "id": 2,
+          "id": 35,
           "items": [],
-          "project_id": 2,
+          "project_id": 36,
           "update_time": "0001-01-01T00:00:00.000Z"
         },
         "metadata": {
@@ -123,14 +195,70 @@
         "name": "fixtures-core",
         "owner_id": 1,
         "owner_name": "admin",
-        "project_id": 2,
+        "project_id": 36,
         "repo_count": 0,
-        "update_time": "2026-11-26T04:49:03.557Z"
+        "update_time": "2026-11-26T05:20:27.145Z"
+      },
+      "headers": {},
+      "status": 200
+    },
+    "project_proxy_days_retention": {
+      "body": {
+        "algorithm": "or",
+        "id": 6,
+        "rules": [
+          {
+            "action": "retain",
+            "id": 1,
+            "params": {
+              "nDaysSinceLastPull": 7
+            },
+            "priority": 1,
+            "scope_selectors": {
+              "repository": [
+                {
+                  "decoration": "repoMatches",
+                  "kind": "doublestar",
+                  "pattern": "**"
+                }
+              ]
+            },
+            "tag_selectors": [
+              {
+                "decoration": "matches",
+                "kind": "doublestar",
+                "pattern": "**"
+              }
+            ],
+            "template": "nDaysSinceLastPull"
+          }
+        ],
+        "scope": {
+          "level": "project",
+          "ref": 39
+        },
+        "trigger": {
+          "kind": "Schedule",
+          "settings": {
+            "cron": "0 0 0 * * *",
+            "next_scheduled_time": "2026-11-27T00:00:00.000Z"
+          }
+        }
       },
       "headers": {},
       "status": 200
     },
     "project_update": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "project_update_proxy_bad_kind": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "project_update_proxy_filter": {
       "body": null,
       "headers": {},
       "status": 200
@@ -169,16 +297,16 @@
     "projects_with_created": {
       "body": [
         {
-          "creation_time": "2026-11-26T04:49:03.557Z",
+          "creation_time": "2026-11-26T05:20:27.145Z",
           "current_user_role_id": 1,
           "current_user_role_ids": [
             1
           ],
           "cve_allowlist": {
             "creation_time": "0001-01-01T00:00:00.000Z",
-            "id": 2,
+            "id": 35,
             "items": [],
-            "project_id": 2,
+            "project_id": 36,
             "update_time": "0001-01-01T00:00:00.000Z"
           },
           "metadata": {
@@ -188,9 +316,9 @@
           "name": "fixtures-core",
           "owner_id": 1,
           "owner_name": "admin",
-          "project_id": 2,
+          "project_id": 36,
           "repo_count": 0,
-          "update_time": "2026-11-26T04:49:03.557Z"
+          "update_time": "2026-11-26T05:20:27.145Z"
         },
         {
           "creation_time": "2026-11-26T04:48:18.798Z",
@@ -224,16 +352,16 @@
     "projects_with_updated": {
       "body": [
         {
-          "creation_time": "2026-11-26T04:49:03.557Z",
+          "creation_time": "2026-11-26T05:20:27.145Z",
           "current_user_role_id": 1,
           "current_user_role_ids": [
             1
           ],
           "cve_allowlist": {
             "creation_time": "0001-01-01T00:00:00.000Z",
-            "id": 2,
+            "id": 35,
             "items": [],
-            "project_id": 2,
+            "project_id": 36,
             "update_time": "0001-01-01T00:00:00.000Z"
           },
           "metadata": {
@@ -244,9 +372,9 @@
           "name": "fixtures-core",
           "owner_id": 1,
           "owner_name": "admin",
-          "project_id": 2,
+          "project_id": 36,
           "repo_count": 0,
-          "update_time": "2026-11-26T04:49:03.557Z"
+          "update_time": "2026-11-26T05:20:27.145Z"
         },
         {
           "creation_time": "2026-11-26T04:48:18.798Z",
@@ -285,17 +413,17 @@
     "quotas_all": {
       "body": [
         {
-          "creation_time": "2026-11-26T04:49:03.565Z",
+          "creation_time": "2026-11-26T05:20:27.149Z",
           "hard": {
             "storage": 5368709120
           },
-          "id": 2,
+          "id": 35,
           "ref": {
-            "id": 2,
+            "id": 36,
             "name": "fixtures-core",
             "owner_name": ""
           },
-          "update_time": "2026-11-26T04:49:03.565Z",
+          "update_time": "2026-11-26T05:20:27.149Z",
           "used": {
             "storage": 0
           }
@@ -325,17 +453,17 @@
     "quotas_created": {
       "body": [
         {
-          "creation_time": "2026-11-26T04:49:03.565Z",
+          "creation_time": "2026-11-26T05:20:27.149Z",
           "hard": {
             "storage": 5368709120
           },
-          "id": 2,
+          "id": 35,
           "ref": {
-            "id": 2,
+            "id": 36,
             "name": "fixtures-core",
             "owner_name": ""
           },
-          "update_time": "2026-11-26T04:49:03.565Z",
+          "update_time": "2026-11-26T05:20:27.149Z",
           "used": {
             "storage": 0
           }
@@ -349,17 +477,17 @@
     "quotas_created_updated": {
       "body": [
         {
-          "creation_time": "2026-11-26T04:49:03.565Z",
+          "creation_time": "2026-11-26T05:20:27.149Z",
           "hard": {
             "storage": -1
           },
-          "id": 2,
+          "id": 35,
           "ref": {
-            "id": 2,
+            "id": 36,
             "name": "fixtures-core",
             "owner_name": ""
           },
-          "update_time": "2026-11-26T04:49:03.565Z",
+          "update_time": "2026-11-26T05:20:27.149Z",
           "used": {
             "storage": 0
           }
@@ -380,13 +508,13 @@
     "registries_one": {
       "body": [
         {
-          "creation_time": "2026-11-26T04:49:14.666Z",
+          "creation_time": "2026-11-26T05:20:38.661Z",
           "credential": {},
-          "id": 1,
+          "id": 10,
           "name": "fixtures-core-hub",
           "status": "healthy",
           "type": "docker-hub",
-          "update_time": "2026-11-26T04:49:14.666Z",
+          "update_time": "2026-11-26T05:20:38.661Z",
           "url": "https://hub.docker.com"
         }
       ],
@@ -399,7 +527,7 @@
       "body": {
         "auth_mode": "db_auth",
         "banner_message": "",
-        "current_time": "2026-11-26T04:48:56.318Z",
+        "current_time": "2026-11-26T05:20:19.620Z",
         "external_url": "http://harbor-v2155.lab:8080",
         "harbor_version": "v2.15.5-8c17ef6e",
         "has_ca_root": false,

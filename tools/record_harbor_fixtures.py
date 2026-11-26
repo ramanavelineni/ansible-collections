@@ -187,7 +187,7 @@ def delete_named_like(srv, path, prefix):
             expect(srv.call('DELETE', '%s/%d' % (path, item['id'])), 200, 'delete leftover %s' % item['name'])
 
 
-CORE_PROJECTS = ('fixtures-core-proxy', 'fixtures-core')
+CORE_PROJECTS = ('fixtures-core-proxy', 'fixtures-core-proxy-days', 'fixtures-core')
 CORE_PREFIX = 'fixtures-core'
 
 
@@ -240,7 +240,29 @@ def record_core(srv, out):
         'project_name': 'fixtures-core-proxy', 'metadata': {'public': 'true'}, 'registry_id': rid}), 201, 'create proxy project')
     out['project_create_proxy'] = proxy
     out['project_get_proxy'] = expect(srv.call('GET', '/projects/%d' % project_id_of(proxy)), 200, 'proxy project')
+    # The proxy-cache filter and the referrers API (2.16; 2.15 drops the keys).
+    out['project_update_proxy_filter'] = srv.call('PUT', '/projects/%d' % project_id_of(proxy), {'metadata': {
+        'proxy_cache_filter_kind': 'regex', 'proxy_cache_filter_pattern': '^library/.*', 'proxy_referrer_api': 'true'}})
+    out['project_get_proxy_filtered'] = expect(srv.call('GET', '/projects/%d' % project_id_of(proxy)), 200, 'proxy project')
+    out['project_update_proxy_bad_kind'] = srv.call('PUT', '/projects/%d' % project_id_of(proxy), {'metadata': {
+        'proxy_cache_filter_kind': 'glob'}})
     expect(srv.call('DELETE', '/projects/%d' % project_id_of(proxy)), 200, 'delete proxy project')
+    # retention_days for the retention policy of a new proxy-cache project (2.16).
+    days = srv.call('POST', '/projects', {'project_name': 'fixtures-core-proxy-days', 'metadata': {'public': 'false'},
+                                          'registry_id': rid, 'retention_days': 3})
+    out['project_create_proxy_days'] = days
+    if days['status'] == 201:
+        days_project = expect(srv.call('GET', '/projects/%d' % project_id_of(days)), 200, 'proxy project')
+        out['project_get_proxy_days'] = days_project
+        retention_id = (days_project['body'].get('metadata') or {}).get('retention_id')
+        if retention_id:
+            out['project_proxy_days_retention'] = expect(srv.call('GET', '/retentions/%s' % retention_id), 200,
+                                                         'retention policy')
+        expect(srv.call('DELETE', '/projects/%d' % project_id_of(days)), 200, 'delete proxy project')
+    out['project_create_days_not_proxy'] = srv.call('POST', '/projects', {
+        'project_name': 'fixtures-core-proxy-days', 'metadata': {'public': 'false'}, 'retention_days': 3})
+    for leftover in projects_named(srv, 'fixtures-core-proxy-days'):
+        expect(srv.call('DELETE', '/projects/%d' % leftover['project_id']), 200, 'delete project')
     expect(srv.call('DELETE', '/registries/%d' % rid), 200, 'delete registry')
 
     out['project_delete'] = expect(srv.call('DELETE', '/projects/%d' % pid), 200, 'delete project')

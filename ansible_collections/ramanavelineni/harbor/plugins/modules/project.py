@@ -47,10 +47,15 @@ options:
     description:
       - Project settings, by Harbor's metadata key. Only the keys given are compared and changed.
       - V(auto_scan), V(auto_sbom_generation), V(prevent_vul), V(reuse_sys_cve_allowlist),
-        V(enable_content_trust), V(enable_content_trust_cosign) and V(proxy_cache_local_on_not_found)
-        take booleans; V(severity) takes V(none), V(low), V(medium), V(high) or V(critical);
-        V(proxy_speed_kb) and V(max_upstream_conn) take integers.
+        V(enable_content_trust), V(enable_content_trust_cosign), V(proxy_cache_local_on_not_found) and
+        V(proxy_referrer_api) take booleans; V(severity) takes V(none), V(low), V(medium), V(high) or
+        V(critical); V(proxy_speed_kb) and V(max_upstream_conn) take integers.
       - V(proxy_cache_local_on_not_found) needs Harbor 2.15.
+      - For a proxy-cache project, Harbor 2.16 adds V(proxy_cache_filter_pattern), the repositories the project
+        proxies (empty for all), V(proxy_cache_filter_kind), how the pattern is read (V(doublestar), a glob with
+        C(**), or V(regex)), and V(proxy_referrer_api), whether the OCI referrers API is proxied to the upstream
+        registry. They fail on an older Harbor and on a project that is not a proxy cache, where Harbor would
+        drop or ignore them.
       - Harbor silently ignores keys it does not know and stores an invalid severity as C(unknown),
         so the module checks keys and values before sending anything.
     type: dict
@@ -60,6 +65,17 @@ options:
       - Only used when the project is created. Harbor cannot change it later, so a project bound to
         another registry fails with instructions instead.
     type: str
+  retention_days:
+    description:
+      - For a new proxy-cache project, the number of days since the last pull after which the retention policy
+        that Harbor creates with the project removes an artifact. Harbor uses 7 days without it. V(0) is a valid
+        threshold and does not turn retention off.
+      - Only used when the project is created, and only for a proxy-cache project; Harbor refuses it otherwise.
+        Afterwards the policy is the project's tag retention policy, managed with
+        M(ramanavelineni.harbor.tag_retention).
+      - Needs Harbor 2.16.
+    type: int
+    version_added: 0.10.0
   quota_gb:
     description:
       - Storage quota in GiB. V(-1) means unlimited. Any other value must be V(1) or more. V(0) fails, because
@@ -187,11 +203,20 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
 )
 
 BOOL_KEYS = ('auto_scan', 'auto_sbom_generation', 'prevent_vul', 'reuse_sys_cve_allowlist',
-             'enable_content_trust', 'enable_content_trust_cosign', 'proxy_cache_local_on_not_found')
+             'enable_content_trust', 'enable_content_trust_cosign', 'proxy_cache_local_on_not_found',
+             'proxy_referrer_api')
 INT_KEYS = ('proxy_speed_kb', 'max_upstream_conn')
-SEVERITIES = ('none', 'low', 'medium', 'high', 'critical')
+# Keys that take text, each with the values it takes (None: any).
+TEXT_KEYS = dict(severity=('none', 'low', 'medium', 'high', 'critical'),
+                 proxy_cache_filter_kind=('', 'doublestar', 'regex'), proxy_cache_filter_pattern=None)
+SEVERITIES = TEXT_KEYS['severity']
 # Key -> oldest (major, minor) that knows it.
-NEWER_KEYS = dict(proxy_cache_local_on_not_found=(2, 15))
+NEWER_KEYS = dict(proxy_cache_local_on_not_found=(2, 15), proxy_cache_filter_kind=(2, 16),
+                  proxy_cache_filter_pattern=(2, 16), proxy_referrer_api=(2, 16))
+# Keys only a proxy-cache project has: Harbor 2.16 drops the filter on any
+# other project, and stores proxy_referrer_api without a use for it.
+PROXY_ONLY_KEYS = ('proxy_cache_filter_kind', 'proxy_cache_filter_pattern', 'proxy_referrer_api')
+RETENTION_DAYS_MAX = 18250
 
 
 def normalize_metadata(metadata, minor):
@@ -219,9 +244,14 @@ def normalize_metadata(metadata, minor):
                 value = str(int(value))
             except (TypeError, ValueError):
                 raise ValueError('metadata.%s must be an integer, not %r.' % (key, value))
+        elif key in TEXT_KEYS:
+            if not isinstance(value, str):
+                raise ValueError('metadata.%s must be a string, not %r.' % (key, value))
+            if TEXT_KEYS[key] is not None and value not in TEXT_KEYS[key]:
+                raise ValueError('metadata.%s must be one of %s, not %r.' % (key, ', '.join(TEXT_KEYS[key]), value))
         else:
             raise ValueError('metadata.%s is not a Harbor project setting (known: %s).'
-                             % (key, ', '.join(sorted(BOOL_KEYS + INT_KEYS + ('severity',)))))
+                             % (key, ', '.join(sorted(BOOL_KEYS + INT_KEYS + tuple(TEXT_KEYS)))))
         needs = NEWER_KEYS.get(key)
         if needs and older_than(minor, needs):
             raise ValueError('metadata.%s needs Harbor %d.%d.' % ((key,) + needs))
@@ -255,10 +285,26 @@ def quota_of(client, project_id, needed=False):
     return quotas[0] if quotas else None
 
 
+def check_proxy_only(params, metadata, proxy, minor):
+    """Refuse what only a proxy-cache project takes on one that is not, and retention_days where Harbor can't take it."""
+    given = sorted(k for k in metadata if k in PROXY_ONLY_KEYS)
+    if given and not proxy:
+        raise ValueError('metadata.%s only applies to a proxy-cache project, and project %r is not one: Harbor would '
+                         'drop or ignore it.' % (', metadata.'.join(given), params['name']))
+    days = params['retention_days']
+    if days is None:
+        return
+    if not 0 <= days <= RETENTION_DAYS_MAX:
+        raise ValueError('retention_days must be between 0 and %d, not %d.' % (RETENTION_DAYS_MAX, days))
+    if older_than(minor, (2, 16)):
+        raise ValueError('retention_days needs Harbor 2.16.')
+
+
 def ensure(module, client):
     params = module.params
     client.warn_if_untested()
-    metadata = normalize_metadata(params['metadata'], server_minor(client))
+    minor = server_minor(client)
+    metadata = normalize_metadata(params['metadata'], minor)
     storage = None if params['quota_gb'] is None else (-1 if params['quota_gb'] == -1 else params['quota_gb'] * GIB)
     if params['quota_gb'] is not None and params['quota_gb'] < 1 and params['quota_gb'] != -1:
         # Harbor refuses 0 in a quota update, and on create replaces it with
@@ -293,12 +339,18 @@ def ensure(module, client):
         registry_id = require_registry(registries, params['proxy_registry'])
 
     if not current:
+        check_proxy_only(params, metadata, bool(registry_id), minor)
+        if params['retention_days'] is not None and not registry_id:
+            raise ValueError('retention_days only applies to a new proxy-cache project; set proxy_registry, or use '
+                             'the tag_retention module for project %r.' % params['name'])
         body = dict(project_name=params['name'],
                     metadata=dict(metadata, public='true' if params['public'] else 'false'))
         if storage is not None:
             body['storage_limit'] = storage
         if registry_id:
             body['registry_id'] = registry_id
+        if params['retention_days'] is not None:
+            body['retention_days'] = params['retention_days']
         after = dict(project_id=None, name=params['name'], public=bool(params['public']), metadata=metadata,
                      registry_id=registry_id, proxy_registry=params['proxy_registry'],
                      quota_gb=params['quota_gb'], repo_count=0)
@@ -328,6 +380,8 @@ def ensure(module, client):
         raise ValueError('Project %r has no quota in Harbor, so quota_gb cannot be set. Remove quota_gb, or '
                          'check the project\'s quota in Harbor.' % params['name'])
     before = view(current, quota, registries)
+    # retention_days is a create option; the project exists, so it is left out.
+    check_proxy_only(dict(params, retention_days=None), metadata, bool(before['registry_id']), minor)
     if params['proxy_registry'] is not None and before['registry_id'] != registry_id:
         raise ValueError(
             'Project %r is bound to registry %r, but proxy_registry says %r. Harbor cannot change a '
@@ -379,6 +433,7 @@ def main():
         metadata=dict(type='dict'),
         proxy_registry=dict(type='str'),
         quota_gb=dict(type='int'),
+        retention_days=dict(type='int'),
         confirm_delete=dict(type='bool', default=False),
     )
     module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True)

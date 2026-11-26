@@ -52,9 +52,10 @@ PROJECT_OPTIONS = (('public', KEEP), ('metadata', {}), ('proxy_registry', None),
 # checks the same lists; a unit test holds the two together). Harbor stores
 # every value as a string.
 METADATA_BOOL = ('auto_scan', 'auto_sbom_generation', 'prevent_vul', 'reuse_sys_cve_allowlist',
-                 'enable_content_trust', 'enable_content_trust_cosign', 'proxy_cache_local_on_not_found')
+                 'enable_content_trust', 'enable_content_trust_cosign', 'proxy_cache_local_on_not_found',
+                 'proxy_referrer_api')
 METADATA_INT = ('proxy_speed_kb', 'max_upstream_conn')
-METADATA_TEXT = ('severity',)
+METADATA_TEXT = ('severity', 'proxy_cache_filter_kind', 'proxy_cache_filter_pattern')
 # Kept by Harbor, managed elsewhere: the project's retention policy id.
 METADATA_SKIPPED = ('public', 'retention_id')
 
