@@ -33,6 +33,7 @@ __project_apply_options:
     - metadata
     - proxy_registry
     - quota_gb
+    - retention_days
     - confirm_delete
   robot_account:
     - state

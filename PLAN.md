@@ -502,6 +502,18 @@ or an OIDC user's CLI secret.
   in metadata). Unknown keys are silently dropped, and an invalid severity is
   stored as `unknown`, so keys and values are checked first. 2.15 adds
   `proxy_cache_local_on_not_found`.
+- 2.16 adds the proxy-cache keys `proxy_cache_filter_kind` (`doublestar`,
+  `regex` or empty), `proxy_cache_filter_pattern` and `proxy_referrer_api`.
+  2.15 drops them. 2.16 answers 400 for another kind, drops the filter keys on
+  a project that is not a proxy cache, and stores any text as
+  `proxy_referrer_api`; so the module checks the values, and refuses the three
+  keys on a project that is not a proxy cache.
+- 2.16's create takes `retention_days` (0 to 18250) for the retention policy
+  it creates with a proxy-cache project (`nDaysSinceLastPull`, 7 without it).
+  It answers 400 for a project that is not a proxy cache; 2.15 ignores the
+  field and keeps 7. The module sends it only on a create, and refuses it
+  before 2.16 and for other projects. It is not compared: afterwards the
+  policy is the project's tag retention policy.
 - The proxy-cache registry can't change after creation; the module fails with
   instructions.
 - Quota through `/quotas?reference=project&reference_id=` and

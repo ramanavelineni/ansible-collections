@@ -97,7 +97,19 @@ play or task. Harbor can't change a project's endpoint after it is created.
 name: dockerhub
 public: true
 proxy_registry: docker-hub
+retention_days: 14          # Harbor 2.16, used when the project is created
+metadata:
+  proxy_cache_filter_kind: doublestar     # Harbor 2.16
+  proxy_cache_filter_pattern: "library/**"
+  proxy_referrer_api: true
 ```
+
+With Harbor 2.16 a proxy-cache project can proxy only some repositories
+(`proxy_cache_filter_pattern`, read as a glob or, with
+`proxy_cache_filter_kind: regex`, as a regular expression) and the OCI
+referrers API (`proxy_referrer_api`). `retention_days` sets the retention
+policy Harbor creates with a new proxy-cache project; it is not compared
+afterwards, so change that policy in the project's `tag_retention` section.
 
 ### Vault files
 

@@ -27,6 +27,7 @@
     metadata: "{{ __project_apply_project.metadata | default(omit) }}"
     proxy_registry: "{{ __project_apply_project.proxy_registry | default(omit) }}"
     quota_gb: "{{ __project_apply_project.quota_gb | default(omit) }}"
+    retention_days: "{{ __project_apply_project.retention_days | default(omit) }}"
     confirm_delete: "{{ __project_apply_project.confirm_delete | default(omit) }}"
   register: __project_apply_done_project
 
