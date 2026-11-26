@@ -20,7 +20,7 @@ import pytest
 import yaml
 
 from ansible_collections.ramanavelineni.harbor.plugins.filter import project_export as plugin
-from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor import MEMBER_ROLES, harbor_argument_spec
+from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor import harbor_argument_spec
 from ansible_collections.ramanavelineni.harbor.plugins.modules import (
     project as project_module,
     project_member,
@@ -112,8 +112,11 @@ def test_the_secrets_are_the_options_the_module_hides(section):
     assert sorted(plugin.SECRETS[section]) == hidden
 
 
-def test_built_in_roles_are_the_member_modules():
-    assert sorted(plugin.BUILT_IN_ROLES) == sorted(MEMBER_ROLES)
+def test_a_custom_role_is_exported_by_name():
+    # The role itself is server-wide (server_apply_roles); the member names it.
+    config = plugin.project_export_config(dict(INFO, project_member=[
+        dict(INFO['project_member'][0], role='ci-deployer', role_id=6)]))
+    assert config['project_member'] == [{'user': 'admin', 'role': 'ci-deployer'}]
 
 
 def test_metadata_keys_are_the_project_modules():
@@ -218,8 +221,6 @@ def test_a_proxy_cache_project_names_its_registry():
      'project apps has the metadata key brand_new, which this collection does not know'),
     (dict(project_member=[dict(INFO['project_member'][0], role=None, role_id=9)]),
      'member admin of project apps has a role this collection does not know'),
-    (dict(project_member=[dict(INFO['project_member'][0], role='ci-deployer', role_id=6)]),
-     'member admin of project apps has the custom role ci-deployer'),
     (dict(project=dict(INFO['project'], metadata={'proxy_speed_kb': 'fast'})), 'is not a whole number'),
 ])
 def test_what_project_apply_could_not_apply_stops_the_export(change, message):

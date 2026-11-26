@@ -52,9 +52,11 @@ options:
   role:
     description:
       - The member's role in the project. Required to add a member.
+      - One of the built-in roles V(project_admin), V(maintainer), V(developer), V(guest) and V(limited_guest),
+        or the name of a custom role (Harbor 2.16, see M(ramanavelineni.harbor.role)). A custom role is looked up
+        by name; one that does not exist fails the task, and so does any other name on an older Harbor.
       - Left out for an existing member, the role is not changed.
     type: str
-    choices: [project_admin, maintainer, developer, guest, limited_guest]
   state:
     description:
       - V(present) adds the member or changes its role to match.
@@ -155,10 +157,10 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor import (
     GROUP_AUTH_MODES,
     GROUP_TYPES,
-    MEMBER_ROLES,
     auth_mode,
     harbor_argument_spec,
     id_from_location,
+    member_role_id,
     member_view,
     require_project,
     run_module,
@@ -236,7 +238,7 @@ def ensure(module, client):
             client.delete('%s/%d' % (base, current['id']))
         return dict(changed=True, member={}, diff=dict(before=before, after={}))
 
-    wanted_role = MEMBER_ROLES[params['role']] if params['role'] is not None else None
+    wanted_role = member_role_id(client, params['role']) if params['role'] is not None else None
     if current:
         if wanted_role is None or current.get('role_id') == wanted_role:
             return dict(changed=False, member=before, diff=dict(before=before, after=before))
@@ -286,7 +288,7 @@ def main():
         user=dict(type='str'),
         group=dict(type='str'),
         group_type=dict(type='str', choices=['oidc', 'ldap', 'http']),
-        role=dict(type='str', choices=['project_admin', 'maintainer', 'developer', 'guest', 'limited_guest']),
+        role=dict(type='str'),
         state=dict(type='str', default='present', choices=['present', 'absent']),
     )
     module = AnsibleModule(

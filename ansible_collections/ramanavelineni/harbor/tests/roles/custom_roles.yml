@@ -1,0 +1,193 @@
+---
+# Custom project roles (Harbor 2.16) end to end: server_apply makes the role,
+# project_apply gives a project member that role by name, project_export
+# writes the member out with it, and server_apply refuses to delete the role
+# while the member has it (Harbor's answer, passed on). CI runs it against the
+# throwaway Harbor the job installs; `make role-test COLLECTION=harbor
+# ROLE_TEST_PLAYBOOK=custom_roles` against the server in the environment.
+#
+# On a Harbor before 2.16, which has no custom roles, it checks that the role
+# module says so and stops there.
+#
+# It makes a role, a user and a project named roletest-roles…, and removes them
+# before it starts and when it ends. Throwaway servers only.
+- name: Test custom project roles through the roles
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    roles_api: "{{ lookup('ansible.builtin.env', 'HARBOR_URL') | regex_replace('/+$', '') }}/api/v2.0"
+    roles_admin: "{{ lookup('ansible.builtin.env', 'HARBOR_USERNAME') | default('admin', true) }}"
+    roles_password: "{{ lookup('ansible.builtin.env', 'HARBOR_PASSWORD') }}"
+    roles_role: roletest-roles-ci
+    roles_user: roletest-roles-user
+    roles_project: roletest-roles
+    roles_files: "{{ playbook_dir }}/files/custom_roles"
+    roles_definition:
+      roletest-roles-ci:
+        description: made by the custom_roles role test
+        permissions:
+          - {resource: repository, action: pull}
+          - {resource: repository, action: push}
+          - {resource: artifact, action: read}
+  tasks:
+    - name: Check that a server is named
+      ansible.builtin.assert:
+        that:
+          - lookup('ansible.builtin.env', 'HARBOR_URL') | length > 0
+          - lookup('ansible.builtin.env', 'HARBOR_PASSWORD') | length > 0
+        fail_msg: Set HARBOR_URL, HARBOR_USERNAME and HARBOR_PASSWORD to a throwaway Harbor.
+        quiet: true
+
+    - name: Read the server
+      ramanavelineni.harbor.info:
+      register: roles_info
+
+    - name: Before 2.16 the role module says custom roles need it, and the test ends
+      when: roles_info.version is version('v2.16', '<')
+      block:
+        - name: Try the role module
+          ramanavelineni.harbor.role:
+            name: "{{ roles_role }}"
+            permissions: "{{ roles_definition[roles_role].permissions }}"
+          register: roles_too_old
+          failed_when: roles_too_old is not failed or 'need Harbor 2.16' not in roles_too_old.msg
+
+        - name: Nothing more to test on Harbor {{ roles_info.version }}
+          ansible.builtin.meta: end_play
+
+    - name: Run the test and clean up after it
+      block:
+        - name: Remove what an earlier run left behind
+          ansible.builtin.include_tasks: tasks/custom_roles-cleanup.yml
+
+        - name: Make the test user
+          ansible.builtin.uri:
+            url: "{{ roles_api }}/users"
+            method: POST
+            url_username: "{{ roles_admin }}"
+            url_password: "{{ roles_password }}"
+            force_basic_auth: true
+            body_format: json
+            body:
+              username: "{{ roles_user }}"
+              email: "{{ roles_user }}@example.com"
+              realname: Role Test
+              password: Roletest-user-1
+            status_code: 201
+
+        # ---- server_apply makes the role --------------------------------------
+
+        - name: Apply the role
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.server_apply
+          vars:
+            server_apply_roles: "{{ roles_definition }}"
+
+        - name: The role was made
+          ansible.builtin.assert:
+            that: server_apply_changed
+            quiet: true
+
+        - name: Apply it again
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.server_apply
+          vars:
+            server_apply_roles: "{{ roles_definition }}"
+            server_apply_drift_check: true
+
+        - name: Read the role
+          ramanavelineni.harbor.role_info:
+            name: "{{ roles_role }}"
+          register: roles_read
+
+        - name: Harbor stored what was declared
+          ansible.builtin.assert:
+            that:
+              - not server_apply_changed
+              - roles_read.roles | length == 1
+              - not roles_read.roles[0].builtin
+              - roles_read.roles[0].permissions | length == 3
+            fail_msg: "roles: {{ roles_read.roles }}"
+            quiet: true
+
+        # ---- project_apply gives a member that role ----------------------------
+
+        - name: Apply the project
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.project_apply
+          vars:
+            project_apply_path: "{{ roles_files }}"
+
+        - name: Apply it again, as a drift check
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.project_apply
+          vars:
+            project_apply_path: "{{ roles_files }}"
+            project_apply_drift_check: true
+
+        - name: Read the members
+          ramanavelineni.harbor.project_member_info:
+            project: "{{ roles_project }}"
+            name: "{{ roles_user }}"
+          register: roles_members
+
+        - name: The member has the custom role, by name
+          ansible.builtin.assert:
+            that:
+              - roles_members.members | map(attribute='role') | list == [roles_role]
+              - roles_members.members[0].role_id == roles_read.roles[0].id
+            fail_msg: "members: {{ roles_members.members }}"
+            quiet: true
+
+        # ---- project_export writes it out --------------------------------------
+
+        - name: Make a directory for the export
+          ansible.builtin.tempfile:
+            state: directory
+            suffix: roletest-roles
+          register: roles_export
+
+        - name: Export the project
+          ansible.builtin.include_role:
+            name: ramanavelineni.harbor.project_export
+          vars:
+            project_export_project: "{{ roles_project }}"
+            project_export_dest: "{{ roles_export.path }}"
+
+        - name: Read the export
+          ansible.builtin.set_fact:
+            roles_exported: "{{ lookup('ansible.builtin.file', roles_export.path ~ '/' ~ roles_project ~ '.yml') | from_yaml }}"
+
+        - name: The export names the custom role
+          ansible.builtin.assert:
+            that: >-
+              roles_exported.project_member | selectattr('user', 'defined')
+              | selectattr('user', 'equalto', roles_user) | map(attribute='role') | list == [roles_role]
+            fail_msg: "exported members: {{ roles_exported.project_member }}"
+            quiet: true
+
+        # ---- the role can't go while the member has it -------------------------
+
+        - name: Try to delete the role while the member has it
+          ramanavelineni.harbor.role:
+            name: "{{ roles_role }}"
+            state: absent
+          register: roles_refused
+          failed_when: roles_refused is not failed or 'still assigned' not in roles_refused.msg
+
+        - name: The role is still there
+          ramanavelineni.harbor.role_info:
+            name: "{{ roles_role }}"
+          register: roles_still
+          failed_when: roles_still.roles | length != 1
+
+      always:
+        - name: Clean up
+          ansible.builtin.include_tasks: tasks/custom_roles-cleanup.yml
+
+        - name: Remove the export
+          ansible.builtin.file:
+            path: "{{ roles_export.path }}"
+            state: absent
+          when: roles_export.path is defined

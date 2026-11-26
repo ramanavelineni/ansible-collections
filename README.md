@@ -13,7 +13,7 @@ make the server match, and change nothing when it already does.
 | Collection | Configures | Modules | Tested with |
 |---|---|---|---|
 | [**`ramanavelineni.semaphoreui`**](ansible_collections/ramanavelineni/semaphoreui/) | [Semaphore UI](https://semaphoreui.com): projects and everything in them, users, runners | 35, plus 3 roles | Semaphore UI 2.18, 2.19 |
-| [**`ramanavelineni.harbor`**](ansible_collections/ramanavelineni/harbor/) | [Harbor](https://goharbor.io): projects, members, robot accounts, registries, replication, policies, system settings | 25, plus 3 roles | Harbor 2.15, 2.16 |
+| [**`ramanavelineni.harbor`**](ansible_collections/ramanavelineni/harbor/) | [Harbor](https://goharbor.io): projects, members, robot accounts, registries, replication, policies, system settings | 27, plus 3 roles | Harbor 2.15, 2.16 |
 
 ---
 
@@ -268,13 +268,14 @@ Details: [collection README](ansible_collections/ramanavelineni/semaphoreui/)
 </details>
 
 <details>
-<summary><b>ramanavelineni.harbor</b>: 25 modules</summary>
+<summary><b>ramanavelineni.harbor</b>: 27 modules</summary>
 
 | Area | Modules |
 |---|---|
 | Server | `info` |
 | Projects | `project`, `project_info` |
 | Project members | `project_member`, `project_member_info` |
+| Project roles (Harbor 2.16) | `role`, `role_info` |
 | Robot accounts | `robot_account`, `robot_account_info` |
 | Registries (endpoints) | `registry`, `registry_info` |
 | Replication rules | `replication`, `replication_info` |

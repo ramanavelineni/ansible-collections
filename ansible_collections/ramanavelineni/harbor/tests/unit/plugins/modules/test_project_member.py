@@ -377,3 +377,74 @@ def test_unknown_role_id_on_update(server, base, run_module):
     # one that is no role. The module only sends the ids it names.
     answer = server.fixtures['member_update_bad_role']
     assert answer['status'] == (404 if server.version >= '2.16' else 200)
+
+
+# -- custom roles (Harbor 2.16), from the role area ----------------------------
+
+CUSTOM = 'fixtures-role-ci'
+ROLE_USER = dict(project='fixtures-role', user='fixtures-role-user')
+
+
+def role_members(server):
+    """The role area's project; returns (members path, recorded list with the custom-role member)."""
+    server.route('GET', '/projects', 'role_projects')
+    pid = server.fixtures['role_projects']['body'][0]['project_id']
+    server.route('GET', '/roles', 'role_list_one')
+    return '/projects/%d/members' % pid, server.response('role_member_list')
+
+
+def test_add_member_with_a_custom_role(server, base, run_module):
+    if server.version < '2.16':
+        pytest.skip('custom roles need 2.16 (see the test below)')
+    path, members = role_members(server)
+    custom = [m for m in members['body'] if m['entity_name'] == 'fixtures-role-user'][0]
+    before = dict(members, body=[m for m in members['body'] if m is not custom])
+    server.route('GET', path, before)
+    server.route('POST', path, 'role_member_create')
+    # Hand-built: the single-member read after the create, taken from the recorded list.
+    server.route('GET', '%s/%d' % (path, custom['id']), dict(status=200, body=custom, headers={}))
+    result = run_module(project_member.main, dict(ROLE_USER, role=CUSTOM))
+    assert result['changed'] is True
+    role_id = server.fixtures['role_create']['body']['id']
+    assert server.calls('POST', path)[0]['body'] == dict(role_id=role_id, member_user=dict(username='fixtures-role-user'))
+    assert (result['member']['role'], result['member']['role_id']) == (CUSTOM, role_id)
+
+
+def test_member_with_the_same_custom_role_is_left_alone(server, base, run_module):
+    if server.version < '2.16':
+        pytest.skip('custom roles need 2.16')
+    path, members = role_members(server)
+    server.route('GET', path, members)
+    result = run_module(project_member.main, dict(ROLE_USER, role=CUSTOM))
+    assert result['changed'] is False
+    assert server.calls('PUT') == [] and server.calls('POST') == []
+
+
+def test_unknown_custom_role_fails_with_the_roles_harbor_has(server, base, run_module):
+    if server.version < '2.16':
+        pytest.skip('custom roles need 2.16')
+    path, members = role_members(server)
+    server.route('GET', path, members)
+    result = run_module(project_member.main, dict(ROLE_USER, role='nobody-has-this'))
+    assert result['failed'] is True
+    assert "no custom role 'nobody-has-this' (custom roles: %s" % CUSTOM in result['msg']
+    assert server.calls('POST') == [] and server.calls('PUT') == []
+
+
+def test_a_custom_role_needs_2_16(server, base, run_module):
+    if server.version >= '2.16':
+        pytest.skip('custom roles exist on %s' % server.version)
+    server.route('GET', base, 'member_list_all')
+    result = run_module(project_member.main, dict(USER, role='ci-deployer'))
+    assert result['failed'] is True and 'custom roles need Harbor 2.16' in result['msg']
+    assert server.calls('GET', '/roles') == [] and server.calls('PUT') == []
+    # Recorded: 2.15 refuses a role id it does not know at create.
+    assert server.fixtures['role_member_create']['status'] == 400
+
+
+def test_harbors_name_of_a_built_in_role_gets_a_hint(server, base, run_module):
+    server.route('GET', base, 'member_list_all')
+    server.route('GET', '/roles', 'role_list_one')
+    result = run_module(project_member.main, dict(USER, role='projectAdmin'))
+    assert result['failed'] is True
+    assert "'projectAdmin' is Harbor's name of a built-in role; this module calls it 'project_admin'" in result['msg']

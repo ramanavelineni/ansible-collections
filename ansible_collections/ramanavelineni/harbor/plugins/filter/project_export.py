@@ -73,10 +73,6 @@ OPTIONS = dict(
              ('address', KEEP), ('skip_cert_verify', False), ('payload_format', None)),
 )
 
-# The roles the project_member module assigns (MEMBER_ROLES in
-# module_utils/harbor.py; a unit test holds the two together).
-BUILT_IN_ROLES = ('project_admin', 'maintainer', 'developer', 'guest', 'limited_guest')
-
 # The keys of a retention rule, with the default the tag_retention module gives each.
 RULE_OPTIONS = (('template', KEEP), ('value', None), ('repositories', '**'), ('repositories_decoration', 'matches'),
                 ('tags', '**'), ('tags_decoration', 'matches'), ('untagged', False), ('disabled', False))
@@ -228,10 +224,6 @@ def member_options(project, found):
     if 'role' not in out or out['role'] is None:
         raise ValueError('project_export: member %s of project %s has a role this collection does not know (role id '
                          '%s)' % (found.get('user') or found.get('group'), project, found.get('role_id')))
-    if out['role'] not in BUILT_IN_ROLES:
-        raise ValueError('project_export: member %s of project %s has the custom role %s (Harbor 2.16), which the '
-                         'project_member module cannot assign' % (found.get('user') or found.get('group'), project,
-                                                                  out['role']))
     return out
 
 

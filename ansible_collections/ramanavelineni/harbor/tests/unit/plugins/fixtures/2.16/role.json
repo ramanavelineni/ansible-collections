@@ -1,0 +1,2870 @@
+{
+  "recorded_from": "v2.16.0-e69b1bfa",
+  "responses": {
+    "role_create": {
+      "body": {
+        "creation_time": "0001-01-01T00:00:00.000Z",
+        "id": 8,
+        "name": "fixtures-role-ci"
+      },
+      "headers": {
+        "location": "/api/v2.0/roles/8"
+      },
+      "status": 201
+    },
+    "role_create_bad_permission": {
+      "body": {
+        "errors": [
+          {
+            "code": "BAD_REQUEST",
+            "message": "bad request permission: nope:pull"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 400
+    },
+    "role_create_conflict": {
+      "body": {
+        "errors": [
+          {
+            "code": "CONFLICT",
+            "message": "role fixtures-role-ci already exists"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 409
+    },
+    "role_create_empty": {
+      "body": {
+        "errors": [
+          {
+            "code": "BAD_REQUEST",
+            "message": "bad request empty permission"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 400
+    },
+    "role_delete": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "role_delete_in_use": {
+      "body": {
+        "errors": [
+          {
+            "code": "PRECONDITION",
+            "message": "cannot delete role 8: it is still assigned to 1 project member(s)"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 412
+    },
+    "role_delete_missing": {
+      "body": {
+        "errors": [
+          {
+            "code": "NOT_FOUND",
+            "message": "role 8 not found"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 404
+    },
+    "role_get": {
+      "body": {
+        "created_at": "2026-11-26T05:53:20.656Z",
+        "created_by": "admin",
+        "description": "recorded",
+        "id": 8,
+        "modified_at": "2026-11-26T05:53:20.656Z",
+        "name": "fixtures-role-ci",
+        "permissions": [
+          {
+            "access": [
+              {
+                "action": "pull",
+                "resource": "repository"
+              },
+              {
+                "action": "push",
+                "resource": "repository"
+              }
+            ],
+            "kind": "project-role",
+            "namespace": "*"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 200
+    },
+    "role_get_missing": {
+      "body": {
+        "errors": [
+          {
+            "code": "NOT_FOUND",
+            "message": "role 8 not found"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 404
+    },
+    "role_get_updated": {
+      "body": {
+        "created_at": "2026-11-26T05:53:20.656Z",
+        "created_by": "admin",
+        "description": "changed",
+        "id": 8,
+        "modified": true,
+        "modified_at": "2026-11-26T05:53:20.961Z",
+        "modified_by": "admin",
+        "name": "fixtures-role-ci",
+        "permissions": [
+          {
+            "access": [
+              {
+                "action": "pull",
+                "resource": "repository"
+              }
+            ],
+            "kind": "project-role",
+            "namespace": "*"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 200
+    },
+    "role_list_before": {
+      "body": [
+        {
+          "created_at": "0001-01-01T00:00:00.000Z",
+          "id": 2,
+          "is_builtin": true,
+          "modified_at": "0001-01-01T00:00:00.000Z",
+          "name": "developer",
+          "permissions": [
+            {
+              "access": [
+                {
+                  "action": "read"
+                },
+                {
+                  "action": "read",
+                  "resource": "member"
+                },
+                {
+                  "action": "list",
+                  "resource": "member"
+                },
+                {
+                  "action": "read",
+                  "resource": "label"
+                },
+                {
+                  "action": "list",
+                  "resource": "label"
+                },
+                {
+                  "action": "read",
+                  "resource": "quota"
+                },
+                {
+                  "action": "create",
+                  "resource": "repository"
+                },
+                {
+                  "action": "read",
+                  "resource": "repository"
+                },
+                {
+                  "action": "update",
+                  "resource": "repository"
+                },
+                {
+                  "action": "list",
+                  "resource": "repository"
+                },
+                {
+                  "action": "push",
+                  "resource": "repository"
+                },
+                {
+                  "action": "pull",
+                  "resource": "repository"
+                },
+                {
+                  "action": "create",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "read",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "update",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "delete",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "list",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "operate",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "read",
+                  "resource": "configuration"
+                },
+                {
+                  "action": "read",
+                  "resource": "robot"
+                },
+                {
+                  "action": "list",
+                  "resource": "robot"
+                },
+                {
+                  "action": "read",
+                  "resource": "scan"
+                },
+                {
+                  "action": "read",
+                  "resource": "sbom"
+                },
+                {
+                  "action": "read",
+                  "resource": "scanner"
+                },
+                {
+                  "action": "create",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "read",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "list",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "read",
+                  "resource": "artifact-addition"
+                },
+                {
+                  "action": "list",
+                  "resource": "tag"
+                },
+                {
+                  "action": "create",
+                  "resource": "tag"
+                },
+                {
+                  "action": "list",
+                  "resource": "accessory"
+                },
+                {
+                  "action": "create",
+                  "resource": "artifact-label"
+                },
+                {
+                  "action": "delete",
+                  "resource": "artifact-label"
+                },
+                {
+                  "action": "create",
+                  "resource": "export-cve"
+                },
+                {
+                  "action": "read",
+                  "resource": "export-cve"
+                },
+                {
+                  "action": "list",
+                  "resource": "export-cve"
+                }
+              ],
+              "kind": "project-role",
+              "namespace": "*"
+            }
+          ],
+          "role_code": "RWS"
+        },
+        {
+          "created_at": "0001-01-01T00:00:00.000Z",
+          "id": 3,
+          "is_builtin": true,
+          "modified_at": "0001-01-01T00:00:00.000Z",
+          "name": "guest",
+          "permissions": [
+            {
+              "access": [
+                {
+                  "action": "read"
+                },
+                {
+                  "action": "read",
+                  "resource": "member"
+                },
+                {
+                  "action": "list",
+                  "resource": "member"
+                },
+                {
+                  "action": "read",
+                  "resource": "label"
+                },
+                {
+                  "action": "list",
+                  "resource": "label"
+                },
+                {
+                  "action": "read",
+                  "resource": "quota"
+                },
+                {
+                  "action": "read",
+                  "resource": "repository"
+                },
+                {
+                  "action": "list",
+                  "resource": "repository"
+                },
+                {
+                  "action": "pull",
+                  "resource": "repository"
+                },
+                {
+                  "action": "read",
+                  "resource": "configuration"
+                },
+                {
+                  "action": "read",
+                  "resource": "robot"
+                },
+                {
+                  "action": "list",
+                  "resource": "robot"
+                },
+                {
+                  "action": "read",
+                  "resource": "scan"
+                },
+                {
+                  "action": "read",
+                  "resource": "sbom"
+                },
+                {
+                  "action": "read",
+                  "resource": "scanner"
+                },
+                {
+                  "action": "list",
+                  "resource": "tag"
+                },
+                {
+                  "action": "list",
+                  "resource": "accessory"
+                },
+                {
+                  "action": "read",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "list",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "read",
+                  "resource": "artifact-addition"
+                }
+              ],
+              "kind": "project-role",
+              "namespace": "*"
+            }
+          ],
+          "role_code": "RS"
+        },
+        {
+          "created_at": "0001-01-01T00:00:00.000Z",
+          "id": 5,
+          "is_builtin": true,
+          "modified_at": "0001-01-01T00:00:00.000Z",
+          "name": "limitedGuest",
+          "permissions": [
+            {
+              "access": [
+                {
+                  "action": "read"
+                },
+                {
+                  "action": "read",
+                  "resource": "quota"
+                },
+                {
+                  "action": "list",
+                  "resource": "repository"
+                },
+                {
+                  "action": "read",
+                  "resource": "repository"
+                },
+                {
+                  "action": "pull",
+                  "resource": "repository"
+                },
+                {
+                  "action": "read",
+                  "resource": "configuration"
+                },
+                {
+                  "action": "read",
+                  "resource": "scan"
+                },
+                {
+                  "action": "read",
+                  "resource": "sbom"
+                },
+                {
+                  "action": "read",
+                  "resource": "scanner"
+                },
+                {
+                  "action": "list",
+                  "resource": "tag"
+                },
+                {
+                  "action": "list",
+                  "resource": "accessory"
+                },
+                {
+                  "action": "read",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "list",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "read",
+                  "resource": "artifact-addition"
+                }
+              ],
+              "kind": "project-role",
+              "namespace": "*"
+            }
+          ],
+          "role_code": "LRS"
+        },
+        {
+          "created_at": "0001-01-01T00:00:00.000Z",
+          "id": 4,
+          "is_builtin": true,
+          "modified_at": "0001-01-01T00:00:00.000Z",
+          "name": "maintainer",
+          "permissions": [
+            {
+              "access": [
+                {
+                  "action": "read"
+                },
+                {
+                  "action": "read",
+                  "resource": "member"
+                },
+                {
+                  "action": "list",
+                  "resource": "member"
+                },
+                {
+                  "action": "read",
+                  "resource": "metadata"
+                },
+                {
+                  "action": "read",
+                  "resource": "quota"
+                },
+                {
+                  "action": "create",
+                  "resource": "label"
+                },
+                {
+                  "action": "read",
+                  "resource": "label"
+                },
+                {
+                  "action": "update",
+                  "resource": "label"
+                },
+                {
+                  "action": "delete",
+                  "resource": "label"
+                },
+                {
+                  "action": "list",
+                  "resource": "label"
+                },
+                {
+                  "action": "create",
+                  "resource": "repository"
+                },
+                {
+                  "action": "read",
+                  "resource": "repository"
+                },
+                {
+                  "action": "update",
+                  "resource": "repository"
+                },
+                {
+                  "action": "delete",
+                  "resource": "repository"
+                },
+                {
+                  "action": "list",
+                  "resource": "repository"
+                },
+                {
+                  "action": "push",
+                  "resource": "repository"
+                },
+                {
+                  "action": "pull",
+                  "resource": "repository"
+                },
+                {
+                  "action": "create",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "read",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "update",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "delete",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "list",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "operate",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "list",
+                  "resource": "accessory"
+                },
+                {
+                  "action": "create",
+                  "resource": "immutable-tag"
+                },
+                {
+                  "action": "update",
+                  "resource": "immutable-tag"
+                },
+                {
+                  "action": "delete",
+                  "resource": "immutable-tag"
+                },
+                {
+                  "action": "list",
+                  "resource": "immutable-tag"
+                },
+                {
+                  "action": "read",
+                  "resource": "configuration"
+                },
+                {
+                  "action": "read",
+                  "resource": "robot"
+                },
+                {
+                  "action": "list",
+                  "resource": "robot"
+                },
+                {
+                  "action": "read",
+                  "resource": "notification-policy"
+                },
+                {
+                  "action": "list",
+                  "resource": "notification-policy"
+                },
+                {
+                  "action": "create",
+                  "resource": "scan"
+                },
+                {
+                  "action": "read",
+                  "resource": "scan"
+                },
+                {
+                  "action": "stop",
+                  "resource": "scan"
+                },
+                {
+                  "action": "create",
+                  "resource": "sbom"
+                },
+                {
+                  "action": "stop",
+                  "resource": "sbom"
+                },
+                {
+                  "action": "read",
+                  "resource": "sbom"
+                },
+                {
+                  "action": "read",
+                  "resource": "scanner"
+                },
+                {
+                  "action": "create",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "read",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "delete",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "list",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "read",
+                  "resource": "artifact-addition"
+                },
+                {
+                  "action": "list",
+                  "resource": "tag"
+                },
+                {
+                  "action": "create",
+                  "resource": "tag"
+                },
+                {
+                  "action": "delete",
+                  "resource": "tag"
+                },
+                {
+                  "action": "create",
+                  "resource": "artifact-label"
+                },
+                {
+                  "action": "delete",
+                  "resource": "artifact-label"
+                },
+                {
+                  "action": "create",
+                  "resource": "export-cve"
+                },
+                {
+                  "action": "read",
+                  "resource": "export-cve"
+                },
+                {
+                  "action": "list",
+                  "resource": "export-cve"
+                }
+              ],
+              "kind": "project-role",
+              "namespace": "*"
+            }
+          ],
+          "role_code": "DRWS"
+        },
+        {
+          "created_at": "0001-01-01T00:00:00.000Z",
+          "id": 1,
+          "is_builtin": true,
+          "modified_at": "0001-01-01T00:00:00.000Z",
+          "name": "projectAdmin",
+          "permissions": [
+            {
+              "access": [
+                {
+                  "action": "read"
+                },
+                {
+                  "action": "update"
+                },
+                {
+                  "action": "delete"
+                },
+                {
+                  "action": "create",
+                  "resource": "member"
+                },
+                {
+                  "action": "read",
+                  "resource": "member"
+                },
+                {
+                  "action": "update",
+                  "resource": "member"
+                },
+                {
+                  "action": "delete",
+                  "resource": "member"
+                },
+                {
+                  "action": "list",
+                  "resource": "member"
+                },
+                {
+                  "action": "create",
+                  "resource": "metadata"
+                },
+                {
+                  "action": "read",
+                  "resource": "metadata"
+                },
+                {
+                  "action": "update",
+                  "resource": "metadata"
+                },
+                {
+                  "action": "delete",
+                  "resource": "metadata"
+                },
+                {
+                  "action": "list",
+                  "resource": "metadata"
+                },
+                {
+                  "action": "list",
+                  "resource": "log"
+                },
+                {
+                  "action": "create",
+                  "resource": "label"
+                },
+                {
+                  "action": "read",
+                  "resource": "label"
+                },
+                {
+                  "action": "update",
+                  "resource": "label"
+                },
+                {
+                  "action": "delete",
+                  "resource": "label"
+                },
+                {
+                  "action": "list",
+                  "resource": "label"
+                },
+                {
+                  "action": "read",
+                  "resource": "quota"
+                },
+                {
+                  "action": "create",
+                  "resource": "repository"
+                },
+                {
+                  "action": "read",
+                  "resource": "repository"
+                },
+                {
+                  "action": "update",
+                  "resource": "repository"
+                },
+                {
+                  "action": "delete",
+                  "resource": "repository"
+                },
+                {
+                  "action": "list",
+                  "resource": "repository"
+                },
+                {
+                  "action": "pull",
+                  "resource": "repository"
+                },
+                {
+                  "action": "push",
+                  "resource": "repository"
+                },
+                {
+                  "action": "create",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "read",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "update",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "delete",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "list",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "operate",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "create",
+                  "resource": "immutable-tag"
+                },
+                {
+                  "action": "update",
+                  "resource": "immutable-tag"
+                },
+                {
+                  "action": "delete",
+                  "resource": "immutable-tag"
+                },
+                {
+                  "action": "list",
+                  "resource": "immutable-tag"
+                },
+                {
+                  "action": "read",
+                  "resource": "configuration"
+                },
+                {
+                  "action": "update",
+                  "resource": "configuration"
+                },
+                {
+                  "action": "create",
+                  "resource": "robot"
+                },
+                {
+                  "action": "read",
+                  "resource": "robot"
+                },
+                {
+                  "action": "update",
+                  "resource": "robot"
+                },
+                {
+                  "action": "delete",
+                  "resource": "robot"
+                },
+                {
+                  "action": "list",
+                  "resource": "robot"
+                },
+                {
+                  "action": "create",
+                  "resource": "notification-policy"
+                },
+                {
+                  "action": "update",
+                  "resource": "notification-policy"
+                },
+                {
+                  "action": "delete",
+                  "resource": "notification-policy"
+                },
+                {
+                  "action": "list",
+                  "resource": "notification-policy"
+                },
+                {
+                  "action": "read",
+                  "resource": "notification-policy"
+                },
+                {
+                  "action": "create",
+                  "resource": "scan"
+                },
+                {
+                  "action": "read",
+                  "resource": "scan"
+                },
+                {
+                  "action": "stop",
+                  "resource": "scan"
+                },
+                {
+                  "action": "create",
+                  "resource": "sbom"
+                },
+                {
+                  "action": "stop",
+                  "resource": "sbom"
+                },
+                {
+                  "action": "read",
+                  "resource": "sbom"
+                },
+                {
+                  "action": "read",
+                  "resource": "scanner"
+                },
+                {
+                  "action": "create",
+                  "resource": "scanner"
+                },
+                {
+                  "action": "create",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "read",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "delete",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "list",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "read",
+                  "resource": "artifact-addition"
+                },
+                {
+                  "action": "list",
+                  "resource": "tag"
+                },
+                {
+                  "action": "create",
+                  "resource": "tag"
+                },
+                {
+                  "action": "delete",
+                  "resource": "tag"
+                },
+                {
+                  "action": "list",
+                  "resource": "accessory"
+                },
+                {
+                  "action": "create",
+                  "resource": "artifact-label"
+                },
+                {
+                  "action": "delete",
+                  "resource": "artifact-label"
+                },
+                {
+                  "action": "create",
+                  "resource": "preheat-policy"
+                },
+                {
+                  "action": "read",
+                  "resource": "preheat-policy"
+                },
+                {
+                  "action": "update",
+                  "resource": "preheat-policy"
+                },
+                {
+                  "action": "delete",
+                  "resource": "preheat-policy"
+                },
+                {
+                  "action": "list",
+                  "resource": "preheat-policy"
+                },
+                {
+                  "action": "create",
+                  "resource": "export-cve"
+                },
+                {
+                  "action": "read",
+                  "resource": "export-cve"
+                },
+                {
+                  "action": "list",
+                  "resource": "export-cve"
+                }
+              ],
+              "kind": "project-role",
+              "namespace": "*"
+            }
+          ],
+          "role_code": "MDRWS"
+        }
+      ],
+      "headers": {
+        "x-total-count": "5"
+      },
+      "status": 200
+    },
+    "role_list_one": {
+      "body": [
+        {
+          "created_at": "0001-01-01T00:00:00.000Z",
+          "id": 2,
+          "is_builtin": true,
+          "modified_at": "0001-01-01T00:00:00.000Z",
+          "name": "developer",
+          "permissions": [
+            {
+              "access": [
+                {
+                  "action": "read"
+                },
+                {
+                  "action": "read",
+                  "resource": "member"
+                },
+                {
+                  "action": "list",
+                  "resource": "member"
+                },
+                {
+                  "action": "read",
+                  "resource": "label"
+                },
+                {
+                  "action": "list",
+                  "resource": "label"
+                },
+                {
+                  "action": "read",
+                  "resource": "quota"
+                },
+                {
+                  "action": "create",
+                  "resource": "repository"
+                },
+                {
+                  "action": "read",
+                  "resource": "repository"
+                },
+                {
+                  "action": "update",
+                  "resource": "repository"
+                },
+                {
+                  "action": "list",
+                  "resource": "repository"
+                },
+                {
+                  "action": "push",
+                  "resource": "repository"
+                },
+                {
+                  "action": "pull",
+                  "resource": "repository"
+                },
+                {
+                  "action": "create",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "read",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "update",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "delete",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "list",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "operate",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "read",
+                  "resource": "configuration"
+                },
+                {
+                  "action": "read",
+                  "resource": "robot"
+                },
+                {
+                  "action": "list",
+                  "resource": "robot"
+                },
+                {
+                  "action": "read",
+                  "resource": "scan"
+                },
+                {
+                  "action": "read",
+                  "resource": "sbom"
+                },
+                {
+                  "action": "read",
+                  "resource": "scanner"
+                },
+                {
+                  "action": "create",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "read",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "list",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "read",
+                  "resource": "artifact-addition"
+                },
+                {
+                  "action": "list",
+                  "resource": "tag"
+                },
+                {
+                  "action": "create",
+                  "resource": "tag"
+                },
+                {
+                  "action": "list",
+                  "resource": "accessory"
+                },
+                {
+                  "action": "create",
+                  "resource": "artifact-label"
+                },
+                {
+                  "action": "delete",
+                  "resource": "artifact-label"
+                },
+                {
+                  "action": "create",
+                  "resource": "export-cve"
+                },
+                {
+                  "action": "read",
+                  "resource": "export-cve"
+                },
+                {
+                  "action": "list",
+                  "resource": "export-cve"
+                }
+              ],
+              "kind": "project-role",
+              "namespace": "*"
+            }
+          ],
+          "role_code": "RWS"
+        },
+        {
+          "created_at": "2026-11-26T05:53:20.656Z",
+          "created_by": "admin",
+          "description": "recorded",
+          "id": 8,
+          "modified_at": "2026-11-26T05:53:20.656Z",
+          "name": "fixtures-role-ci",
+          "permissions": [
+            {
+              "access": [
+                {
+                  "action": "pull",
+                  "resource": "repository"
+                },
+                {
+                  "action": "push",
+                  "resource": "repository"
+                }
+              ],
+              "kind": "project-role",
+              "namespace": "*"
+            }
+          ]
+        },
+        {
+          "created_at": "0001-01-01T00:00:00.000Z",
+          "id": 3,
+          "is_builtin": true,
+          "modified_at": "0001-01-01T00:00:00.000Z",
+          "name": "guest",
+          "permissions": [
+            {
+              "access": [
+                {
+                  "action": "read"
+                },
+                {
+                  "action": "read",
+                  "resource": "member"
+                },
+                {
+                  "action": "list",
+                  "resource": "member"
+                },
+                {
+                  "action": "read",
+                  "resource": "label"
+                },
+                {
+                  "action": "list",
+                  "resource": "label"
+                },
+                {
+                  "action": "read",
+                  "resource": "quota"
+                },
+                {
+                  "action": "read",
+                  "resource": "repository"
+                },
+                {
+                  "action": "list",
+                  "resource": "repository"
+                },
+                {
+                  "action": "pull",
+                  "resource": "repository"
+                },
+                {
+                  "action": "read",
+                  "resource": "configuration"
+                },
+                {
+                  "action": "read",
+                  "resource": "robot"
+                },
+                {
+                  "action": "list",
+                  "resource": "robot"
+                },
+                {
+                  "action": "read",
+                  "resource": "scan"
+                },
+                {
+                  "action": "read",
+                  "resource": "sbom"
+                },
+                {
+                  "action": "read",
+                  "resource": "scanner"
+                },
+                {
+                  "action": "list",
+                  "resource": "tag"
+                },
+                {
+                  "action": "list",
+                  "resource": "accessory"
+                },
+                {
+                  "action": "read",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "list",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "read",
+                  "resource": "artifact-addition"
+                }
+              ],
+              "kind": "project-role",
+              "namespace": "*"
+            }
+          ],
+          "role_code": "RS"
+        },
+        {
+          "created_at": "0001-01-01T00:00:00.000Z",
+          "id": 5,
+          "is_builtin": true,
+          "modified_at": "0001-01-01T00:00:00.000Z",
+          "name": "limitedGuest",
+          "permissions": [
+            {
+              "access": [
+                {
+                  "action": "read"
+                },
+                {
+                  "action": "read",
+                  "resource": "quota"
+                },
+                {
+                  "action": "list",
+                  "resource": "repository"
+                },
+                {
+                  "action": "read",
+                  "resource": "repository"
+                },
+                {
+                  "action": "pull",
+                  "resource": "repository"
+                },
+                {
+                  "action": "read",
+                  "resource": "configuration"
+                },
+                {
+                  "action": "read",
+                  "resource": "scan"
+                },
+                {
+                  "action": "read",
+                  "resource": "sbom"
+                },
+                {
+                  "action": "read",
+                  "resource": "scanner"
+                },
+                {
+                  "action": "list",
+                  "resource": "tag"
+                },
+                {
+                  "action": "list",
+                  "resource": "accessory"
+                },
+                {
+                  "action": "read",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "list",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "read",
+                  "resource": "artifact-addition"
+                }
+              ],
+              "kind": "project-role",
+              "namespace": "*"
+            }
+          ],
+          "role_code": "LRS"
+        },
+        {
+          "created_at": "0001-01-01T00:00:00.000Z",
+          "id": 4,
+          "is_builtin": true,
+          "modified_at": "0001-01-01T00:00:00.000Z",
+          "name": "maintainer",
+          "permissions": [
+            {
+              "access": [
+                {
+                  "action": "read"
+                },
+                {
+                  "action": "read",
+                  "resource": "member"
+                },
+                {
+                  "action": "list",
+                  "resource": "member"
+                },
+                {
+                  "action": "read",
+                  "resource": "metadata"
+                },
+                {
+                  "action": "read",
+                  "resource": "quota"
+                },
+                {
+                  "action": "create",
+                  "resource": "label"
+                },
+                {
+                  "action": "read",
+                  "resource": "label"
+                },
+                {
+                  "action": "update",
+                  "resource": "label"
+                },
+                {
+                  "action": "delete",
+                  "resource": "label"
+                },
+                {
+                  "action": "list",
+                  "resource": "label"
+                },
+                {
+                  "action": "create",
+                  "resource": "repository"
+                },
+                {
+                  "action": "read",
+                  "resource": "repository"
+                },
+                {
+                  "action": "update",
+                  "resource": "repository"
+                },
+                {
+                  "action": "delete",
+                  "resource": "repository"
+                },
+                {
+                  "action": "list",
+                  "resource": "repository"
+                },
+                {
+                  "action": "push",
+                  "resource": "repository"
+                },
+                {
+                  "action": "pull",
+                  "resource": "repository"
+                },
+                {
+                  "action": "create",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "read",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "update",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "delete",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "list",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "operate",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "list",
+                  "resource": "accessory"
+                },
+                {
+                  "action": "create",
+                  "resource": "immutable-tag"
+                },
+                {
+                  "action": "update",
+                  "resource": "immutable-tag"
+                },
+                {
+                  "action": "delete",
+                  "resource": "immutable-tag"
+                },
+                {
+                  "action": "list",
+                  "resource": "immutable-tag"
+                },
+                {
+                  "action": "read",
+                  "resource": "configuration"
+                },
+                {
+                  "action": "read",
+                  "resource": "robot"
+                },
+                {
+                  "action": "list",
+                  "resource": "robot"
+                },
+                {
+                  "action": "read",
+                  "resource": "notification-policy"
+                },
+                {
+                  "action": "list",
+                  "resource": "notification-policy"
+                },
+                {
+                  "action": "create",
+                  "resource": "scan"
+                },
+                {
+                  "action": "read",
+                  "resource": "scan"
+                },
+                {
+                  "action": "stop",
+                  "resource": "scan"
+                },
+                {
+                  "action": "create",
+                  "resource": "sbom"
+                },
+                {
+                  "action": "stop",
+                  "resource": "sbom"
+                },
+                {
+                  "action": "read",
+                  "resource": "sbom"
+                },
+                {
+                  "action": "read",
+                  "resource": "scanner"
+                },
+                {
+                  "action": "create",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "read",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "delete",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "list",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "read",
+                  "resource": "artifact-addition"
+                },
+                {
+                  "action": "list",
+                  "resource": "tag"
+                },
+                {
+                  "action": "create",
+                  "resource": "tag"
+                },
+                {
+                  "action": "delete",
+                  "resource": "tag"
+                },
+                {
+                  "action": "create",
+                  "resource": "artifact-label"
+                },
+                {
+                  "action": "delete",
+                  "resource": "artifact-label"
+                },
+                {
+                  "action": "create",
+                  "resource": "export-cve"
+                },
+                {
+                  "action": "read",
+                  "resource": "export-cve"
+                },
+                {
+                  "action": "list",
+                  "resource": "export-cve"
+                }
+              ],
+              "kind": "project-role",
+              "namespace": "*"
+            }
+          ],
+          "role_code": "DRWS"
+        },
+        {
+          "created_at": "0001-01-01T00:00:00.000Z",
+          "id": 1,
+          "is_builtin": true,
+          "modified_at": "0001-01-01T00:00:00.000Z",
+          "name": "projectAdmin",
+          "permissions": [
+            {
+              "access": [
+                {
+                  "action": "read"
+                },
+                {
+                  "action": "update"
+                },
+                {
+                  "action": "delete"
+                },
+                {
+                  "action": "create",
+                  "resource": "member"
+                },
+                {
+                  "action": "read",
+                  "resource": "member"
+                },
+                {
+                  "action": "update",
+                  "resource": "member"
+                },
+                {
+                  "action": "delete",
+                  "resource": "member"
+                },
+                {
+                  "action": "list",
+                  "resource": "member"
+                },
+                {
+                  "action": "create",
+                  "resource": "metadata"
+                },
+                {
+                  "action": "read",
+                  "resource": "metadata"
+                },
+                {
+                  "action": "update",
+                  "resource": "metadata"
+                },
+                {
+                  "action": "delete",
+                  "resource": "metadata"
+                },
+                {
+                  "action": "list",
+                  "resource": "metadata"
+                },
+                {
+                  "action": "list",
+                  "resource": "log"
+                },
+                {
+                  "action": "create",
+                  "resource": "label"
+                },
+                {
+                  "action": "read",
+                  "resource": "label"
+                },
+                {
+                  "action": "update",
+                  "resource": "label"
+                },
+                {
+                  "action": "delete",
+                  "resource": "label"
+                },
+                {
+                  "action": "list",
+                  "resource": "label"
+                },
+                {
+                  "action": "read",
+                  "resource": "quota"
+                },
+                {
+                  "action": "create",
+                  "resource": "repository"
+                },
+                {
+                  "action": "read",
+                  "resource": "repository"
+                },
+                {
+                  "action": "update",
+                  "resource": "repository"
+                },
+                {
+                  "action": "delete",
+                  "resource": "repository"
+                },
+                {
+                  "action": "list",
+                  "resource": "repository"
+                },
+                {
+                  "action": "pull",
+                  "resource": "repository"
+                },
+                {
+                  "action": "push",
+                  "resource": "repository"
+                },
+                {
+                  "action": "create",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "read",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "update",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "delete",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "list",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "operate",
+                  "resource": "tag-retention"
+                },
+                {
+                  "action": "create",
+                  "resource": "immutable-tag"
+                },
+                {
+                  "action": "update",
+                  "resource": "immutable-tag"
+                },
+                {
+                  "action": "delete",
+                  "resource": "immutable-tag"
+                },
+                {
+                  "action": "list",
+                  "resource": "immutable-tag"
+                },
+                {
+                  "action": "read",
+                  "resource": "configuration"
+                },
+                {
+                  "action": "update",
+                  "resource": "configuration"
+                },
+                {
+                  "action": "create",
+                  "resource": "robot"
+                },
+                {
+                  "action": "read",
+                  "resource": "robot"
+                },
+                {
+                  "action": "update",
+                  "resource": "robot"
+                },
+                {
+                  "action": "delete",
+                  "resource": "robot"
+                },
+                {
+                  "action": "list",
+                  "resource": "robot"
+                },
+                {
+                  "action": "create",
+                  "resource": "notification-policy"
+                },
+                {
+                  "action": "update",
+                  "resource": "notification-policy"
+                },
+                {
+                  "action": "delete",
+                  "resource": "notification-policy"
+                },
+                {
+                  "action": "list",
+                  "resource": "notification-policy"
+                },
+                {
+                  "action": "read",
+                  "resource": "notification-policy"
+                },
+                {
+                  "action": "create",
+                  "resource": "scan"
+                },
+                {
+                  "action": "read",
+                  "resource": "scan"
+                },
+                {
+                  "action": "stop",
+                  "resource": "scan"
+                },
+                {
+                  "action": "create",
+                  "resource": "sbom"
+                },
+                {
+                  "action": "stop",
+                  "resource": "sbom"
+                },
+                {
+                  "action": "read",
+                  "resource": "sbom"
+                },
+                {
+                  "action": "read",
+                  "resource": "scanner"
+                },
+                {
+                  "action": "create",
+                  "resource": "scanner"
+                },
+                {
+                  "action": "create",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "read",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "delete",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "list",
+                  "resource": "artifact"
+                },
+                {
+                  "action": "read",
+                  "resource": "artifact-addition"
+                },
+                {
+                  "action": "list",
+                  "resource": "tag"
+                },
+                {
+                  "action": "create",
+                  "resource": "tag"
+                },
+                {
+                  "action": "delete",
+                  "resource": "tag"
+                },
+                {
+                  "action": "list",
+                  "resource": "accessory"
+                },
+                {
+                  "action": "create",
+                  "resource": "artifact-label"
+                },
+                {
+                  "action": "delete",
+                  "resource": "artifact-label"
+                },
+                {
+                  "action": "create",
+                  "resource": "preheat-policy"
+                },
+                {
+                  "action": "read",
+                  "resource": "preheat-policy"
+                },
+                {
+                  "action": "update",
+                  "resource": "preheat-policy"
+                },
+                {
+                  "action": "delete",
+                  "resource": "preheat-policy"
+                },
+                {
+                  "action": "list",
+                  "resource": "preheat-policy"
+                },
+                {
+                  "action": "create",
+                  "resource": "export-cve"
+                },
+                {
+                  "action": "read",
+                  "resource": "export-cve"
+                },
+                {
+                  "action": "list",
+                  "resource": "export-cve"
+                }
+              ],
+              "kind": "project-role",
+              "namespace": "*"
+            }
+          ],
+          "role_code": "MDRWS"
+        }
+      ],
+      "headers": {
+        "x-total-count": "6"
+      },
+      "status": 200
+    },
+    "role_member_create": {
+      "body": null,
+      "headers": {
+        "location": "/api/v2.0/projects/47/members/66"
+      },
+      "status": 201
+    },
+    "role_member_list": {
+      "body": [
+        {
+          "entity_id": 1,
+          "entity_name": "admin",
+          "entity_type": "u",
+          "id": 65,
+          "project_id": 47,
+          "role_id": 1,
+          "role_name": "projectAdmin"
+        },
+        {
+          "entity_id": 20,
+          "entity_name": "fixtures-role-user",
+          "entity_type": "u",
+          "id": 66,
+          "project_id": 47,
+          "role_id": 8,
+          "role_name": "fixtures-role-ci"
+        }
+      ],
+      "headers": {
+        "x-total-count": "2"
+      },
+      "status": 200
+    },
+    "role_permissions": {
+      "body": {
+        "project": [
+          {
+            "action": "list",
+            "resource": "log"
+          },
+          {
+            "action": "read",
+            "resource": "project"
+          },
+          {
+            "action": "delete",
+            "resource": "project"
+          },
+          {
+            "action": "update",
+            "resource": "project"
+          },
+          {
+            "action": "read",
+            "resource": "metadata"
+          },
+          {
+            "action": "create",
+            "resource": "metadata"
+          },
+          {
+            "action": "delete",
+            "resource": "metadata"
+          },
+          {
+            "action": "list",
+            "resource": "metadata"
+          },
+          {
+            "action": "update",
+            "resource": "metadata"
+          },
+          {
+            "action": "read",
+            "resource": "repository"
+          },
+          {
+            "action": "update",
+            "resource": "repository"
+          },
+          {
+            "action": "delete",
+            "resource": "repository"
+          },
+          {
+            "action": "list",
+            "resource": "repository"
+          },
+          {
+            "action": "pull",
+            "resource": "repository"
+          },
+          {
+            "action": "push",
+            "resource": "repository"
+          },
+          {
+            "action": "read",
+            "resource": "artifact"
+          },
+          {
+            "action": "create",
+            "resource": "artifact"
+          },
+          {
+            "action": "list",
+            "resource": "artifact"
+          },
+          {
+            "action": "delete",
+            "resource": "artifact"
+          },
+          {
+            "action": "create",
+            "resource": "scan"
+          },
+          {
+            "action": "read",
+            "resource": "scan"
+          },
+          {
+            "action": "stop",
+            "resource": "scan"
+          },
+          {
+            "action": "create",
+            "resource": "sbom"
+          },
+          {
+            "action": "stop",
+            "resource": "sbom"
+          },
+          {
+            "action": "read",
+            "resource": "sbom"
+          },
+          {
+            "action": "create",
+            "resource": "tag"
+          },
+          {
+            "action": "list",
+            "resource": "tag"
+          },
+          {
+            "action": "delete",
+            "resource": "tag"
+          },
+          {
+            "action": "list",
+            "resource": "accessory"
+          },
+          {
+            "action": "read",
+            "resource": "artifact-addition"
+          },
+          {
+            "action": "create",
+            "resource": "artifact-label"
+          },
+          {
+            "action": "delete",
+            "resource": "artifact-label"
+          },
+          {
+            "action": "create",
+            "resource": "scanner"
+          },
+          {
+            "action": "read",
+            "resource": "scanner"
+          },
+          {
+            "action": "read",
+            "resource": "preheat-policy"
+          },
+          {
+            "action": "create",
+            "resource": "preheat-policy"
+          },
+          {
+            "action": "delete",
+            "resource": "preheat-policy"
+          },
+          {
+            "action": "list",
+            "resource": "preheat-policy"
+          },
+          {
+            "action": "update",
+            "resource": "preheat-policy"
+          },
+          {
+            "action": "create",
+            "resource": "immutable-tag"
+          },
+          {
+            "action": "delete",
+            "resource": "immutable-tag"
+          },
+          {
+            "action": "list",
+            "resource": "immutable-tag"
+          },
+          {
+            "action": "update",
+            "resource": "immutable-tag"
+          },
+          {
+            "action": "read",
+            "resource": "notification-policy"
+          },
+          {
+            "action": "create",
+            "resource": "notification-policy"
+          },
+          {
+            "action": "delete",
+            "resource": "notification-policy"
+          },
+          {
+            "action": "list",
+            "resource": "notification-policy"
+          },
+          {
+            "action": "update",
+            "resource": "notification-policy"
+          },
+          {
+            "action": "read",
+            "resource": "tag-retention"
+          },
+          {
+            "action": "create",
+            "resource": "tag-retention"
+          },
+          {
+            "action": "delete",
+            "resource": "tag-retention"
+          },
+          {
+            "action": "list",
+            "resource": "tag-retention"
+          },
+          {
+            "action": "update",
+            "resource": "tag-retention"
+          },
+          {
+            "action": "read",
+            "resource": "label"
+          },
+          {
+            "action": "create",
+            "resource": "label"
+          },
+          {
+            "action": "delete",
+            "resource": "label"
+          },
+          {
+            "action": "list",
+            "resource": "label"
+          },
+          {
+            "action": "update",
+            "resource": "label"
+          },
+          {
+            "action": "read",
+            "resource": "quota"
+          },
+          {
+            "action": "create",
+            "resource": "robot"
+          },
+          {
+            "action": "read",
+            "resource": "robot"
+          },
+          {
+            "action": "list",
+            "resource": "robot"
+          },
+          {
+            "action": "delete",
+            "resource": "robot"
+          },
+          {
+            "action": "create",
+            "resource": "export-cve"
+          },
+          {
+            "action": "read",
+            "resource": "export-cve"
+          },
+          {
+            "action": "create",
+            "resource": "member"
+          },
+          {
+            "action": "read",
+            "resource": "member"
+          },
+          {
+            "action": "update",
+            "resource": "member"
+          },
+          {
+            "action": "list",
+            "resource": "member"
+          },
+          {
+            "action": "delete",
+            "resource": "member"
+          }
+        ],
+        "role": [
+          {
+            "action": "create",
+            "resource": "member"
+          },
+          {
+            "action": "read",
+            "resource": "member"
+          },
+          {
+            "action": "update",
+            "resource": "member"
+          },
+          {
+            "action": "delete",
+            "resource": "member"
+          },
+          {
+            "action": "list",
+            "resource": "member"
+          },
+          {
+            "action": "create",
+            "resource": "metadata"
+          },
+          {
+            "action": "read",
+            "resource": "metadata"
+          },
+          {
+            "action": "update",
+            "resource": "metadata"
+          },
+          {
+            "action": "delete",
+            "resource": "metadata"
+          },
+          {
+            "action": "list",
+            "resource": "metadata"
+          },
+          {
+            "action": "list",
+            "resource": "log"
+          },
+          {
+            "action": "create",
+            "resource": "label"
+          },
+          {
+            "action": "read",
+            "resource": "label"
+          },
+          {
+            "action": "update",
+            "resource": "label"
+          },
+          {
+            "action": "delete",
+            "resource": "label"
+          },
+          {
+            "action": "list",
+            "resource": "label"
+          },
+          {
+            "action": "read",
+            "resource": "quota"
+          },
+          {
+            "action": "create",
+            "resource": "repository"
+          },
+          {
+            "action": "read",
+            "resource": "repository"
+          },
+          {
+            "action": "update",
+            "resource": "repository"
+          },
+          {
+            "action": "delete",
+            "resource": "repository"
+          },
+          {
+            "action": "list",
+            "resource": "repository"
+          },
+          {
+            "action": "pull",
+            "resource": "repository"
+          },
+          {
+            "action": "push",
+            "resource": "repository"
+          },
+          {
+            "action": "create",
+            "resource": "tag-retention"
+          },
+          {
+            "action": "read",
+            "resource": "tag-retention"
+          },
+          {
+            "action": "update",
+            "resource": "tag-retention"
+          },
+          {
+            "action": "delete",
+            "resource": "tag-retention"
+          },
+          {
+            "action": "list",
+            "resource": "tag-retention"
+          },
+          {
+            "action": "operate",
+            "resource": "tag-retention"
+          },
+          {
+            "action": "create",
+            "resource": "immutable-tag"
+          },
+          {
+            "action": "update",
+            "resource": "immutable-tag"
+          },
+          {
+            "action": "delete",
+            "resource": "immutable-tag"
+          },
+          {
+            "action": "list",
+            "resource": "immutable-tag"
+          },
+          {
+            "action": "read",
+            "resource": "configuration"
+          },
+          {
+            "action": "update",
+            "resource": "configuration"
+          },
+          {
+            "action": "create",
+            "resource": "robot"
+          },
+          {
+            "action": "read",
+            "resource": "robot"
+          },
+          {
+            "action": "update",
+            "resource": "robot"
+          },
+          {
+            "action": "delete",
+            "resource": "robot"
+          },
+          {
+            "action": "list",
+            "resource": "robot"
+          },
+          {
+            "action": "create",
+            "resource": "notification-policy"
+          },
+          {
+            "action": "update",
+            "resource": "notification-policy"
+          },
+          {
+            "action": "delete",
+            "resource": "notification-policy"
+          },
+          {
+            "action": "list",
+            "resource": "notification-policy"
+          },
+          {
+            "action": "read",
+            "resource": "notification-policy"
+          },
+          {
+            "action": "create",
+            "resource": "scan"
+          },
+          {
+            "action": "read",
+            "resource": "scan"
+          },
+          {
+            "action": "stop",
+            "resource": "scan"
+          },
+          {
+            "action": "create",
+            "resource": "sbom"
+          },
+          {
+            "action": "stop",
+            "resource": "sbom"
+          },
+          {
+            "action": "read",
+            "resource": "sbom"
+          },
+          {
+            "action": "read",
+            "resource": "scanner"
+          },
+          {
+            "action": "create",
+            "resource": "scanner"
+          },
+          {
+            "action": "create",
+            "resource": "artifact"
+          },
+          {
+            "action": "read",
+            "resource": "artifact"
+          },
+          {
+            "action": "delete",
+            "resource": "artifact"
+          },
+          {
+            "action": "list",
+            "resource": "artifact"
+          },
+          {
+            "action": "read",
+            "resource": "artifact-addition"
+          },
+          {
+            "action": "list",
+            "resource": "tag"
+          },
+          {
+            "action": "create",
+            "resource": "tag"
+          },
+          {
+            "action": "delete",
+            "resource": "tag"
+          },
+          {
+            "action": "list",
+            "resource": "accessory"
+          },
+          {
+            "action": "create",
+            "resource": "artifact-label"
+          },
+          {
+            "action": "delete",
+            "resource": "artifact-label"
+          },
+          {
+            "action": "create",
+            "resource": "preheat-policy"
+          },
+          {
+            "action": "read",
+            "resource": "preheat-policy"
+          },
+          {
+            "action": "update",
+            "resource": "preheat-policy"
+          },
+          {
+            "action": "delete",
+            "resource": "preheat-policy"
+          },
+          {
+            "action": "list",
+            "resource": "preheat-policy"
+          },
+          {
+            "action": "create",
+            "resource": "export-cve"
+          },
+          {
+            "action": "read",
+            "resource": "export-cve"
+          },
+          {
+            "action": "list",
+            "resource": "export-cve"
+          }
+        ],
+        "system": [
+          {
+            "action": "list",
+            "resource": "audit-log"
+          },
+          {
+            "action": "read",
+            "resource": "preheat-instance"
+          },
+          {
+            "action": "create",
+            "resource": "preheat-instance"
+          },
+          {
+            "action": "delete",
+            "resource": "preheat-instance"
+          },
+          {
+            "action": "list",
+            "resource": "preheat-instance"
+          },
+          {
+            "action": "update",
+            "resource": "preheat-instance"
+          },
+          {
+            "action": "list",
+            "resource": "project"
+          },
+          {
+            "action": "create",
+            "resource": "project"
+          },
+          {
+            "action": "read",
+            "resource": "replication-policy"
+          },
+          {
+            "action": "create",
+            "resource": "replication-policy"
+          },
+          {
+            "action": "delete",
+            "resource": "replication-policy"
+          },
+          {
+            "action": "list",
+            "resource": "replication-policy"
+          },
+          {
+            "action": "update",
+            "resource": "replication-policy"
+          },
+          {
+            "action": "read",
+            "resource": "replication"
+          },
+          {
+            "action": "create",
+            "resource": "replication"
+          },
+          {
+            "action": "list",
+            "resource": "replication"
+          },
+          {
+            "action": "list",
+            "resource": "replication-adapter"
+          },
+          {
+            "action": "read",
+            "resource": "registry"
+          },
+          {
+            "action": "create",
+            "resource": "registry"
+          },
+          {
+            "action": "delete",
+            "resource": "registry"
+          },
+          {
+            "action": "list",
+            "resource": "registry"
+          },
+          {
+            "action": "update",
+            "resource": "registry"
+          },
+          {
+            "action": "read",
+            "resource": "scan-all"
+          },
+          {
+            "action": "update",
+            "resource": "scan-all"
+          },
+          {
+            "action": "stop",
+            "resource": "scan-all"
+          },
+          {
+            "action": "create",
+            "resource": "scan-all"
+          },
+          {
+            "action": "read",
+            "resource": "system-volumes"
+          },
+          {
+            "action": "read",
+            "resource": "garbage-collection"
+          },
+          {
+            "action": "create",
+            "resource": "garbage-collection"
+          },
+          {
+            "action": "list",
+            "resource": "garbage-collection"
+          },
+          {
+            "action": "update",
+            "resource": "garbage-collection"
+          },
+          {
+            "action": "stop",
+            "resource": "garbage-collection"
+          },
+          {
+            "action": "read",
+            "resource": "purge-audit"
+          },
+          {
+            "action": "create",
+            "resource": "purge-audit"
+          },
+          {
+            "action": "list",
+            "resource": "purge-audit"
+          },
+          {
+            "action": "update",
+            "resource": "purge-audit"
+          },
+          {
+            "action": "stop",
+            "resource": "purge-audit"
+          },
+          {
+            "action": "list",
+            "resource": "jobservice-monitor"
+          },
+          {
+            "action": "stop",
+            "resource": "jobservice-monitor"
+          },
+          {
+            "action": "read",
+            "resource": "scanner"
+          },
+          {
+            "action": "create",
+            "resource": "scanner"
+          },
+          {
+            "action": "delete",
+            "resource": "scanner"
+          },
+          {
+            "action": "list",
+            "resource": "scanner"
+          },
+          {
+            "action": "update",
+            "resource": "scanner"
+          },
+          {
+            "action": "read",
+            "resource": "label"
+          },
+          {
+            "action": "create",
+            "resource": "label"
+          },
+          {
+            "action": "delete",
+            "resource": "label"
+          },
+          {
+            "action": "update",
+            "resource": "label"
+          },
+          {
+            "action": "read",
+            "resource": "security-hub"
+          },
+          {
+            "action": "list",
+            "resource": "security-hub"
+          },
+          {
+            "action": "read",
+            "resource": "catalog"
+          },
+          {
+            "action": "read",
+            "resource": "quota"
+          },
+          {
+            "action": "list",
+            "resource": "quota"
+          },
+          {
+            "action": "create",
+            "resource": "robot"
+          },
+          {
+            "action": "read",
+            "resource": "robot"
+          },
+          {
+            "action": "list",
+            "resource": "robot"
+          },
+          {
+            "action": "delete",
+            "resource": "robot"
+          },
+          {
+            "action": "create",
+            "resource": "user"
+          },
+          {
+            "action": "read",
+            "resource": "user"
+          },
+          {
+            "action": "update",
+            "resource": "user"
+          },
+          {
+            "action": "list",
+            "resource": "user"
+          },
+          {
+            "action": "delete",
+            "resource": "user"
+          },
+          {
+            "action": "create",
+            "resource": "ldap-user"
+          },
+          {
+            "action": "list",
+            "resource": "ldap-user"
+          },
+          {
+            "action": "update",
+            "resource": "quota"
+          },
+          {
+            "action": "create",
+            "resource": "user-group"
+          },
+          {
+            "action": "read",
+            "resource": "user-group"
+          },
+          {
+            "action": "update",
+            "resource": "user-group"
+          },
+          {
+            "action": "list",
+            "resource": "user-group"
+          },
+          {
+            "action": "delete",
+            "resource": "user-group"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 200
+    },
+    "role_projects": {
+      "body": [
+        {
+          "creation_time": "2026-11-26T05:53:21.113Z",
+          "current_user_role_id": 1,
+          "current_user_role_ids": [
+            1
+          ],
+          "cve_allowlist": {
+            "creation_time": "0001-01-01T00:00:00.000Z",
+            "id": 45,
+            "items": [],
+            "project_id": 47,
+            "update_time": "0001-01-01T00:00:00.000Z"
+          },
+          "metadata": {
+            "public": "false"
+          },
+          "name": "fixtures-role",
+          "owner_id": 1,
+          "owner_name": "admin",
+          "project_id": 47,
+          "repo_count": 0,
+          "update_time": "2026-11-26T05:53:21.113Z"
+        }
+      ],
+      "headers": {
+        "x-total-count": "1"
+      },
+      "status": 200
+    },
+    "role_update": {
+      "body": null,
+      "headers": {},
+      "status": 200
+    },
+    "role_update_builtin": {
+      "body": {
+        "errors": [
+          {
+            "code": "FORBIDDEN",
+            "message": "cannot modify built-in role 2"
+          }
+        ]
+      },
+      "headers": {},
+      "status": 403
+    }
+  }
+}

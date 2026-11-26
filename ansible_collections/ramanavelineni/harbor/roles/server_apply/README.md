@@ -2,7 +2,8 @@
 
 Applies the objects of a Harbor server that belong to no project: the system
 settings, the garbage collection, Scan All and log rotation schedules, the
-registry endpoints, the replication rules and the system robot accounts.
+custom project roles, the registry endpoints, the replication rules and the
+system robot accounts.
 
 ## Variables
 
@@ -12,6 +13,7 @@ registry endpoints, the replication rules and the system robot accounts.
 | `server_apply_garbage_collection` | `{}` | Garbage collection schedule. Takes the options of the `garbage_collection` module |
 | `server_apply_scan_all` | `{}` | Scan All schedule. Takes the options of the `scan_all` module |
 | `server_apply_log_rotation` | `{}` | Audit log rotation schedule. Takes the options of the `log_rotation` module |
+| `server_apply_roles` | `{}` | Custom project roles (Harbor 2.16), keyed by name. An entry takes the options of the `role` module |
 | `server_apply_registries` | `{}` | Registry endpoints, keyed by name. An entry takes the options of the `registry` module |
 | `server_apply_replications` | `{}` | Replication rules, keyed by name. An entry takes the options of the `replication` module |
 | `server_apply_robot_accounts` | `{}` | System robot accounts, keyed by name. An entry takes the options of the `robot_account` module, without `level` and `project` |
@@ -30,11 +32,12 @@ refuses every Scan All request while it has no default vulnerability scanner.
 1. An option a module doesn't have, and an entry that is not a dictionary,
    fail before anything is changed.
 2. Everything declared is created or updated, in this order: the system
-   settings, the schedules, the registries, the replications (they name
-   registries) and the robot accounts.
+   settings, the schedules, the custom project roles, the registries, the
+   replications (they name registries) and the robot accounts.
 3. Entries marked `state: absent` are deleted in the reverse order: robot
-   accounts, replications, registries. So a replication goes before the
-   registry it uses.
+   accounts, replications, registries, roles. So a replication goes before the
+   registry it uses. Harbor refuses to delete a role that a project member or
+   robot account still has; the task fails with Harbor's answer.
 
 Only what the variables mention is changed. A registry, replication or robot
 account that is not in them is left alone, and a setting or schedule option
@@ -86,6 +89,12 @@ play with `module_defaults`, or in the environment (`HARBOR_URL`,
             - create_artifact
             - delete_artifact
             - pull_artifact
+        server_apply_roles:
+          ci-deployer:            # Harbor 2.16
+            description: CI pipelines
+            permissions:
+              - {resource: repository, action: pull}
+              - {resource: repository, action: push}
         server_apply_registries:
           docker-hub:
             type: docker-hub

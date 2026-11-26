@@ -747,6 +747,80 @@ def record_member(srv, out):
     out['member_list_after_delete'] = expect(srv.call('GET', listing), 200, 'members')
 
 
+ROLE_PREFIX = 'fixtures-role'
+ROLE_NAME = 'fixtures-role-ci'
+ROLE_PROJECT = 'fixtures-role'
+ROLE_USER = 'fixtures-role-user'
+ROLE_ACCESS = [{'resource': 'repository', 'action': 'pull'}, {'resource': 'repository', 'action': 'push'}]
+
+
+def role_body(name, access, description='recorded'):
+    """A custom project role as /roles takes it: one project-role permission for every project."""
+    return {'name': name, 'description': description,
+            'permissions': [{'kind': 'project-role', 'namespace': '*', 'access': access}]}
+
+
+def own_roles(role):
+    return role.get('is_builtin') or role.get('name', '').startswith(ROLE_PREFIX)
+
+
+def sweep_role(srv):
+    """Delete project fixtures-role (its members go with it), the users and the custom roles named fixtures-role*."""
+    delete_projects(srv, ROLE_PROJECT)
+    for user in expect(srv.call('GET', '/users?q=username%%3D~%s&page=1&page_size=100' % ROLE_PREFIX),
+                       200, 'users')['body'] or []:
+        if user['username'].startswith(ROLE_PREFIX):
+            expect(srv.call('DELETE', '/users/%d' % user['user_id']), 200, 'delete leftover user')
+    roles = srv.call('GET', '/roles?page=1&page_size=100')
+    if roles['status'] == 200:
+        for role in roles['body'] or []:
+            if not role.get('is_builtin') and role['name'].startswith(ROLE_PREFIX):
+                expect(srv.call('DELETE', '/roles/%d' % role['id']), 200, 'delete leftover role')
+
+
+def record_role(srv, out):
+    """Custom project roles (Harbor 2.16), and a member who has one.
+
+    Before 2.16 there is no /roles: every request is recorded as that server
+    answers it (404), so each version has the same responses.
+    """
+    listing = '/roles?page=1&page_size=100'
+    out['role_list_before'] = keep(srv.call('GET', listing), own_roles)
+    out['role_permissions'] = srv.call('GET', '/permissions')
+    created = srv.call('POST', '/roles', role_body(ROLE_NAME, ROLE_ACCESS))
+    out['role_create'] = created
+    rid = (created['body'] or {}).get('id', 0) if created['status'] == 201 and isinstance(created['body'], dict) else 0
+    out['role_get'] = srv.call('GET', '/roles/%d' % rid)
+    out['role_list_one'] = keep(srv.call('GET', listing), own_roles)
+    out['role_create_conflict'] = srv.call('POST', '/roles', role_body(ROLE_NAME, ROLE_ACCESS))
+    out['role_create_bad_permission'] = srv.call('POST', '/roles', role_body(
+        ROLE_PREFIX + '-bad', [{'resource': 'nope', 'action': 'pull'}]))
+    out['role_create_empty'] = srv.call('POST', '/roles', dict(role_body(ROLE_PREFIX + '-empty', []), permissions=[]))
+    out['role_update'] = srv.call('PUT', '/roles/%d' % rid, role_body(ROLE_NAME, ROLE_ACCESS[:1], 'changed'))
+    out['role_get_updated'] = srv.call('GET', '/roles/%d' % rid)
+    # Built-in role 2 (developer) cannot be changed; deleting one is not tried.
+    out['role_update_builtin'] = srv.call('PUT', '/roles/2', role_body('developer', ROLE_ACCESS[:1]))
+
+    pid = project_id_of(expect(srv.call('POST', '/projects', {'project_name': ROLE_PROJECT,
+                                                              'metadata': {'public': 'false'}}), 201, 'create project'))
+    out['role_projects'] = keep(expect(srv.call('GET', '/projects?name=%s&page=1&page_size=100' % ROLE_PROJECT),
+                                       200, 'projects'), named(ROLE_PROJECT))
+    srv.secrets.append(MEMBER_USER_PASSWORD)
+    expect(srv.call('POST', '/users', {'username': ROLE_USER, 'email': '%s@example.invalid' % ROLE_USER,
+                                       'realname': ROLE_USER, 'password': MEMBER_USER_PASSWORD}), 201, 'create user')
+    base = '/projects/%d/members' % pid
+    member = srv.call('POST', base, {'role_id': rid, 'member_user': {'username': ROLE_USER}})
+    out['role_member_create'] = member
+    out['role_member_list'] = expect(srv.call('GET', base + '?page=1&page_size=100'), 200, 'members')
+    out['role_delete_in_use'] = srv.call('DELETE', '/roles/%d' % rid)
+    if member['status'] == 201:
+        expect(srv.call('DELETE', '%s/%d' % (base, project_id_of(member))), 200, 'remove member')
+    out['role_delete'] = srv.call('DELETE', '/roles/%d' % rid)
+    out['role_delete_missing'] = srv.call('DELETE', '/roles/%d' % rid)
+    out['role_get_missing'] = srv.call('GET', '/roles/%d' % rid)
+    expect(srv.call('DELETE', '/projects/%d' % pid), 200, 'delete project')
+
+
 # Area name -> recorder. Each writes fixtures/<major.minor>/<area>.json.
 AREAS = {
     'core': record_core,
@@ -756,6 +830,7 @@ AREAS = {
     'tag_policy': record_tag_policy,
     'system': record_system,
     'member': record_member,
+    'role': record_role,
 }
 # Area name -> what takes the area's own objects off the server (see run_area).
 SWEEPS = {
@@ -766,6 +841,7 @@ SWEEPS = {
     'tag_policy': sweep_tag_policy,
     'system': sweep_system,
     'member': sweep_member,
+    'role': sweep_role,
 }
 
 
