@@ -93,7 +93,7 @@ members:
       description: V(oidc), V(ldap) or V(http) for a group; V(null) for a user, or when the type can't be read.
       type: str
     role:
-      description: The member's role, V(null) for a role id this collection doesn't know.
+      description: The member's role; for a custom role (Harbor 2.16) the role's name. V(null) when Harbor reports no name for the role id.
       type: str
     role_id:
       description: Harbor's id of the role.

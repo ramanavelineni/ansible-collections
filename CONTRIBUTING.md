@@ -236,10 +236,11 @@ podman machine ssh 'for i in prepare harbor-log registry-photon harbor-registryc
 ```
 
 **What it was checked with.** The two edits the script makes itself are tested
-by `make tools-test`: its `harbor.yml`, and its compose file, which for 2.14.6
-and 2.15.5 equals the compose file of the servers the fixtures were recorded
-from. `up` and `down` were run in a podman machine on macOS with Harbor
-v2.14.6, v2.15.4 and v2.15.5 (on Apple silicon, emulated), and the
+by `make tools-test`: its `harbor.yml`, and its compose file, which for 2.14.6,
+2.15.5 and 2.16.0 equals the compose file of the servers the fixtures were
+recorded from. `up` and `down` were run in a podman machine on macOS with Harbor
+v2.14.6, v2.15.4, v2.15.5 (on Apple silicon, emulated) and v2.16.0 (arm64
+images, nothing to pull first), and the
 harbor live suite passed against each server, including the registry endpoint
 at `http://proxy:8080`. Not run so far: docker as the engine, a compose command
 installed on the machine, and Linux without a podman machine.

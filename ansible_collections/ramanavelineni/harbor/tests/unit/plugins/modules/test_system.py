@@ -722,3 +722,16 @@ def test_scan_all_info(server, run_module):
     result = run_module(scan_all_info.main, {})
     assert result['scan_all']['schedule'] == 'daily'
     assert result['metrics'] == metrics
+
+
+@pytest.mark.parametrize('prefix', ['', '  '])
+def test_empty_robot_name_prefix(server, run_module, prefix):
+    server.route('GET', '/configurations', 'system_configurations')
+    result = run_module(configuration.main, dict(settings=dict(robot_name_prefix=prefix)), check_mode=True)
+    if server.version in ('2.14', '2.15'):
+        # Taken there, so the module leaves it to Harbor.
+        assert result['changed'] is True
+    else:
+        assert result['failed'] is True
+        assert 'robot_name_prefix cannot be empty' in result['msg']
+    assert server.calls('PUT') == []
