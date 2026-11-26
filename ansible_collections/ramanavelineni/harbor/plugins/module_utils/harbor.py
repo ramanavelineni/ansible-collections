@@ -34,7 +34,7 @@ secret_forms = transport.secret_forms
 
 # Major.minor releases the modules are tested against. Any other version
 # gets a warning, not a failure.
-TESTED_VERSIONS = ('2.14', '2.15', '2.16')
+TESTED_VERSIONS = ('2.15', '2.16')
 
 # Harbor locks a username for 1.5 s after a failed login (frozenTime in
 # src/core/auth/authenticator.go, 2.14 to 2.16). A request for that user

@@ -32,6 +32,14 @@ ACCESS = [dict(resource='repository', action='pull')]
 SERVER_ERROR = dict(status=500, body=dict(errors=[dict(code='UNKNOWN', message='internal server error')]), headers={})
 
 
+def reporting_2_14(server):
+    """The recorded /systeminfo, hand-edited to an older Harbor: 2.14 is no longer recorded, but
+    the modules still refuse what it would ignore."""
+    info = server.response('systeminfo')
+    info['body']['harbor_version'] = 'v2.14.6-f435c950'
+    server.route('GET', '/systeminfo', info)
+
+
 def location_id(server, fixture):
     return int(server.fixtures[fixture]['headers']['location'].rsplit('/', 1)[-1])
 
@@ -129,13 +137,18 @@ def test_registry_ca_certificate_goes_out_with_a_create(server, run_module):
     server.route('GET', '/registries/%d' % rid, 'registry_get')
     result = run_module(registry.main, dict(name='rr-fixtures-self', type='harbor', endpoint_url='http://proxy:8080/',
                                             insecure=True, ca_certificate=certificate))
-    if server.version == '2.14':
-        # 2.14 ignores the field, so the module refuses it before anything is read.
-        assert result['failed'] is True and '2.15' in result['msg']
-        assert server.calls('POST') == []
-    else:
-        assert result['changed'] is True
-        assert server.calls('POST', '/registries')[0]['body']['ca_certificate'] == certificate
+    assert result['changed'] is True
+    assert server.calls('POST', '/registries')[0]['body']['ca_certificate'] == certificate
+
+
+def test_registry_ca_certificate_is_refused_on_2_14(server, run_module):
+    # 2.14 ignores the field, so the module refuses it before anything is created.
+    reporting_2_14(server)
+    server.route('GET', '/registries', 'registry_list_before')
+    result = run_module(registry.main, dict(name='rr-fixtures-self', type='harbor', endpoint_url='http://proxy:8080/',
+                                            insecure=True, ca_certificate='-----BEGIN CERTIFICATE-----\nx\n'))
+    assert result['failed'] is True and '2.15' in result['msg']
+    assert server.calls('POST') == []
 
 
 def test_replication_negative_speed_means_unlimited(server, run_module):

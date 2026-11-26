@@ -62,8 +62,8 @@ lists are conditions, not dates.
       the project file format.
 - [x] Harbor 2.16 tested: fixtures recorded, live suite and CI role tests
       run against it (Harbor 2.16.0, released on 2026-11-10).
-- [ ] The Harbor versions 1.0.0 supports decided, and any version to drop
-      (2.14) dropped before 1.0.0, not after.
+- [x] The Harbor versions 1.0.0 supports decided: 2.15 and 2.16. 2.14 was
+      dropped before 1.0.0, in harbor 0.10.0.
 
 ### ramanavelineni.semaphoreui
 
@@ -86,7 +86,7 @@ lists are conditions, not dates.
 | Namespace | `ramanavelineni`: `ramanavelineni.semaphoreui` and `ramanavelineni.harbor` |
 | Repository | this monorepo, public at <https://github.com/ramanavelineni/ansible-collections> |
 | License | Apache-2.0 |
-| Supported versions | ansible-core 2.20–2.22 (the versions still getting releases); Semaphore UI 2.18 and 2.19; Harbor 2.14, 2.15 and 2.16. Other server versions warn but work |
+| Supported versions | ansible-core 2.20–2.22 (the versions still getting releases); Semaphore UI 2.18 and 2.19; Harbor 2.15 and 2.16. Other server versions warn but work |
 | Module names | the servers' UI labels, singular (`key_store`, `variable_group`, `team_member`, `robot_account`, `tag_retention`, …), each with an `_info` module |
 | Option names | use name-based references, so a role can pass its data straight through. Fields without an established name keep the API's names. Where a name clashes with a connection option, the module uses another: `user`, `login`/`user_password`, `endpoint_url` |
 | State | every resource module takes `state: present \| absent` |
@@ -666,7 +666,7 @@ the same in both apart from two error messages. The recorded answers
   installer, checked against a pinned SHA-256. Until the harbor roles exist,
   harbor's `modules.yml` runs the modules they'll be built on.
 - Unit tests replay API responses recorded from throwaway local servers:
-  Semaphore UI 2.18.31 and 2.19.17, Harbor 2.14.6, 2.15.5 and 2.16.0. Each quirk above
+  Semaphore UI 2.18.31 and 2.19.17, Harbor 2.15.5 and 2.16.0. Each quirk above
   has at least one test. The recorders live in `tools/`, one area at a time.
   They refuse a server that isn't on a loopback address unless
   `--allow-remote` is passed, keep only their own objects from listings, and

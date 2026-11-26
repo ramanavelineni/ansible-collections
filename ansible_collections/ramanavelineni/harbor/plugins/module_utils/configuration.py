@@ -6,7 +6,7 @@
 import re
 
 # Every writable setting of /configurations (identical in Harbor 2.14, 2.15
-# and 2.16), secrets excepted, with its type.
+# and 2.16; 2.14 is no longer tested), secrets excepted, with its type.
 SETTING_TYPES = dict(
     audit_log_forward_endpoint=str, auth_mode=str, banner_message=str, disabled_audit_log_event_types=str,
     http_authproxy_admin_groups=str, http_authproxy_admin_usernames=str, http_authproxy_endpoint=str,

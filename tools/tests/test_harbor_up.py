@@ -26,7 +26,7 @@ SCRIPT = os.path.join(os.path.dirname(HERE), 'harbor_up.sh')
 BASH = shutil.which('bash')
 FIXTURES = os.path.join(HERE, 'fixtures', 'harbor_up')
 # Version and the port its working server is published on.
-VERSIONS = (('v2.14.6', '8014'), ('v2.15.5', '8015'), ('v2.16.0', '8016'))
+VERSIONS = (('v2.15.5', '8015'), ('v2.16.0', '8016'))
 
 
 def fixture(name):

@@ -373,7 +373,7 @@ def test_info_role_is_null_without_a_name(server, base, run_module):
 
 
 def test_unknown_role_id_on_update(server, base, run_module):
-    # Recorded: 2.14 and 2.15 store any role id an update sends, 2.16 answers
-    # 404 for one that is no role. The module only sends the ids it names.
+    # Recorded: 2.15 stores any role id an update sends, 2.16 answers 404 for
+    # one that is no role. The module only sends the ids it names.
     answer = server.fixtures['member_update_bad_role']
     assert answer['status'] == (404 if server.version >= '2.16' else 200)

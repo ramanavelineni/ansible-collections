@@ -8,12 +8,12 @@ make the server match, and change nothing when it already does.
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 ![ansible-core 2.20–2.22](https://img.shields.io/badge/ansible--core-2.20%20%E2%80%93%202.22-EE0000?logo=ansible)
 ![Semaphore UI 2.18 | 2.19](https://img.shields.io/badge/Semaphore%20UI-2.18%20%7C%202.19-7B42BC)
-![Harbor 2.14 | 2.15 | 2.16](https://img.shields.io/badge/Harbor-2.14%20%7C%202.15%20%7C%202.16-60B932)
+![Harbor 2.15 | 2.16](https://img.shields.io/badge/Harbor-2.15%20%7C%202.16-60B932)
 
 | Collection | Configures | Modules | Tested with |
 |---|---|---|---|
 | [**`ramanavelineni.semaphoreui`**](ansible_collections/ramanavelineni/semaphoreui/) | [Semaphore UI](https://semaphoreui.com): projects and everything in them, users, runners | 35, plus 3 roles | Semaphore UI 2.18, 2.19 |
-| [**`ramanavelineni.harbor`**](ansible_collections/ramanavelineni/harbor/) | [Harbor](https://goharbor.io): projects, members, robot accounts, registries, replication, policies, system settings | 25, plus 3 roles | Harbor 2.14, 2.15, 2.16 |
+| [**`ramanavelineni.harbor`**](ansible_collections/ramanavelineni/harbor/) | [Harbor](https://goharbor.io): projects, members, robot accounts, registries, replication, policies, system settings | 25, plus 3 roles | Harbor 2.15, 2.16 |
 
 ---
 
@@ -305,7 +305,7 @@ Every module's full documentation is available offline:
 |---|---|
 | ansible-core | 2.20, 2.21, 2.22 |
 | Semaphore UI | 2.18, 2.19 (Community; project runners need Pro) |
-| Harbor | 2.14, 2.15, 2.16 |
+| Harbor | 2.15, 2.16 |
 | Python | whatever your ansible-core supports |
 
 Other server versions work but print a warning, because they haven't been

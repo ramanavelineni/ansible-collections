@@ -11,6 +11,14 @@ from ansible_collections.ramanavelineni.harbor.plugins.modules import registry, 
 SELF = dict(name='rr-fixtures-self', type='harbor', endpoint_url='http://proxy:8080/', insecure=True)
 
 
+def reporting_2_14(server):
+    """The recorded /systeminfo, hand-edited to an older Harbor: 2.14 is no longer recorded, but
+    the modules still refuse what it would ignore."""
+    info = server.response('systeminfo')
+    info['body']['harbor_version'] = 'v2.14.6-f435c950'
+    server.route('GET', '/systeminfo', info)
+
+
 def rid(server, fixture='registry_create'):
     return int(server.fixtures[fixture]['headers']['location'].rsplit('/', 1)[-1])
 
@@ -136,16 +144,21 @@ def test_rejected_secret_reported(server, run_module):
     assert 'wrong-one' not in json.dumps(result)
 
 
-def test_ca_certificate_needs_2_15(server, run_module):
+def test_ca_certificate_is_sent(server, run_module):
     server.route('GET', '/registries', 'registry_list')
     server.route('PUT', '/registries/%d' % rid(server), 'registry_update')
     server.route('GET', '/registries/%d' % rid(server), stored(server, 'registry_get', ca_certificate='-----BEGIN CERTIFICATE-----\nx\n'))
     result = run_module(registry.main, dict(name='rr-fixtures-self', ca_certificate='-----BEGIN CERTIFICATE-----\nx\n'))
-    if server.version == '2.14':
-        assert result['failed'] is True and '2.15' in result['msg']
-    else:
-        assert result['changed'] is True
-        assert 'ca_certificate' in server.calls('PUT')[0]['body']
+    assert result['changed'] is True
+    assert 'ca_certificate' in server.calls('PUT')[0]['body']
+
+
+def test_ca_certificate_needs_2_15(server, run_module):
+    reporting_2_14(server)
+    server.route('GET', '/registries', 'registry_list')
+    result = run_module(registry.main, dict(name='rr-fixtures-self', ca_certificate='-----BEGIN CERTIFICATE-----\nx\n'))
+    assert result['failed'] is True and '2.15' in result['msg']
+    assert server.calls('PUT') == []
 
 
 def test_ca_certificate_is_sent_when_the_version_cannot_be_read(server, run_module):
