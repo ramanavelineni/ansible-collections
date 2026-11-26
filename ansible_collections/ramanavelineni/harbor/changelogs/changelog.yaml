@@ -81,6 +81,80 @@ releases:
       name: webhook_info
       namespace: ''
     release_date: '2026-09-27'
+  0.10.0:
+    changes:
+      breaking_changes:
+      - Harbor 2.14 is no longer tested. The modules now warn on every task that it
+        is untested (set ``warn_untested_version`` to ``false`` to turn that off),
+        the unit tests no longer replay answers recorded from it, and CI no longer
+        runs the role tests against it. Nothing that worked on 2.14 was removed, and
+        options that 2.14 would silently ignore (``ca_certificate`` of the registry
+        module, ``delete_tag`` of garbage_collection and the project metadata key
+        ``proxy_cache_local_on_not_found``) still fail there instead. The tested versions
+        are Harbor 2.15 and 2.16.
+      bugfixes:
+      - webhook - the address is compared the way Harbor reads it, so a host name
+        in another case or a trailing slash is no change. Harbor 2.15.5 stores the
+        address with the host lowercased and without a trailing slash, a user or a
+        password, and the module used to report a change on every run for an address
+        it had stored like that. A user and password count only where Harbor stored
+        them. The module warns about an address with a user and password in it, because
+        Harbor 2.15.5 drops them; send credentials with ``auth_header`` instead.
+      minor_changes:
+      - Harbor 2.15.5 is the tested 2.15 release. The unit-test fixtures for 2.15
+        are recorded from it, and the role tests run against it.
+      - Harbor 2.16 is tested. The unit-test fixtures are recorded from Harbor 2.16.0,
+        the role tests run against it in CI, and the modules no longer warn that 2.16
+        is untested.
+      - configuration - an empty or blank ``robot_name_prefix`` fails before anything
+        is sent on Harbor 2.16, which refuses it, so check mode no longer predicts
+        a change Harbor would refuse.
+      - project - new option ``retention_days`` sets the retention policy that Harbor
+        2.16 creates with a new proxy-cache project. It is only used when the project
+        is created, and fails before Harbor 2.16 and for a project that is not a proxy
+        cache.
+      - project - the Harbor 2.16 proxy-cache settings ``proxy_cache_filter_kind``
+        (``doublestar``, ``regex`` or empty), ``proxy_cache_filter_pattern`` and ``proxy_referrer_api``
+        are taken in ``metadata``. They fail on an older Harbor, which drops them,
+        and on a project that is not a proxy cache.
+      - project_apply role - a project file can set ``retention_days``, and passes
+        the new proxy-cache metadata keys to the project module like any other.
+      - project_export role - a member with a custom project role is exported with
+        the role's name, which project_apply gives back through project_member.
+      - project_export role - the new proxy-cache metadata keys are exported instead
+        of failing the export as unknown.
+      - project_member - ``role`` takes the name of a custom project role (Harbor
+        2.16) as well as the five built-in roles. It no longer has a fixed list of
+        choices; a name that is neither fails, naming the custom roles Harbor has,
+        and on an older Harbor it fails because custom roles need 2.16.
+      - project_member, project_member_info - a member with a custom project role
+        (Harbor 2.16) is returned with the role's name in ``role``, instead of ``null``.
+      - server_apply role - new variable ``server_apply_roles`` for custom project
+        roles (Harbor 2.16), keyed by name with the options of the new ``role`` module.
+        They are made before the registries and deleted after them.
+      release_summary: Harbor 2.16, and the tested versions are now Harbor 2.15 (2.15.5)
+        and 2.16; 2.14 is no longer tested and warns like any untested version. New
+        modules ``role`` and ``role_info`` manage the custom project roles of Harbor
+        2.16, which ``project_member``, ``server_apply`` (``server_apply_roles``)
+        and ``project_export`` use by name. ``project`` takes the 2.16 proxy-cache
+        filter, the referrers API switch and ``retention_days``. The webhook module
+        no longer reports a change on every run for an address Harbor 2.15.5 stores
+        normalized.
+    fragments:
+    - custom-roles.yml
+    - drop-harbor-2.14.yml
+    - harbor-2.15.5.yml
+    - harbor-2.16.yml
+    - proxy-cache-2.16.yml
+    - release-0.10.0.yml
+    modules:
+    - description: Manage custom project roles of Harbor.
+      name: role
+      namespace: ''
+    - description: List Harbor's project roles.
+      name: role_info
+      namespace: ''
+    release_date: '2026-11-25'
   0.2.0:
     changes:
       breaking_changes:

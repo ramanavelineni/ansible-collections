@@ -12,7 +12,7 @@ the way. Each quirk is handled inside a module and covered by a test.
 
 - [x] Scaffolding: repository, CI, Makefile, pre-commit, changelog setup
 - [x] `ramanavelineni.semaphoreui`: 35 modules
-- [x] `ramanavelineni.harbor`: 23 modules
+- [x] `ramanavelineni.harbor`: 27 modules
 - [x] First releases: `semaphoreui-v0.1.0` and `harbor-v0.1.0`, built and
       published as GitHub Releases by a workflow on tag push
 - [x] 0.3.0 of both: connection options for mutual TLS and proxies
@@ -29,6 +29,9 @@ the way. Each quirk is handled inside a module and covered by a test.
 - [x] Harbor role `project_export` and its filters (harbor 0.8.0)
 - [x] Harbor vault files in project directories: `project_apply_vault_files`,
       and `<name>/vault.yaml.example` from a directory export (harbor 0.9.0)
+- [x] Harbor 2.15.5 and 2.16 tested, 2.14 dropped, the 2.16 proxy-cache options
+      in `project`, and modules `role` and `role_info` for custom project roles,
+      used by `project_member`, `server_apply` and `project_export` (harbor 0.10.0)
 
 ---
 

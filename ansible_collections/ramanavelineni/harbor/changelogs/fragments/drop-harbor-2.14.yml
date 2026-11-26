@@ -1,8 +1,0 @@
----
-breaking_changes:
-  - Harbor 2.14 is no longer tested. The modules now warn on every task that it is untested (set
-    ``warn_untested_version`` to ``false`` to turn that off), the unit tests no longer replay answers recorded from
-    it, and CI no longer runs the role tests against it. Nothing that worked on 2.14 was removed, and options that
-    2.14 would silently ignore (``ca_certificate`` of the registry module, ``delete_tag`` of garbage_collection and
-    the project metadata key ``proxy_cache_local_on_not_found``) still fail there instead. The tested versions are
-    Harbor 2.15 and 2.16.
