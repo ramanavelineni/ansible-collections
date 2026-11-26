@@ -7,7 +7,7 @@ without saying why, because an ignore entry switches a check off for good.
 
 Checked, for the collection given as the only argument:
   - there is one file for each ansible-core version the sanity job of CI goes
-    through (.github/workflows/ci.yml), and no file for another version
+    through (.github/ci-versions.json), and no file for another version
   - each file has exactly one licence entry for every module, and none for a
     file that doesn't exist
   - every line carries a comment that explains it
@@ -16,24 +16,20 @@ Checked, for the collection given as the only argument:
 Usage: check-sanity-ignore.py <collection>     (from the repository root)
 """
 
+import json
 import os
-import re
 import sys
 
 LICENCE = 'validate-modules:missing-gplv3-license'
 
 
-def matrix_versions(workflow):
-    """ansible-core versions the sanity job goes through, as '2.18', '2.19', ..."""
-    with open(workflow) as f:
-        text = f.read()
-    # The job, up to the next one: jobs sit at two spaces of indentation.
-    job = re.split(r'\n  [a-z][a-z-]*:\n', text.split('\n  sanity:\n', 1)[1], maxsplit=1)[0]
-    line = re.search(r'^\s+ansible: \[([^\]]*)\]\s*$', job, re.M)
-    versions = re.findall(r'"([0-9]+\.[0-9]+)"', line.group(1)) if line else []
-    if not versions:
-        raise SystemExit('cannot find the versions the sanity job goes through in %s '
-                         '(a matrix line \'ansible: ["2.18", "2.19", ...]\')' % workflow)
+def matrix_versions(config):
+    """ansible-core versions the sanity job goes through, as '2.18', '2.19', ...: all of .github/ci-versions.json."""
+    with open(config) as f:
+        versions = [entry.get('version') for entry in json.load(f).get('ansible') or []]
+    if not versions or not all(versions):
+        raise SystemExit('cannot find the ansible-core versions in %s (a list "ansible" of {"version": ...})'
+                         % config)
     return versions
 
 
@@ -89,7 +85,7 @@ def main():
     collection_dir = os.path.join('ansible_collections', 'ramanavelineni', collection)
     if not os.path.isdir(collection_dir):
         raise SystemExit('no collection at %s' % collection_dir)
-    versions = matrix_versions(os.path.join('.github', 'workflows', 'ci.yml'))
+    versions = matrix_versions(os.path.join('.github', 'ci-versions.json'))
     errors, modules, found = check(collection_dir, versions)
     for error in errors:
         print('%s: %s' % (collection, error), file=sys.stderr)

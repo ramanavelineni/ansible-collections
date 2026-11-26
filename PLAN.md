@@ -123,6 +123,7 @@ ansible-collections/
 ├── .pre-commit-config.yaml     # whitespace, YAML, changelog lint
 ├── .github/workflows/ci.yml    # sanity, units, install, lint and role tests
 ├── .github/workflows/release.yml  # tag push: test, build, GitHub Release
+├── .github/ci-versions.json    # ansible-core versions CI runs, with their Pythons
 ├── .github/role-tests.json     # server versions the role tests run against
 ├── .github/scripts/            # change detection, coverage floor, role-test matrix, role and install tests
 ├── tools/

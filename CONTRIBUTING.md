@@ -326,20 +326,24 @@ the repo changes by itself. The steps, in one pull request:
    both collections. Sanity fails without it, because the entries (the
    Apache-2.0 licence header instead of the GPL one) are needed on every
    version.
-2. In `.github/workflows/ci.yml`, add the version to the `ansible:` list of
-   the Sanity job, and to the units: the newest version is the job with
-   coverage, which installs `ansible-core~=` itself, so the version before it
-   moves into the `ansible:` list of the other unit job, with an `include:`
-   line naming the oldest and the newest Python it supports for modules
-   (`REMOTE_ONLY_PYTHON_VERSIONS` and `CONTROLLER_PYTHON_VERSIONS` in
-   ansible-core's `test/lib/ansible_test/_util/target/common/constants.py`). Make it the newer of
-   the two versions of the install test, and
-   move the Lint job's `ansible-core~=` to it. The Lint job fails until the
-   ignore files from step 1 and the sanity list agree.
+2. Add the version to the end of `.github/ci-versions.json`, with the oldest
+   and the newest Python it supports for modules (`REMOTE_ONLY_PYTHON_VERSIONS`
+   and `CONTROLLER_PYTHON_VERSIONS` in ansible-core's
+   `test/lib/ansible_test/_util/target/common/constants.py`). The jobs take it
+   from there (`.github/scripts/ci-versions.py` says which job gets which):
+   sanity runs every version, the newest gets the unit job with coverage and
+   the Lint job, the others the unit job without it, and the install test
+   runs the oldest and the newest. No workflow file changes, so a token
+   without the `workflow` scope can push it. The Lint job fails until the
+   ignore files from step 1 and the file agree.
 3. In `.github/workflows/release.yml`, raise the `ansible-core==` pin of the
    publish job's `pip install` to the new version. The packages next to it are
    what that version installs, pinned too, because the job can write to the
-   repository. Dependabot doesn't update them.
+   repository. Dependabot doesn't update them. This one is a workflow file:
+   pushing it needs a token with the `workflow` scope. `make tools-test`
+   fails while the pin and the newest version of `.github/ci-versions.json`
+   disagree, and while a collection lacks an ignore file for a version or its
+   `requires_ansible` is not the oldest.
 4. Update the version badge at the top of the three READMEs, the "Compatibility"
    table in the root README, and the version lists in this file and in
    `PLAN.md`.
