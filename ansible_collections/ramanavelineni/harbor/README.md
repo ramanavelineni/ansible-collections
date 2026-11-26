@@ -138,6 +138,12 @@ registry. Each role's README has the details:
 [project_export](roles/project_export/README.md), or
 `ansible-doc -t role ramanavelineni.harbor.project_apply`.
 
+A project directory can keep its secrets next to it in a `vault.yaml`,
+encrypted with `ansible-vault`, which `project_apply` loads as variables (see
+"Vault files" in its README). The filters behind `project_export`
+(`project_export_config`, `project_export_yaml`, `project_export_vault` and
+`project_export_vault_variables`) can be used on their own.
+
 ## Connecting
 
 Harbor's API only takes HTTP basic authentication, so each module takes `url`

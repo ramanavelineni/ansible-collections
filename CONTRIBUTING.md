@@ -116,23 +116,26 @@ Locally:
 ```sh
 SEMAPHORE_URL=http://127.0.0.1:3019 SEMAPHORE_USERNAME=admin SEMAPHORE_PASSWORD=... \
     make role-test COLLECTION=semaphoreui
-HARBOR_URL=http://127.0.0.1:8015 HARBOR_PASSWORD=... make role-test COLLECTION=harbor
+HARBOR_URL=http://127.0.0.1:8015 HARBOR_USERNAME=admin HARBOR_PASSWORD=... \
+    make role-test COLLECTION=harbor
 ```
 
 Every playbook in `tests/roles/` is run; `ROLE_TEST_PLAYBOOK=apply` runs only
-`apply.yml`. A collection's `tests/roles/files/vault-password` is passed to
+`apply.yml` (harbor's playbooks are named after the role, such as
+`project_apply`). A collection's `tests/roles/files/vault-password` is passed to
 `ansible-playbook` with `--vault-password-file`: it is the test-only password
 of the test files encrypted with `ansible-vault`, and protects nothing. CI
 finds the playbooks the same way (`.github/scripts/role-test-matrix.py`), so a
 new one runs without a change to the workflow. The server versions those jobs
 run against, each with the ansible-core it runs with, are in
 `.github/role-tests.json`, oldest first; a pull request runs the newest only.
-Each has to stand alone: it only touches objects named `roletest-...`, and
+Each playbook has to stand alone: it only touches objects named `roletest-...`, and
 removes them before it starts and when it ends. Throwaway servers only.
 
 What can be checked without a server is a unit test:
-`tests/unit/roles/test_apply_roles.py` fails when a role's list of options, or
-the task that passes them on, no longer matches the module.
+`tests/unit/roles/test_apply_roles.py` (in harbor `test_project_apply.py` and
+`test_server_apply.py`) fails when a role's list of options, or the task that
+passes them on, no longer matches the module.
 
 ## What a change needs
 
