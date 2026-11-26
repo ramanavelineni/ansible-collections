@@ -101,7 +101,7 @@ options:
     version_added: 0.3.0
     default: true
 notes:
-  - Supports Harbor 2.14 and 2.15. On another version the module warns and continues, unless
+  - Supports Harbor 2.14, 2.15 and 2.16. On another version the module warns and continues, unless
     O(warn_untested_version=false).
   - An option that needs a newer Harbor than the server reports fails the task. When the reported version
     cannot be read, the option is sent and Harbor decides.

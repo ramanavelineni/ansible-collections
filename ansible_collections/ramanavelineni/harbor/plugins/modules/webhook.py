@@ -51,7 +51,7 @@ options:
     description:
       - The events that trigger a notification. Required to create a webhook.
       - Compared as a set; the order does not matter.
-      - Harbor 2.14 and 2.15 offer V(PUSH_ARTIFACT), V(PULL_ARTIFACT), V(DELETE_ARTIFACT), V(QUOTA_EXCEED),
+      - Harbor 2.14 to 2.16 offer V(PUSH_ARTIFACT), V(PULL_ARTIFACT), V(DELETE_ARTIFACT), V(QUOTA_EXCEED),
         V(QUOTA_WARNING), V(SCANNING_FAILED), V(SCANNING_STOPPED), V(SCANNING_COMPLETED), V(REPLICATION) and
         V(TAG_RETENTION).
       - Any other event is checked against the events the server itself offers for the project, so one a newer
@@ -206,7 +206,7 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor impor
     webhook_view as view,
 )
 
-# The events Harbor 2.14 and 2.15 offer (GET /projects/<id>/webhook/events).
+# The events Harbor 2.14, 2.15 and 2.16 offer (GET /projects/<id>/webhook/events).
 # These are accepted without asking the server.
 EVENT_TYPES = ['PUSH_ARTIFACT', 'PULL_ARTIFACT', 'DELETE_ARTIFACT', 'QUOTA_EXCEED', 'QUOTA_WARNING', 'SCANNING_FAILED',
                'SCANNING_STOPPED', 'SCANNING_COMPLETED', 'REPLICATION', 'TAG_RETENTION']

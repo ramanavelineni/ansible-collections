@@ -38,7 +38,7 @@ options:
   type:
     description:
       - Provider of the endpoint. Required to create it.
-      - Harbor 2.14 and 2.15 offer V(ali-acr), V(aws-ecr), V(azure-acr), V(docker-hub), V(docker-registry),
+      - Harbor 2.14 to 2.16 offer V(ali-acr), V(aws-ecr), V(azure-acr), V(docker-hub), V(docker-registry),
         V(github-ghcr), V(google-gcr), V(harbor), V(huawei-SWR), V(jfrog-artifactory), V(tencent-tcr) and
         V(volcengine-cr).
       - Any other type is checked against the types the server offers before the endpoint is created,

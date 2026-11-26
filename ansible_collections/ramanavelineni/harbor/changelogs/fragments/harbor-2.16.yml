@@ -1,0 +1,10 @@
+---
+minor_changes:
+  - Harbor 2.16 is tested. The unit-test fixtures are recorded from Harbor 2.16.0, the role tests run against it in
+    CI, and the modules no longer warn that 2.16 is untested.
+  - project_member, project_member_info - a member with a custom project role (Harbor 2.16) is returned with the
+    role's name in ``role``, instead of ``null``.
+  - configuration - an empty or blank ``robot_name_prefix`` fails before anything is sent on Harbor 2.16, which
+    refuses it, so check mode no longer predicts a change Harbor would refuse.
+  - project_export role - a member with a custom project role fails the export with the role's name, because the
+    project_member module cannot assign custom roles yet.

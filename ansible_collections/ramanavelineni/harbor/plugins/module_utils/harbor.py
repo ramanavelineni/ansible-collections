@@ -34,10 +34,10 @@ secret_forms = transport.secret_forms
 
 # Major.minor releases the modules are tested against. Any other version
 # gets a warning, not a failure.
-TESTED_VERSIONS = ('2.14', '2.15')
+TESTED_VERSIONS = ('2.14', '2.15', '2.16')
 
 # Harbor locks a username for 1.5 s after a failed login (frozenTime in
-# src/core/auth/authenticator.go, 2.14 and 2.15). A request for that user
+# src/core/auth/authenticator.go, 2.14 to 2.16). A request for that user
 # during the lock, even with the right password, is handled as anonymous:
 # endpoints that need a login answer 401, /systeminfo leaves out
 # harbor_version. It happens when another client fails to log in as the same
@@ -483,8 +483,9 @@ def webhook_view(policy, project):
 
 # -- project members -----------------------------------------------------------
 
-# Harbor's role ids (src/common/const.go, 2.14 and 2.15). The swagger lists
-# 1 to 4; the member code accepts 5 as well.
+# Harbor's built-in role ids (src/common/const.go, 2.14 to 2.16). The swagger
+# lists 1 to 4; the member code accepts 5 as well. 2.16 adds custom roles
+# from id 6 on.
 MEMBER_ROLES = dict(project_admin=1, developer=2, guest=3, maintainer=4, limited_guest=5)
 # Group types, and the auth mode in which Harbor can create a missing group of that type.
 GROUP_TYPES = dict(ldap=1, http=2, oidc=3)
@@ -496,6 +497,18 @@ def _name_of(table, value):
         if number == value:
             return name
     return None
+
+
+def member_role_name(member):
+    """The module's name for a member's role: a built-in role's, or a custom role's own name.
+
+    Harbor 2.16 adds custom project roles, with ids from 6 on (the built-in
+    ones keep 1 to 5); a member's role_name is then the role's name.
+    """
+    name = _name_of(MEMBER_ROLES, member.get('role_id'))
+    if name is None and member.get('role_id') is not None:
+        name = member.get('role_name') or None
+    return name
 
 
 def member_view(member, project, group_type=None):
@@ -510,7 +523,7 @@ def member_view(member, project, group_type=None):
         id=member.get('id'), project=project, project_id=member.get('project_id'),
         user=None if is_group else name, group=name if is_group else None,
         group_type=group_type if is_group else None,
-        role=_name_of(MEMBER_ROLES, member.get('role_id')), role_id=member.get('role_id'),
+        role=member_role_name(member), role_id=member.get('role_id'),
     )
 
 

@@ -560,7 +560,7 @@ def without_site_settings(result):
 
 
 # What the system area sets, which is how its sweep knows them again, and what
-# an untouched Harbor 2.14 or 2.15 holds in the two settings.
+# an untouched Harbor 2.14, 2.15 or 2.16 holds in the two settings.
 SYSTEM_BANNER = 'fixtures-system'
 SYSTEM_SETTING_DEFAULTS = dict(banner_message='', session_timeout=60)
 SYSTEM_GC_CRON = '0 0 4 * * 0'

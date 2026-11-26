@@ -60,8 +60,8 @@ lists are conditions, not dates.
 - [ ] `server_apply` and `project_apply` used for real against a Harbor,
       and a few weeks pass without a change to an option, a role variable or
       the project file format.
-- [ ] Harbor 2.16 tested: fixtures recorded, live suite and CI role tests
-      run against it. Harbor 2.16.0 was released on 2026-11-09.
+- [x] Harbor 2.16 tested: fixtures recorded, live suite and CI role tests
+      run against it (Harbor 2.16.0, released on 2026-11-10).
 - [ ] The Harbor versions 1.0.0 supports decided, and any version to drop
       (2.14) dropped before 1.0.0, not after.
 
@@ -86,7 +86,7 @@ lists are conditions, not dates.
 | Namespace | `ramanavelineni`: `ramanavelineni.semaphoreui` and `ramanavelineni.harbor` |
 | Repository | this monorepo, public at <https://github.com/ramanavelineni/ansible-collections> |
 | License | Apache-2.0 |
-| Supported versions | ansible-core 2.20–2.22 (the versions still getting releases); Semaphore UI 2.18 and 2.19; Harbor 2.14 and 2.15. Other server versions warn but work |
+| Supported versions | ansible-core 2.20–2.22 (the versions still getting releases); Semaphore UI 2.18 and 2.19; Harbor 2.14, 2.15 and 2.16. Other server versions warn but work |
 | Module names | the servers' UI labels, singular (`key_store`, `variable_group`, `team_member`, `robot_account`, `tag_retention`, …), each with an `_info` module |
 | Option names | use name-based references, so a role can pass its data straight through. Fields without an established name keep the API's names. Where a name clashes with a connection option, the module uses another: `user`, `login`/`user_password`, `endpoint_url` |
 | State | every resource module takes `state: present \| absent` |
@@ -585,12 +585,15 @@ or an OIDC user's CLI secret.
 - Only the keys given are compared and sent. Harbor silently ignores unknown
   keys (and the read-only `scan_all_policy`) and answers a wrong type with
   422, so keys and types are checked first. The 57 writable keys are identical
-  in 2.14 and 2.15.
+  in 2.14, 2.15 and 2.16.
 - `oidc_client_secret` and `ldap_search_password` are write-only. They're
   separate `no_log` options following `update_secret`; `on_create` sends them
   only while `oidc_client_id` / `ldap_search_dn` is empty or changing.
   `uaa_client_secret` is returned in clear text: compared, never output.
 - `auth_mode` can only change while no user but the admin exists.
+- 2.16 refuses an empty or blank `robot_name_prefix` (400 `robot_name_prefix
+  cannot be empty or contain only spaces`); 2.14 and 2.15 store it. The module
+  fails on one there before anything is sent, so check mode says so too.
 
 ### garbage_collection, scan_all, log_rotation
 - Schedules only. Type `Manual` is never sent, so no run is ever started.
@@ -638,6 +641,12 @@ the same in both apart from two error messages. The recorded answers
   removal is `DELETE` on that path, answered 200 also when the membership is
   already gone.
 - The project's creator is its first member, as project admin.
+- Harbor 2.16 adds custom project roles (`/roles`, `src/controller/role`).
+  The built-in roles keep ids 1 to 5 and are resolved in code as before;
+  custom roles live in the database with ids from 6 on. The member list then
+  has the custom role's name in `role_name`, which the modules return as
+  `role`. A role id that is no role is answered 404 on 2.16 (`role 9 not
+  found`), where 2.14 and 2.15 stored it.
 ---
 
 ## Testing
@@ -657,7 +666,7 @@ the same in both apart from two error messages. The recorded answers
   installer, checked against a pinned SHA-256. Until the harbor roles exist,
   harbor's `modules.yml` runs the modules they'll be built on.
 - Unit tests replay API responses recorded from throwaway local servers:
-  Semaphore UI 2.18.31 and 2.19.17, Harbor 2.14.6 and 2.15.5. Each quirk above
+  Semaphore UI 2.18.31 and 2.19.17, Harbor 2.14.6, 2.15.5 and 2.16.0. Each quirk above
   has at least one test. The recorders live in `tools/`, one area at a time.
   They refuse a server that isn't on a loopback address unless
   `--allow-remote` is passed, keep only their own objects from listings, and

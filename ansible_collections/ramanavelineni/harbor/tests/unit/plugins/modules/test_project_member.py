@@ -346,3 +346,34 @@ def test_info_reads_no_user_groups_when_there_is_no_group_member(server, base, r
     members = run_module(project_member_info.main, dict(project=PROJECT))['members']
     assert [m['user'] for m in members] == ['admin']
     assert server.calls('GET', '/usergroups') == []
+
+
+def test_info_names_a_custom_role(server, base, run_module):
+    # Hand-edited answer: the recorded member list, with the user on a custom
+    # role the way a Harbor 2.16 server lists one (role ids from 6 on,
+    # role_name the role's name).
+    answer = server.response('member_list_all')
+    user = [m for m in answer['body'] if m['entity_name'] == 'fixtures-member-user'][0]
+    user.update(role_id=6, role_name='ci-deployer')
+    server.route('GET', base, answer)
+    server.route('GET', '/usergroups', 'member_usergroups_all')
+    members = run_module(project_member_info.main, dict(project=PROJECT, name='fixtures-member-user'))['members']
+    assert [(m['role'], m['role_id']) for m in members] == [('ci-deployer', 6)]
+
+
+def test_info_role_is_null_without_a_name(server, base, run_module):
+    answer = server.response('member_list_all')
+    user = [m for m in answer['body'] if m['entity_name'] == 'fixtures-member-user'][0]
+    user.update(role_id=6)
+    user.pop('role_name', None)
+    server.route('GET', base, answer)
+    server.route('GET', '/usergroups', 'member_usergroups_all')
+    members = run_module(project_member_info.main, dict(project=PROJECT, name='fixtures-member-user'))['members']
+    assert [(m['role'], m['role_id']) for m in members] == [(None, 6)]
+
+
+def test_unknown_role_id_on_update(server, base, run_module):
+    # Recorded: 2.14 and 2.15 store any role id an update sends, 2.16 answers
+    # 404 for one that is no role. The module only sends the ids it names.
+    answer = server.fixtures['member_update_bad_role']
+    assert answer['status'] == (404 if server.version >= '2.16' else 200)

@@ -35,6 +35,7 @@ options:
         O(uaa_client_secret), so they are never shown in the output.
       - Harbor only lets C(auth_mode) change while no user other than the admin exists, and
         C(skip_audit_log_database=true) needs C(audit_log_forward_endpoint).
+      - Harbor 2.16 refuses an empty C(robot_name_prefix), so the module fails on one before anything is sent.
       - A setting that Harbor reports as not editable, and whose value would change, fails the task
         before anything is sent, with the names of those settings. A value that is already in place
         is not a change and passes.
@@ -126,7 +127,9 @@ from ansible_collections.ramanavelineni.harbor.plugins.module_utils.configuratio
 )
 from ansible_collections.ramanavelineni.harbor.plugins.module_utils.harbor import (
     harbor_argument_spec,
+    older_than,
     run_module,
+    server_minor,
 )
 
 TYPE_NAMES = {str: 'a string', bool: 'a boolean', int: 'an integer'}
@@ -180,6 +183,11 @@ def ensure(module, client):
     params = module.params
     settings = validate(params['settings'] or {})
     client.warn_if_untested()
+    if 'robot_name_prefix' in settings and not settings['robot_name_prefix'].strip() \
+            and not older_than(server_minor(client), (2, 16)):
+        # Checked here, so that check mode doesn't predict a change Harbor refuses.
+        raise ValueError('robot_name_prefix cannot be empty or only spaces: Harbor 2.16 refuses it (an empty prefix '
+                         'blocks the OIDC CLI login).')
 
     raw = client.get('/configurations') or {}
     before = flat(raw)

@@ -18,14 +18,18 @@ version="${1:?usage: harbor-ci-up.sh <version> <download directory>}"
 downloads="${2:?usage: harbor-ci-up.sh <version> <download directory>}"
 : "${HARBOR_PASSWORD:?set HARBOR_PASSWORD to the admin password to give the new Harbor}"
 
+# From 2.16 Harbor publishes an installer per architecture, named
+# harbor-offline-installer-<version>-<arch>.tgz; the runners are amd64.
+name="harbor-offline-installer-${version}.tgz"
 case "${version}" in
   v2.14.6) sha256=f3adaff30c4531c58f9d6ee8c5164f95f08582651c12b698b92be9e98df55cf6 ;;
   v2.15.5) sha256=18f9d4c47ad603743591e814b6c32136532ba7670132a94f4d9661f0fe46882c ;;
+  v2.16.0) sha256=643c137d8e829c857ef0ba45c46b5d6d8553077340bbd4929ded7e92808e77ff
+           name="harbor-offline-installer-${version}-amd64.tgz" ;;
   *) echo "harbor-ci-up: no pinned SHA-256 for Harbor ${version}; add it to this script" >&2; exit 1 ;;
 esac
 
 root="$(pwd)"
-name="harbor-offline-installer-${version}.tgz"
 tarball="${downloads}/${name}"
 work="${RUNNER_TEMP:-/tmp}/harbor-${version}"
 started="$(date +%s)"
