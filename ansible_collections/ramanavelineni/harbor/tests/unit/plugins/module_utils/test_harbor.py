@@ -36,8 +36,9 @@ def test_base_url(url, expected):
 
 @pytest.mark.parametrize('version, expected', [
     ('v2.15.2-a97e7b83', True),
-    ('v2.14.4-79a297f7', True),
+    ('v2.16.0-e69b1bfa', True),
     ('v2.15', True),
+    ('v2.14.6-f435c950', False),
     ('v2.13.5-abc', False),
     ('v2.150.1', False),
     ('', False),

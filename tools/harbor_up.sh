@@ -43,8 +43,8 @@
 #
 # What it was checked with. The two edits this script makes itself are tested
 # without a server (tools/tests/test_harbor_up.py): the edited harbor.yml, and
-# the adjusted docker-compose.yml, which for 2.14.6, 2.15.5 and 2.16.0 equals
-# the compose file of the servers the fixtures were recorded from. "up" and
+# the adjusted docker-compose.yml, which for 2.15.5 and 2.16.0 equals the
+# compose file of the servers the fixtures were recorded from. "up" and
 # "down" were run in a podman machine on macOS (rootless podman, no compose
 # command, so compose came from the docker CLI image) with Harbor v2.14.6,
 # v2.15.4, v2.15.5 (on Apple silicon, its amd64 images pulled first and

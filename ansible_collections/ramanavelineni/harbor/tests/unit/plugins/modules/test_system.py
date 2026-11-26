@@ -22,6 +22,14 @@ PURGE = '/system/purgeaudit/schedule'
 SCAN_ALL = '/system/scanAll/schedule'
 
 
+def reporting_2_14(server):
+    """The recorded /systeminfo, hand-edited to an older Harbor: 2.14 is no longer recorded, but
+    the modules still refuse what it would ignore."""
+    info = server.response('systeminfo')
+    info['body']['harbor_version'] = 'v2.14.6-f435c950'
+    server.route('GET', '/systeminfo', info)
+
+
 def ok(body=None):
     return dict(status=200, body=body, headers={})
 
@@ -388,12 +396,17 @@ def test_gc_delete_tag_version(server, run_module):
     server.route('GET', GC, 'system_gc_schedule_custom')
     server.route('PUT', GC, 'system_gc_schedule_update')
     result = run_module(garbage_collection.main, dict(delete_tag=True))
-    if server.version == '2.14':
-        assert result['failed'] is True
-        assert '2.15' in result['msg']
-    else:
-        assert result['changed'] is True
-        assert server.calls('PUT', GC)[0]['body']['parameters']['delete_tag'] is True
+    assert result['changed'] is True
+    assert server.calls('PUT', GC)[0]['body']['parameters']['delete_tag'] is True
+
+
+def test_gc_delete_tag_is_refused_on_2_14(server, run_module):
+    reporting_2_14(server)
+    server.route('GET', GC, 'system_gc_schedule_custom')
+    result = run_module(garbage_collection.main, dict(delete_tag=True))
+    assert result['failed'] is True
+    assert '2.15' in result['msg']
+    assert server.calls('PUT') == []
 
 
 def test_gc_delete_tag_is_sent_when_the_version_cannot_be_read(server, run_module):
@@ -728,7 +741,7 @@ def test_scan_all_info(server, run_module):
 def test_empty_robot_name_prefix(server, run_module, prefix):
     server.route('GET', '/configurations', 'system_configurations')
     result = run_module(configuration.main, dict(settings=dict(robot_name_prefix=prefix)), check_mode=True)
-    if server.version in ('2.14', '2.15'):
+    if server.version == '2.15':
         # Taken there, so the module leaves it to Harbor.
         assert result['changed'] is True
     else:

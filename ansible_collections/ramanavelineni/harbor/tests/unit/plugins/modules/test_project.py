@@ -11,6 +11,14 @@ from ansible_collections.ramanavelineni.harbor.tests.unit.plugins.conftest impor
 GIB = 1024 ** 3
 
 
+def reporting_2_14(server):
+    """The recorded /systeminfo, hand-edited to an older Harbor: 2.14 is no longer recorded, but
+    the modules still refuse what it would ignore."""
+    info = server.response('systeminfo')
+    info['body']['harbor_version'] = 'v2.14.6-f435c950'
+    server.route('GET', '/systeminfo', info)
+
+
 def pid(server):
     return int(server.fixtures['project_create']['headers']['location'].rsplit('/', 1)[-1])
 
@@ -106,10 +114,15 @@ def test_metadata_validation(server, run_module):
 def test_newer_metadata_key_needs_2_15(server, run_module):
     creating(server)
     result = run_module(project.main, dict(name='fixtures-core', metadata=dict(proxy_cache_local_on_not_found=True)))
-    if server.version == '2.14':
-        assert result['failed'] is True and 'needs Harbor 2.15' in result['msg']
-    else:
-        assert result['changed'] is True
+    assert result['changed'] is True
+
+
+def test_newer_metadata_key_is_refused_on_2_14(server, run_module):
+    reporting_2_14(server)
+    creating(server)
+    result = run_module(project.main, dict(name='fixtures-core', metadata=dict(proxy_cache_local_on_not_found=True)))
+    assert result['failed'] is True and 'needs Harbor 2.15' in result['msg']
+    assert server.calls('POST') == []
 
 
 def test_negligible_severity_is_none(server, run_module):
