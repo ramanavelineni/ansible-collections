@@ -1,9 +1,9 @@
 ---
 # Applies Harbor's server-wide objects: the system settings, the schedules,
-# the registries, the replications and the system robot accounts, in that
-# order. Then the entries marked `state: absent` are deleted in the reverse
-# order (a replication before the registry it names). What the variables
-# don't mention is left alone.
+# the custom project roles, the registries, the replications and the system
+# robot accounts, in that order. Then the entries marked `state: absent` are
+# deleted in the reverse order (a replication before the registry it names,
+# a role last). What the variables don't mention is left alone.
 #
 # Every option of each module is passed through. The lists of those options
 # are in vars/main.yml; a key a module doesn't have fails before anything is
@@ -29,6 +29,7 @@
       scan_all: "{{ server_apply_scan_all | default({}, true) }}"
       log_rotation: "{{ server_apply_log_rotation | default({}, true) }}"
     __server_apply_keyed:
+      role: "{{ server_apply_roles | default({}, true) }}"
       registry: "{{ server_apply_registries | default({}, true) }}"
       replication: "{{ server_apply_replications | default({}, true) }}"
       robot_account: "{{ server_apply_robot_accounts | default({}, true) }}"
@@ -98,6 +99,20 @@
     dry_run: "{{ server_apply_log_rotation.dry_run | default(omit) }}"
   when: server_apply_log_rotation | default({}, true) | length > 0
   register: __server_apply_done_log_rotation
+
+# Custom project roles (Harbor 2.16). The project_apply role gives members
+# these roles by name, so they come before any project.
+- name: Roles
+  ramanavelineni.harbor.role:
+    name: "{{ item.key }}"
+    state: "{{ (item.value | default({}, true)).state | default(omit) }}"
+    description: "{{ (item.value | default({}, true)).description | default(omit) }}"
+    permissions: "{{ (item.value | default({}, true)).permissions | default(omit) }}"
+  loop: "{{ server_apply_roles | default({}, true) | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when: (item.value | default({}, true)).state | default('present') != 'absent'
+  register: __server_apply_done_roles
 
 - name: Registries
   ramanavelineni.harbor.registry:
@@ -209,6 +224,18 @@
        | selectattr('value.state', 'equalto', 'absent') | map(attribute='key') | list }}
   register: __server_apply_gone_registries
 
+# Harbor refuses while a project member or robot account still has the role;
+# the task then fails with Harbor's answer.
+- name: Delete roles
+  ramanavelineni.harbor.role:
+    name: "{{ item }}"
+    state: absent
+  loop: >-
+    {{ server_apply_roles | default({}, true) | dict2items
+       | selectattr('value', 'mapping') | selectattr('value.state', 'defined')
+       | selectattr('value.state', 'equalto', 'absent') | map(attribute='key') | list }}
+  register: __server_apply_gone_roles
+
 - name: Note what was done
   ansible.builtin.set_fact:
     server_apply_changed: >-
@@ -219,12 +246,14 @@
       - "{{ __server_apply_done_garbage_collection }}"
       - "{{ __server_apply_done_scan_all }}"
       - "{{ __server_apply_done_log_rotation }}"
+      - "{{ __server_apply_done_roles }}"
       - "{{ __server_apply_done_registries }}"
       - "{{ __server_apply_done_replications }}"
       - "{{ __server_apply_done_robot_accounts }}"
       - "{{ __server_apply_gone_robot_accounts }}"
       - "{{ __server_apply_gone_replications }}"
       - "{{ __server_apply_gone_registries }}"
+      - "{{ __server_apply_gone_roles }}"
 
 - name: Report drift
   ansible.builtin.fail:

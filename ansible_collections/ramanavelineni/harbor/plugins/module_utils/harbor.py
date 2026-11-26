@@ -499,6 +499,72 @@ def _name_of(table, value):
     return None
 
 
+# -- custom project roles (Harbor 2.16) ----------------------------------------
+
+# Harbor's names of the built-in roles, and the ones project_member takes.
+BUILT_IN_ROLE_NAMES = dict(projectAdmin='project_admin', developer='developer', guest='guest',
+                           maintainer='maintainer', limitedGuest='limited_guest')
+# A custom role's permissions are one entry of this kind for every project.
+ROLE_KIND = 'project-role'
+ROLES_NEED = (2, 16)
+
+
+def require_custom_roles(client, what='Custom project roles'):
+    """Fail on a Harbor before 2.16, which has no /roles."""
+    minor = server_minor(client)
+    if older_than(minor, ROLES_NEED):
+        raise ValueError('%s need Harbor %d.%d; this server reports %s.'
+                         % ((what,) + ROLES_NEED + (client.info().get('harbor_version'),)))
+
+
+def role_access(role):
+    """A role's permissions as the role module takes them: sorted {resource, action} pairs.
+
+    A built-in role's first entry has no resource (the project itself); it is
+    returned as an empty resource.
+    """
+    out = set()
+    for permission in role.get('permissions') or []:
+        for access in permission.get('access') or []:
+            out.add((access.get('resource') or '', access.get('action') or ''))
+    return [dict(resource=resource, action=action) for resource, action in sorted(out)]
+
+
+def role_view(role):
+    """A role as the role modules return it."""
+    builtin = bool(role.get('is_builtin'))
+    name = role.get('name')
+    return dict(
+        id=role.get('id'), name=name, description=role.get('description') or '', builtin=builtin,
+        member_role=BUILT_IN_ROLE_NAMES.get(name, name) if builtin else name,
+        permissions=role_access(role),
+    )
+
+
+def custom_roles(client):
+    """The custom roles, by name."""
+    return dict((r['name'], r) for r in client.list('/roles') if not r.get('is_builtin'))
+
+
+def member_role_id(client, name):
+    """The role id project_member sends for `name`: a built-in role's, or a custom role's (Harbor 2.16)."""
+    if name in MEMBER_ROLES:
+        return MEMBER_ROLES[name]
+    hint = ''
+    if name in BUILT_IN_ROLE_NAMES:
+        hint = ' %r is Harbor\'s name of a built-in role; this module calls it %r.' % (name, BUILT_IN_ROLE_NAMES[name])
+    if older_than(server_minor(client), ROLES_NEED):
+        raise ValueError('role %r is none of the built-in roles (%s), and custom roles need Harbor %d.%d; this '
+                         'server reports %s.%s' % ((name, ', '.join(sorted(MEMBER_ROLES))) + ROLES_NEED
+                                                   + (client.info().get('harbor_version'), hint)))
+    roles = custom_roles(client)
+    if name not in roles:
+        known = ', '.join(sorted(roles)) or 'none'
+        raise ValueError('Harbor has no custom role %r (custom roles: %s; built-in: %s). Create it first with '
+                         'ramanavelineni.harbor.role.%s' % (name, known, ', '.join(sorted(MEMBER_ROLES)), hint))
+    return roles[name]['id']
+
+
 def member_role_name(member):
     """The module's name for a member's role: a built-in role's, or a custom role's own name.
 

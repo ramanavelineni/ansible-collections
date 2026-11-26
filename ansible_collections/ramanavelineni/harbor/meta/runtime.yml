@@ -26,6 +26,8 @@ action_groups:
     - replication_info
     - robot_account
     - robot_account_info
+    - role
+    - role_info
     - scan_all
     - scan_all_info
     - tag_immutability

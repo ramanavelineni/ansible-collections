@@ -6,5 +6,3 @@ minor_changes:
     role's name in ``role``, instead of ``null``.
   - configuration - an empty or blank ``robot_name_prefix`` fails before anything is sent on Harbor 2.16, which
     refuses it, so check mode no longer predicts a change Harbor would refuse.
-  - project_export role - a member with a custom project role fails the export with the role's name, because the
-    project_member module cannot assign custom roles yet.

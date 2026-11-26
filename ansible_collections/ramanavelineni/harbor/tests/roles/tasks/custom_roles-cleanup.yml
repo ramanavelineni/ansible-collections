@@ -1,0 +1,34 @@
+---
+# Takes everything custom_roles.yml makes off the server: the project first
+# (its members go with it), then the role, which Harbor refuses to delete
+# while a member has it, then the user.
+
+- name: Delete the project of the role test
+  ramanavelineni.harbor.project:
+    name: "{{ roles_project }}"
+    state: absent
+    confirm_delete: true
+
+- name: Delete the custom role
+  ramanavelineni.harbor.role:
+    name: "{{ roles_role }}"
+    state: absent
+
+- name: Find the test user
+  ansible.builtin.uri:
+    url: "{{ roles_api }}/users?q=username%3D{{ roles_user }}&page=1&page_size=100"
+    url_username: "{{ roles_admin }}"
+    url_password: "{{ roles_password }}"
+    force_basic_auth: true
+  register: roles_found_users
+
+- name: Delete the test user
+  ansible.builtin.uri:
+    url: "{{ roles_api }}/users/{{ item.user_id }}"
+    method: DELETE
+    url_username: "{{ roles_admin }}"
+    url_password: "{{ roles_password }}"
+    force_basic_auth: true
+  loop: "{{ roles_found_users.json | default([], true) | selectattr('username', 'equalto', roles_user) | list }}"
+  loop_control:
+    label: "{{ item.username }}"

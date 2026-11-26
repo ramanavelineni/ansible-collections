@@ -659,6 +659,32 @@ the same in both apart from two error messages. The recorded answers
   has the custom role's name in `role_name`, which the modules return as
   `role`. A role id that is no role is answered 404 on 2.16 (`role 9 not
   found`), where 2.14 and 2.15 stored it.
+- `project_member` takes a custom role by name: built-in names first, then
+  the custom roles of `GET /roles`. 2.15 refuses another role id at create
+  (400 `Failed to update project member, role is not in 1,2,3`).
+
+### role, role_info (2.16)
+Facts from goharbor/harbor `v2.16.0` (`src/controller/role`,
+`src/server/v2.0/handler/role.go`), recorded in the `role` area.
+- `GET /roles` lists the five built-in roles (`is_builtin: true`, ids 1 to
+  5, Harbor's names `projectAdmin`, `maintainer`, `developer`, `guest`,
+  `limitedGuest`) and the custom ones (no `is_builtin`, ids from 6 on). Any
+  logged-in user may read it; writes need a system administrator. There is
+  no `q` filter (it answers an empty list), so the module reads the list.
+- A role's permissions are a list of `{kind: project-role, namespace: "*",
+  access: [{resource, action}]}`; `GET /permissions` lists under `role`
+  what a role may hold. 2.15 has no `/roles` (404).
+- `POST /roles` answers 201 with `{id, name, creation_time}` and `Location`.
+  A name that exists is 409, an unknown permission 400 (`bad request
+  permission: nope:pull`), an empty list 400 (`bad request empty
+  permission`), and so is an update without permissions. So the update
+  sends description and permissions every time; a left-out name keeps the
+  name.
+- A built-in role cannot change (403 `cannot modify built-in role 2`); the
+  module refuses those names, and project_member's names for them, first.
+- `DELETE` answers 412 while a member has the role (`cannot delete role 8:
+  it is still assigned to 1 project member(s)`). The module passes that on
+  and does not look for the members itself.
 ---
 
 ## Testing

@@ -34,6 +34,7 @@ FILLED_IN = dict(
     garbage_collection=(),
     scan_all=(),
     log_rotation=(),
+    role=('name',),
     registry=('name',),
     replication=('name',),
     robot_account=('name', 'level', 'project'),
@@ -46,7 +47,7 @@ SINGLE = dict(
     log_rotation='server_apply_log_rotation',
 )
 # The modules whose entries are keyed by name, in the order they are created.
-KEYED = ['registry', 'replication', 'robot_account']
+KEYED = ['role', 'registry', 'replication', 'robot_account']
 # The modules whose options hold secrets.
 WITH_SECRETS = ['configuration', 'registry', 'robot_account']
 

@@ -105,7 +105,8 @@ Run it with `--check --diff` first to see what would change.
 |---|---|---|
 | Server | | `info`: version, tested flag |
 | Projects | `project`: visibility, metadata, proxy cache, quota | `project_info` |
-| Project members | `project_member`: users and OIDC, LDAP or HTTP groups, with a role | `project_member_info` |
+| Project members | `project_member`: users and OIDC, LDAP or HTTP groups, with a built-in or custom role | `project_member_info` |
+| Project roles | `role`: custom project roles (Harbor 2.16) | `role_info` |
 | Robot accounts | `robot_account`: system or project level | `robot_account_info` |
 | Registries (endpoints) | `registry` | `registry_info` |
 | Replication rules | `replication`: pull or push, trigger, filters | `replication_info` |
@@ -123,7 +124,7 @@ Full documentation for each: `ansible-doc ramanavelineni.harbor.<module>`.
 
 | Role | |
 |---|---|
-| `server_apply` | Applies the server-wide objects: system settings, the garbage collection, Scan All and audit log rotation schedules, registries, replication rules and system robot accounts |
+| `server_apply` | Applies the server-wide objects: system settings, the garbage collection, Scan All and audit log rotation schedules, custom project roles, registries, replication rules and system robot accounts |
 | `project_apply` | Applies a directory of project descriptions: each project a YAML file, or a directory of them, with its robot accounts, members, tag retention, tag immutability rules and webhooks |
 | `project_export` | Writes a project on the server out as a description that `project_apply` can apply, with its secrets in a separate vault file |
 

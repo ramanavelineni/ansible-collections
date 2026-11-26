@@ -1,0 +1,7 @@
+---
+# A project whose member has the custom role custom_roles.yml makes first.
+name: roletest-roles
+public: false
+project_member:
+  - user: roletest-roles-user
+    role: roletest-roles-ci

@@ -26,6 +26,10 @@ __server_apply_options:
     - audit_retention_hour
     - include_event_types
     - dry_run
+  role:
+    - state
+    - description
+    - permissions
   registry:
     - state
     - type

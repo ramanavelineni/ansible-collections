@@ -15,6 +15,8 @@ plugins/modules/replication.py validate-modules:missing-gplv3-license # Apache-2
 plugins/modules/replication_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/robot_account.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/robot_account_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/role.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
+plugins/modules/role_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/scan_all.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/scan_all_info.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE
 plugins/modules/tag_immutability.py validate-modules:missing-gplv3-license # Apache-2.0 collection, see LICENSE

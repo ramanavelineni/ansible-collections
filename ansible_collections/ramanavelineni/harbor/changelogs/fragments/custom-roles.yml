@@ -1,0 +1,9 @@
+---
+minor_changes:
+  - project_member - ``role`` takes the name of a custom project role (Harbor 2.16) as well as the five built-in
+    roles. It no longer has a fixed list of choices; a name that is neither fails, naming the custom roles Harbor
+    has, and on an older Harbor it fails because custom roles need 2.16.
+  - server_apply role - new variable ``server_apply_roles`` for custom project roles (Harbor 2.16), keyed by name
+    with the options of the new ``role`` module. They are made before the registries and deleted after them.
+  - project_export role - a member with a custom project role is exported with the role's name, which
+    project_apply gives back through project_member.

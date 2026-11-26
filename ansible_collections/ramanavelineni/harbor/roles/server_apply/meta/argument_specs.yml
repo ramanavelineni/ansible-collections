@@ -8,9 +8,9 @@ argument_specs:
       - Each variable takes the options of the module of the same name. The system settings and the three
         schedules are one dictionary each; an empty one is not managed. Registries, replications and robot
         accounts are dictionaries keyed by name.
-      - The order is the system settings, the schedules, the registries, the replications (they name
-        registries) and the robot accounts. Then the entries marked C(state=absent) are deleted in the reverse
-        order. What the variables do not mention is left alone.
+      - The order is the system settings, the schedules, the custom project roles, the registries, the
+        replications (they name registries) and the robot accounts. Then the entries marked C(state=absent) are
+        deleted in the reverse order. What the variables do not mention is left alone.
       - An option a module does not have fails before anything is changed.
       - The robot accounts are system robot accounts. A project robot account belongs to its project.
       - A new robot account without a declared secret gets one from Harbor. It is shown once, in the output of
@@ -47,6 +47,13 @@ argument_specs:
         description:
           - The audit log rotation schedule, with the options of the M(ramanavelineni.harbor.log_rotation) module.
           - Empty means the schedule is not managed.
+        type: dict
+        default: {}
+      server_apply_roles:
+        description:
+          - Custom project roles (Harbor 2.16), keyed by name. Project members get them by name, with
+            M(ramanavelineni.harbor.project_member) or the project_apply role.
+          - The options of an entry are those of the M(ramanavelineni.harbor.role) module, without C(name).
         type: dict
         default: {}
       server_apply_registries:
