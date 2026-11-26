@@ -203,8 +203,8 @@ it writes adjusted for rootless podman (the script says what is adjusted and
 why).
 
 ```sh
-tools/harbor_up.sh up v2.15.4 8015      # then: user admin, password in ~/harbor-lab/v2.15.4/admin_password
-tools/harbor_up.sh down v2.15.4         # stops it and removes ~/harbor-lab/v2.15.4
+tools/harbor_up.sh up v2.15.5 8015      # then: user admin, password in ~/harbor-lab/v2.15.5/admin_password
+tools/harbor_up.sh down v2.15.5         # stops it and removes ~/harbor-lab/v2.15.5
 ```
 
 Run it where the containers run. With a podman machine (macOS) that is inside
@@ -212,10 +212,10 @@ the machine; the published port is reachable on the host, so the recorder
 still runs on the host:
 
 ```sh
-podman machine ssh 'bash -s -- up v2.15.4 8015' < tools/harbor_up.sh
-HARBOR_PASSWORD="$(podman machine ssh cat harbor-lab/v2.15.4/admin_password)" \
+podman machine ssh 'bash -s -- up v2.15.5 8015' < tools/harbor_up.sh
+HARBOR_PASSWORD="$(podman machine ssh cat harbor-lab/v2.15.5/admin_password)" \
     tools/record_harbor_fixtures.py http://127.0.0.1:8015
-podman machine ssh 'bash -s -- down v2.15.4' < tools/harbor_up.sh
+podman machine ssh 'bash -s -- down v2.15.5' < tools/harbor_up.sh
 ```
 
 It needs podman or docker and a compose command (`podman compose` with a
@@ -226,14 +226,22 @@ the docker CLI image against podman's API socket.
 The compose project is named after the version, so one Harbor per version:
 `up` refuses when containers of that project exist already.
 
+A Harbor release without arm64 images (2.15 and older) runs emulated on an
+arm64 machine, such as a podman machine on Apple silicon. Pull its images for
+amd64 first, so that `prepare` and compose find them:
+
+```sh
+podman machine ssh 'for i in prepare harbor-log registry-photon harbor-registryctl harbor-db harbor-core harbor-portal harbor-jobservice valkey-photon nginx-photon; do podman pull --arch amd64 docker.io/goharbor/$i:v2.15.5; done'
+```
+
 **What it was checked with.** The two edits the script makes itself are tested
 by `make tools-test`: its `harbor.yml`, and its compose file, which for 2.14.6
-and 2.15.4 equals the compose file of the servers the fixtures were recorded
+and 2.15.5 equals the compose file of the servers the fixtures were recorded
 from. `up` and `down` were run in a podman machine on macOS with Harbor
-v2.14.6 and v2.15.4, and the harbor live suite passed against both servers,
-including the registry endpoint at `http://proxy:8080`. Not run so far: docker as the
-engine, a compose command installed on the machine, and Linux without a
-podman machine.
+v2.14.6, v2.15.4 and v2.15.5 (on Apple silicon, emulated), and the
+harbor live suite passed against each server, including the registry endpoint
+at `http://proxy:8080`. Not run so far: docker as the engine, a compose command
+installed on the machine, and Linux without a podman machine.
 
 ### Recording
 

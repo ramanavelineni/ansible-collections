@@ -336,3 +336,102 @@ def test_update_check_mode_predicts_the_real_result(server, project, run_module)
     check = run_module(webhook.main, args, check_mode=True)
     assert check['webhook'] == real['webhook']
     assert check['diff'] == real['diff']
+
+
+# -- the address is compared the way Harbor reads it ---------------------------
+
+# What the recorder sent for webhook mixed-case (built from parts: it holds
+# a dummy password). Harbor 2.15.5 stores http://localhost:9/Hook for it;
+# 2.14.6 and 2.16.0 store it as sent.
+DUMMY_PASSWORD = 'not-a-real-pass'
+MIXED_SENT = 'http://hook-user:' + DUMMY_PASSWORD + '@LocalHost:9/Hook/'
+MIXED = dict(HOOK, name='mixed-case', address=MIXED_SENT, skip_cert_verify=False, payload_format='Default',
+             enabled=True)
+
+
+def mixed(server, project):
+    server.route('GET', project, 'webhook_list_mixed')
+    return server.fixtures['webhook_get_mixed']['body']['targets'][0]['address']
+
+
+def with_userinfo(address, userinfo):
+    scheme, rest = address.split('://', 1)
+    return '%s://%s@%s' % (scheme, userinfo, rest)
+
+
+@pytest.mark.parametrize('address, expected', [
+    ('http://LocalHost:9/Hook/', 'http://localhost:9/Hook'),
+    ('https://CI.Example.com:8443/a/B?Token=X', 'https://ci.example.com:8443/a/B?Token=X'),
+    (with_userinfo('http://Example.com/hook', 'u:' + DUMMY_PASSWORD), 'http://example.com/hook'),
+    ('ci.example.com/hook', 'http://ci.example.com/hook'),
+    ('HTTP://example.com', 'http://example.com'),
+    ('http://example.com?x=1', 'http://example.com?x=1'),
+    (' http://example.com/hook// ', 'http://example.com/hook'),
+    ('', ''),
+    (None, ''),
+])
+def test_normalized_address(address, expected):
+    assert webhook.normalized_address(address) == expected
+
+
+def test_userinfo_counts_only_where_harbor_stored_it():
+    one = with_userinfo('http://example.com/hook', 'u:' + DUMMY_PASSWORD)
+    other = with_userinfo('http://example.com/hook', 'v:' + DUMMY_PASSWORD)
+    assert webhook.same_address(with_userinfo('http://Example.com/hook/', 'u:' + DUMMY_PASSWORD),
+                                'http://example.com/hook')
+    assert webhook.same_address(one, one)
+    assert not webhook.same_address('http://example.com/hook', one)
+    assert not webhook.same_address(other, one)
+    assert not webhook.same_address('http://example.com/other', 'http://example.com/hook')
+
+
+def test_recorded_address_is_stored_as_sent_or_normalized(server, project):
+    assert mixed(server, project) in (MIXED_SENT, 'http://localhost:9/Hook')
+
+
+def test_address_as_sent_is_no_change(server, project, run_module):
+    mixed(server, project)
+    result = run_module(webhook.main, MIXED)
+    assert result['changed'] is False
+    assert server.calls('PUT') == []
+    # The user and password are named in the warning, never repeated there.
+    assert 'user name or password' in str(result['warnings'])
+    assert DUMMY_PASSWORD not in str(result['warnings'])
+
+
+@pytest.mark.parametrize('address', [with_userinfo('http://localhost:9/Hook', 'hook-user:' + DUMMY_PASSWORD),
+                                     with_userinfo('http://LOCALHOST:9/Hook///', 'hook-user:' + DUMMY_PASSWORD)])
+def test_host_case_and_slash_are_no_change(server, project, run_module, address):
+    mixed(server, project)
+    result = run_module(webhook.main, dict(MIXED, address=address), check_mode=True)
+    assert result['changed'] is False
+
+
+def test_address_without_userinfo(server, project, run_module):
+    # No change where Harbor dropped the user and password (2.15.5); a change
+    # where it stored them and still sends them (2.14.6, 2.16.0).
+    stored_address = mixed(server, project)
+    result = run_module(webhook.main, dict(MIXED, address='http://localhost:9/Hook'), check_mode=True)
+    assert result['changed'] is ('@' in stored_address)
+    assert not result.get('warnings')
+
+
+def test_path_case_counts(server, project, run_module):
+    mixed(server, project)
+    result = run_module(webhook.main, dict(MIXED, address='http://localhost:9/hook'), check_mode=True)
+    assert result['changed'] is True
+    assert result['webhook']['address'] == 'http://localhost:9/hook'
+    assert not result.get('warnings')
+
+
+def test_normalized_read_back_is_not_reported_as_stored_differently(server, project, run_module):
+    # Hand-edited answer: the recorded webhook after the update, with the
+    # address as Harbor 2.15.5 stores the one sent.
+    server.route('GET', project, 'webhook_list_one')
+    updating(server, project, stored(server, target=dict(address='http://ci.example.com/hooks')))
+    result = run_module(webhook.main, dict(project='fixtures-webhook', name='ci-notify', enabled=False,
+                                           address='http://CI.example.com/hooks/'))
+    assert result['changed'] is True
+    assert server.calls('PUT')[0]['body']['targets'][0]['address'] == 'http://CI.example.com/hooks/'
+    assert result['webhook']['address'] == 'http://ci.example.com/hooks'
+    assert not result.get('warnings')

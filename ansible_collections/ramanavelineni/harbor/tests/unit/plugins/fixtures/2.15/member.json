@@ -1,5 +1,5 @@
 {
-  "recorded_from": "v2.15.4-d8841742",
+  "recorded_from": "v2.15.5-8c17ef6e",
   "responses": {
     "member_configurations": {
       "body": {
@@ -14,7 +14,7 @@
     "member_create_group": {
       "body": null,
       "headers": {
-        "location": "/api/v2.0/projects/30/members/44"
+        "location": "/api/v2.0/projects/5/members/6"
       },
       "status": 201
     },
@@ -45,7 +45,7 @@
     "member_create_user": {
       "body": null,
       "headers": {
-        "location": "/api/v2.0/projects/30/members/43"
+        "location": "/api/v2.0/projects/5/members/5"
       },
       "status": 201
     },
@@ -76,8 +76,8 @@
         "entity_id": 1,
         "entity_name": "fixtures-member-group",
         "entity_type": "g",
-        "id": 44,
-        "project_id": 30,
+        "id": 6,
+        "project_id": 5,
         "role_id": 3,
         "role_name": "guest"
       },
@@ -86,11 +86,11 @@
     },
     "member_get_updated": {
       "body": {
-        "entity_id": 16,
+        "entity_id": 3,
         "entity_name": "fixtures-member-user",
         "entity_type": "u",
-        "id": 43,
-        "project_id": 30,
+        "id": 5,
+        "project_id": 5,
         "role_id": 4,
         "role_name": "maintainer"
       },
@@ -99,11 +99,11 @@
     },
     "member_get_user": {
       "body": {
-        "entity_id": 16,
+        "entity_id": 3,
         "entity_name": "fixtures-member-user",
         "entity_type": "u",
-        "id": 43,
-        "project_id": 30,
+        "id": 5,
+        "project_id": 5,
         "role_id": 2,
         "role_name": "developer"
       },
@@ -116,8 +116,8 @@
           "entity_id": 1,
           "entity_name": "admin",
           "entity_type": "u",
-          "id": 42,
-          "project_id": 30,
+          "id": 4,
+          "project_id": 5,
           "role_id": 1,
           "role_name": "projectAdmin"
         },
@@ -125,8 +125,8 @@
           "entity_id": 1,
           "entity_name": "fixtures-member-group",
           "entity_type": "g",
-          "id": 44,
-          "project_id": 30,
+          "id": 6,
+          "project_id": 5,
           "role_id": 3,
           "role_name": "guest"
         }
@@ -142,8 +142,8 @@
           "entity_id": 1,
           "entity_name": "admin",
           "entity_type": "u",
-          "id": 42,
-          "project_id": 30,
+          "id": 4,
+          "project_id": 5,
           "role_id": 1,
           "role_name": "projectAdmin"
         },
@@ -151,17 +151,17 @@
           "entity_id": 1,
           "entity_name": "fixtures-member-group",
           "entity_type": "g",
-          "id": 44,
-          "project_id": 30,
+          "id": 6,
+          "project_id": 5,
           "role_id": 3,
           "role_name": "guest"
         },
         {
-          "entity_id": 16,
+          "entity_id": 3,
           "entity_name": "fixtures-member-user",
           "entity_type": "u",
-          "id": 43,
-          "project_id": 30,
+          "id": 5,
+          "project_id": 5,
           "role_id": 2,
           "role_name": "developer"
         }
@@ -177,8 +177,8 @@
           "entity_id": 1,
           "entity_name": "admin",
           "entity_type": "u",
-          "id": 42,
-          "project_id": 30,
+          "id": 4,
+          "project_id": 5,
           "role_id": 1,
           "role_name": "projectAdmin"
         }
@@ -191,16 +191,16 @@
     "member_projects": {
       "body": [
         {
-          "creation_time": "2026-11-09T06:18:35.653Z",
+          "creation_time": "2026-11-26T04:49:29.449Z",
           "current_user_role_id": 1,
           "current_user_role_ids": [
             1
           ],
           "cve_allowlist": {
             "creation_time": "0001-01-01T00:00:00.000Z",
-            "id": 29,
+            "id": 4,
             "items": [],
-            "project_id": 30,
+            "project_id": 5,
             "update_time": "0001-01-01T00:00:00.000Z"
           },
           "metadata": {
@@ -209,9 +209,9 @@
           "name": "fixtures-member",
           "owner_id": 1,
           "owner_name": "admin",
-          "project_id": 30,
+          "project_id": 5,
           "repo_count": 0,
-          "update_time": "2026-11-09T06:18:35.653Z"
+          "update_time": "2026-11-26T04:49:29.449Z"
         }
       ],
       "headers": {

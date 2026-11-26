@@ -372,6 +372,16 @@ def record_webhook(srv, out):
     out['webhook_update'] = expect(srv.call('PUT', '%s/%d' % (base, wid), dict(policy, enabled=False)), 200,
                                    'update webhook')
     out['webhook_get_updated'] = expect(srv.call('GET', '%s/%d' % (base, wid)), 200, 'webhook')
+    # How the address is stored: as sent (2.14.6, 2.16.0), or with the host
+    # lowercased, the trailing slash and the user and password dropped (2.15.5).
+    mixed = dict(policy, name='mixed-case', targets=[dict(
+        policy['targets'][0], address='http://hook-user:not-a-real-pass@LocalHost:9/Hook/')])
+    created = expect(srv.call('POST', base, mixed), 201, 'create webhook with a mixed-case address')
+    out['webhook_create_mixed'] = created
+    mixed_id = project_id_of(created)
+    out['webhook_get_mixed'] = expect(srv.call('GET', '%s/%d' % (base, mixed_id)), 200, 'webhook')
+    out['webhook_list_mixed'] = expect(srv.call('GET', base + '?page=1&page_size=100'), 200, 'webhooks')
+    expect(srv.call('DELETE', '%s/%d' % (base, mixed_id)), 200, 'delete webhook with a mixed-case address')
     two = dict(policy, targets=policy['targets'] + [{'type': 'slack', 'address': 'http://127.0.0.1:9/slack'}])
     expect(srv.call('PUT', '%s/%d' % (base, wid), two), 200, 'update webhook to two targets')
     out['webhook_list_two_targets'] = expect(srv.call('GET', base + '?page=1&page_size=100'), 200, 'webhooks')

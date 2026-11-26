@@ -556,6 +556,13 @@ or an OIDC user's CLI secret.
 - Reads leave out `skip_cert_verify: false` and the default payload format,
   so targets are compared with those filled in. Slack targets take no payload
   format. Duplicate names get 409.
+- Harbor reads an address with `utils.ParseEndpoint`: spaces and trailing
+  slashes trimmed, `http://` added without a scheme, the host lowercased.
+  2.15.5 also stores that form, without a user and password
+  (`normalizeTargetAddress`, a fix for GHSA-2phj-cp9f-qq6w); 2.15.4 and 2.16.0
+  build it on a copy and store the address as sent. Recorded as webhook
+  `mixed-case`. So addresses are compared in that form, a user and password
+  only where Harbor kept them, and the module warns about one.
 
 ### tag_retention
 - At most one policy per project, linked by the project metadata
@@ -649,7 +656,7 @@ the same in both apart from two error messages. The recorded answers
   installer, checked against a pinned SHA-256. Until the harbor roles exist,
   harbor's `modules.yml` runs the modules they'll be built on.
 - Unit tests replay API responses recorded from throwaway local servers:
-  Semaphore UI 2.18.31 and 2.19.17, Harbor 2.14.6 and 2.15.4. Each quirk above
+  Semaphore UI 2.18.31 and 2.19.17, Harbor 2.14.6 and 2.15.5. Each quirk above
   has at least one test. The recorders live in `tools/`, one area at a time.
   They refuse a server that isn't on a loopback address unless
   `--allow-remote` is passed, keep only their own objects from listings, and

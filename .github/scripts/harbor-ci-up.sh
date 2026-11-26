@@ -20,7 +20,7 @@ downloads="${2:?usage: harbor-ci-up.sh <version> <download directory>}"
 
 case "${version}" in
   v2.14.6) sha256=f3adaff30c4531c58f9d6ee8c5164f95f08582651c12b698b92be9e98df55cf6 ;;
-  v2.15.4) sha256=ec4152a644cedc627c747b84e91ba0f44c1d44576b43b8d1f73e2e51b3b5ccfc ;;
+  v2.15.5) sha256=18f9d4c47ad603743591e814b6c32136532ba7670132a94f4d9661f0fe46882c ;;
   *) echo "harbor-ci-up: no pinned SHA-256 for Harbor ${version}; add it to this script" >&2; exit 1 ;;
 esac
 
